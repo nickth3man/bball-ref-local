@@ -15,6 +15,7 @@ def clean_column_names(columns):
     cleaned = []
     for col in columns:
         name = str(col).lower().strip()
+        name = name.replace("+/-", "plus_minus")
         name = name.replace("%", "_pct")
         name = name.replace("/", "_per_")
         name = name.replace("-", "_")

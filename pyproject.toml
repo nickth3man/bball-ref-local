@@ -21,6 +21,7 @@ dev = [
     "pandas-stubs>=2.3.3.260113",
     "pyarrow-stubs>=20.0.0.20251215",
     "pytest>=9.0.2",
+    "pytest-cov>=4.1.0",
     "ruff>=0.14.14",
     "ty>=0.0.0",
     "types-requests>=2.32.4.20260107",
