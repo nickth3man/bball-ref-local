@@ -70,5 +70,10 @@ class Team(BaseModel):
 
     @property
     def display_name(self) -> str:
-        """Return formatted team name (City Nickname)."""
+        """
+        Formatted team display name combining city and nickname.
+        
+        Returns:
+            display_name (str): The team's name in the form "City Nickname".
+        """
         return f"{self.city} {self.nickname}"
