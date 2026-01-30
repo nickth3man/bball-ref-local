@@ -47,9 +47,9 @@ def run_etl_pipeline(
     batch_size: int = 1000,
 ) -> dict[str, Any]:
     """Run the complete ETL pipeline in order.
-    
+
     Order: teams → players → games → stats
-    
+
     Args:
         season: Season string (e.g., '2024-25'). Uses current season if None.
         season_type: Type of season ('Regular Season' or 'Playoffs').
@@ -58,7 +58,7 @@ def run_etl_pipeline(
         skip_games: Skip games ETL.
         skip_stats: Skip stats ETL.
         batch_size: Batch size for stats inserts.
-        
+
     Returns:
         Dictionary with ETL results for each step.
     """
@@ -72,7 +72,7 @@ def run_etl_pipeline(
         "status": "success",
         "errors": [],
     }
-    
+
     # Step 1: Teams ETL
     if not skip_teams:
         logger.info("=" * 50)
@@ -82,7 +82,7 @@ def run_etl_pipeline(
             teams_result = run_teams_etl()
             results["steps"]["teams"] = teams_result
             results["total_loaded"] += teams_result.get("loaded", 0)
-            
+
             if teams_result["status"] != "success":
                 results["errors"].append(f"Teams ETL failed: {teams_result.get('error')}")
                 logger.error("Teams ETL failed, continuing with next steps...")
@@ -94,7 +94,7 @@ def run_etl_pipeline(
     else:
         logger.info("Skipping teams ETL")
         results["steps"]["teams"] = {"status": "skipped"}
-    
+
     # Step 2: Players ETL
     if not skip_players:
         logger.info("=" * 50)
@@ -104,7 +104,7 @@ def run_etl_pipeline(
             players_result = run_players_etl(active_only=True)
             results["steps"]["players"] = players_result
             results["total_loaded"] += players_result.get("loaded", 0)
-            
+
             if players_result["status"] != "success":
                 results["errors"].append(f"Players ETL failed: {players_result.get('error')}")
                 logger.error("Players ETL failed, continuing with next steps...")
@@ -116,7 +116,7 @@ def run_etl_pipeline(
     else:
         logger.info("Skipping players ETL")
         results["steps"]["players"] = {"status": "skipped"}
-    
+
     # Step 3: Games ETL
     if not skip_games:
         logger.info("=" * 50)
@@ -126,7 +126,7 @@ def run_etl_pipeline(
             games_result = run_games_etl(season=season, season_type=season_type)
             results["steps"]["games"] = games_result
             results["total_loaded"] += games_result.get("loaded", 0)
-            
+
             if games_result["status"] != "success":
                 results["errors"].append(f"Games ETL failed: {games_result.get('error')}")
                 logger.error("Games ETL failed, continuing with next steps...")
@@ -138,7 +138,7 @@ def run_etl_pipeline(
     else:
         logger.info("Skipping games ETL")
         results["steps"]["games"] = {"status": "skipped"}
-    
+
     # Step 4: Stats ETL
     if not skip_stats:
         logger.info("=" * 50)
@@ -146,13 +146,11 @@ def run_etl_pipeline(
         logger.info("=" * 50)
         try:
             stats_result = run_stats_etl(
-                season=season,
-                season_type=season_type,
-                batch_size=batch_size
+                season=season, season_type=season_type, batch_size=batch_size
             )
             results["steps"]["stats"] = stats_result
             results["total_loaded"] += stats_result.get("loaded", 0)
-            
+
             if stats_result["status"] != "success":
                 results["errors"].append(f"Stats ETL failed: {stats_result.get('error')}")
                 logger.error("Stats ETL failed")
@@ -164,17 +162,17 @@ def run_etl_pipeline(
     else:
         logger.info("Skipping stats ETL")
         results["steps"]["stats"] = {"status": "skipped"}
-    
+
     # Calculate duration
-    end_time = datetime.now()
+    end_time = datetime.now(timezone.utc)
     duration = (end_time - start_time).total_seconds()
     results["end_time"] = end_time.isoformat()
     results["duration_seconds"] = duration
-    
+
     # Update overall status
     if results["errors"]:
         results["status"] = "completed_with_errors"
-    
+
     # Update metadata
     try:
         set_app_metadata("last_etl_run", end_time.isoformat())
@@ -184,13 +182,13 @@ def run_etl_pipeline(
         logger.warning(f"Failed to update metadata: {e}")
     finally:
         close_db_connection()
-    
+
     return results
 
 
 def print_summary(results: dict[str, Any]) -> None:
     """Print ETL execution summary.
-    
+
     Args:
         results: ETL results dictionary.
     """
@@ -202,26 +200,26 @@ def print_summary(results: dict[str, Any]) -> None:
     logger.info(f"Status: {results.get('status', 'unknown')}")
     logger.info(f"Duration: {results.get('duration_seconds', 0):.2f} seconds")
     logger.info("")
-    
+
     # Print each step
     for step_name, step_result in results.get("steps", {}).items():
         status = step_result.get("status", "unknown")
         extracted = step_result.get("extracted", 0)
         loaded = step_result.get("loaded", 0)
-        
+
         status_icon = "✓" if status == "success" else "✗" if status == "failed" else "○"
         logger.info(f"{status_icon} {step_name.upper()}: {status}")
-        
+
         if status == "success":
             logger.info(f"  Extracted: {extracted:,}")
             logger.info(f"  Loaded: {loaded:,}")
         elif status == "failed":
             error = step_result.get("error", "Unknown error")
             logger.info(f"  Error: {error}")
-    
+
     logger.info("")
     logger.info(f"Total records loaded: {results.get('total_loaded', 0):,}")
-    
+
     if results.get("errors"):
         logger.info("")
         logger.info("ERRORS:")
@@ -231,7 +229,7 @@ def print_summary(results: dict[str, Any]) -> None:
 
 def main() -> int:
     """Main entry point for the ETL orchestrator.
-    
+
     Returns:
         Exit code (0 for success, 1 for failure).
     """
@@ -245,66 +243,49 @@ Examples:
   python scripts/run_all_etl.py --season-type Playoffs
   python scripts/run_all_etl.py --skip-teams --skip-players
   python scripts/run_all_etl.py --batch-size 500
-        """
+        """,
     )
-    
+
     parser.add_argument(
-        "--season", "-s",
+        "--season",
+        "-s",
         type=str,
         default=None,
-        help="Season string (e.g., '2024-25'). Uses current season if not specified."
+        help="Season string (e.g., '2024-25'). Uses current season if not specified.",
     )
     parser.add_argument(
-        "--season-type", "-t",
+        "--season-type",
+        "-t",
         type=str,
         choices=["Regular Season", "Playoffs"],
         default="Regular Season",
-        help="Type of season (default: Regular Season)"
+        help="Type of season (default: Regular Season)",
     )
+    parser.add_argument("--skip-teams", action="store_true", help="Skip teams ETL")
+    parser.add_argument("--skip-players", action="store_true", help="Skip players ETL")
+    parser.add_argument("--skip-games", action="store_true", help="Skip games ETL")
+    parser.add_argument("--skip-stats", action="store_true", help="Skip player stats ETL")
     parser.add_argument(
-        "--skip-teams",
-        action="store_true",
-        help="Skip teams ETL"
-    )
-    parser.add_argument(
-        "--skip-players",
-        action="store_true",
-        help="Skip players ETL"
-    )
-    parser.add_argument(
-        "--skip-games",
-        action="store_true",
-        help="Skip games ETL"
-    )
-    parser.add_argument(
-        "--skip-stats",
-        action="store_true",
-        help="Skip player stats ETL"
-    )
-    parser.add_argument(
-        "--batch-size", "-b",
+        "--batch-size",
+        "-b",
         type=int,
         default=1000,
-        help="Batch size for stats inserts (default: 1000)"
+        help="Batch size for stats inserts (default: 1000)",
     )
-    parser.add_argument(
-        "--verbose", "-v",
-        action="store_true",
-        help="Enable verbose logging"
-    )
-    
+    parser.add_argument("--verbose", "-v", action="store_true", help="Enable verbose logging")
+
     args = parser.parse_args()
-    
+
     if args.verbose:
         logging.getLogger().setLevel(logging.DEBUG)
-    
+
     # Validate that not all steps are skipped
     if all([args.skip_teams, args.skip_players, args.skip_games, args.skip_stats]):
         logger.error("Error: Cannot skip all ETL steps")
         return 1
-    
+
     logger.info("Starting NBA data ETL pipeline...")
-    
+
     # Run the pipeline
     results = run_etl_pipeline(
         season=args.season,
@@ -315,10 +296,10 @@ Examples:
         skip_stats=args.skip_stats,
         batch_size=args.batch_size,
     )
-    
+
     # Print summary
     print_summary(results)
-    
+
     # Return appropriate exit code
     if results["status"] == "success":
         logger.info("ETL pipeline completed successfully")
