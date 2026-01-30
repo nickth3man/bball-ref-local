@@ -8,69 +8,35 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import AsyncGenerator
 
-import duckdb
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-# Database path
-DATA_DIR = Path(__file__).parent.parent / "data"
-DATA_DIR.mkdir(exist_ok=True)
-DB_PATH = DATA_DIR / "bball_ref.db"
-
-
-class DatabaseConnection:
-    """Manages DuckDB connection."""
-
-    def __init__(self) -> None:
-        self.conn: duckdb.DuckDBPyConnection | None = None
-
-    def connect(self) -> duckdb.DuckDBPyConnection:
-        """Establish database connection."""
-        self.conn = duckdb.connect(str(DB_PATH))
-        return self.conn
-
-    def close(self) -> None:
-        """Close database connection."""
-        if self.conn:
-            self.conn.close()
-            self.conn = None
-
-
-# Global database instance
-db = DatabaseConnection()
+from app.services.database import (
+    close_db_connection,
+    get_db_connection,
+    init_db,
+    set_app_metadata,
+)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    """
-    Lifespan context manager for FastAPI application.
+    """Lifespan context manager for FastAPI application.
     
     Handles startup and shutdown events, including DuckDB connection management.
     """
-    # Startup: Connect to database
-    conn = db.connect()
-    
-    # Create essential tables if they don't exist
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS app_metadata (
-            key VARCHAR PRIMARY KEY,
-            value VARCHAR,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
+    # Startup: Initialize database and create tables
+    init_db()
     
     # Set app version
-    conn.execute("""
-        INSERT OR REPLACE INTO app_metadata (key, value)
-        VALUES ('version', '0.1.0')
-    """)
+    set_app_metadata("version", "0.1.0")
     
     yield
     
     # Shutdown: Close database connection
-    db.close()
+    close_db_connection()
 
 
 # Create FastAPI app with lifespan
@@ -99,19 +65,16 @@ async def root(request: Request) -> HTMLResponse:
 
 @app.get("/health")
 async def health_check() -> dict[str, str | bool]:
-    """
-    Health check endpoint.
+    """Health check endpoint.
     
     Returns:
         Status information about the application and database connection.
     """
     try:
         # Test database connection
-        if db.conn:
-            db.conn.execute("SELECT 1")
-            db_status = "connected"
-        else:
-            db_status = "disconnected"
+        conn = get_db_connection()
+        conn.execute("SELECT 1")
+        db_status = "connected"
     except Exception as e:
         db_status = f"error: {str(e)}"
     
