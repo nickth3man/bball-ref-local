@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+
+{% block title %}Players - BBall Ref Local{% endblock %}
+
+{% block content %}
+<div class="flex h-[calc(100vh-200px)]">
+  <!-- Left Sidebar (40%) -->
+  <div class="w-2/5 overflow-y-auto border-r border-gray-200 dark:border-gray-700 pr-4">
+    <!-- Header -->
+    <div class="mb-6">
+      <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+        <i class="ph ph-users mr-2 text-bball-orange"></i>
+        Players
+      </h1>
+      <p class="text-sm text-gray-500 dark:text-gray-400">Browse and search players</p>
+    </div>
+
+    <!-- Search & Filters -->
+    <div class="space-y-4 mb-6">
+      <!-- Search Bar -->
+      <div class="relative">
+        <i class="ph ph-magnifying-glass absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+        <input type="text" 
+               name="search" 
+               id="player-search"
+               placeholder="Search players..." 
+               class="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-bball-gray text-gray-900 dark:text-white focus:ring-2 focus:ring-bball-orange focus:border-transparent transition-all"
+               hx-get="/api/v1/players" 
+               hx-target="#player-list"
+               hx-trigger="keyup changed delay:300ms, search"
+               hx-indicator="#search-indicator"
+               hx-include="[name='position'],[name='team_id']">
+        <div id="search-indicator" class="htmx-indicator absolute right-3 top-1/2 transform -translate-y-1/2">
+          <div class="htmx-loading w-4 h-4 border-2"></div>
+        </div>
+      </div>
+
+      <!-- Filters Row -->
+      <div class="flex space-x-3">
+        <!-- Position Filter -->
+        <div class="flex-1">
+          <select name="position" 
+                  id="position-filter"
+                  class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-bball-gray text-gray-900 dark:text-white focus:ring-2 focus:ring-bball-orange focus:border-transparent transition-all"
+                  hx-get="/api/v1/players"
+                  hx-target="#player-list"
+                  hx-trigger="change"
+                  hx-include="[name='search'],[name='team_id']">
+            <option value="">All Positions</option>
+            <option value="PG">Point Guard (PG)</option>
+            <option value="SG">Shooting Guard (SG)</option>
+            <option value="SF">Small Forward (SF)</option>
+            <option value="PF">Power Forward (PF)</option>
+            <option value="C">Center (C)</option>
+          </select>
+        </div>
+
+        <!-- Team Filter -->
+        <div class="flex-1">
+          <select name="team_id" 
+                  id="team-filter"
+                  class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-bball-gray text-gray-900 dark:text-white focus:ring-2 focus:ring-bball-orange focus:border-transparent transition-all"
+                  hx-get="/api/v1/players"
+                  hx-target="#player-list"
+                  hx-trigger="change"
+                  hx-include="[name='search'],[name='position']"
+                  hx-indicator="#team-indicator">
+            <option value="">All Teams</option>
+            {% if teams %}
+              {% for team in teams %}
+                <option value="{{ team.team_id }}">{{ team.display_name }}</option>
+              {% endfor %}
+            {% endif %}
+          </select>
+          <div id="team-indicator" class="htmx-indicator absolute right-3 top-1/2 transform -translate-y-1/2">
+            <div class="htmx-loading w-4 h-4 border-2"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Player Grid with Infinite Scroll -->
+    <div id="player-list-wrapper" class="relative">
+      <div id="player-list" class="grid grid-cols-1 gap-3">
+        {% include "partials/player_list.html" %}
+      </div>
+
+      <!-- Loading Sentinel for Infinite Scroll -->
+      <div id="infinite-scroll-sentinel" 
+           class="h-16 flex items-center justify-center mt-4"
+           hx-get="/api/v1/players?page=2"
+           hx-trigger="revealed"
+           hx-target="#player-list"
+           hx-swap="beforeend"
+           hx-indicator="#infinite-loading"
+           hx-include="[name='search'],[name='position'],[name='team_id']"
+           hx-vals='{"page": "{{ next_page|default(2) }}"}'>
+        <div id="infinite-loading" class="htmx-indicator">
+          <div class="flex items-center space-x-2 text-gray-500 dark:text-gray-400">
+            <div class="htmx-loading"></div>
+            <span class="text-sm">Loading more players...</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Detail Panel (60%) -->
+  <div id="player-detail" class="w-3/5 pl-4 overflow-y-auto">
+    <!-- Default: Select a player message -->
+    <div id="player-detail-empty" class="h-full flex flex-col items-center justify-center text-center p-8">
+      <div class="w-24 h-24 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4">
+        <i class="ph ph-user text-4xl text-gray-400 dark:text-gray-600"></i>
+      </div>
+      <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">Select a Player</h3>
+      <p class="text-gray-500 dark:text-gray-400 max-w-sm">
+        Click on any player from the list on the left to view their detailed profile, statistics, and game history.
+      </p>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Tabulator.js initialization for any tables that might be loaded
+function initTabulatorTables() {
+  const tables = document.querySelectorAll('[data-tabulator]');
+  tables.forEach(table => {
+    if (table.tabulator_instance) return; // Already initialized
+    
+    const config = JSON.parse(table.dataset.tabulator || '{}');
+    table.tabulator_instance = new Tabulator(table, {
+      layout: "fitColumns",
+      responsiveLayout: "hide",
+      pagination: false,
+      ...config
+    });
+  });
+}
+
+// Initialize tables on page load
+document.addEventListener('DOMContentLoaded', initTabulatorTables);
+
+// Re-initialize after HTMX swaps
+document.body.addEventListener('htmx:afterSwap', function(evt) {
+  if (evt.detail.target.id === 'player-detail') {
+    initTabulatorTables();
+  }
+});
+
+// Update infinite scroll URL with current filters
+function updateInfiniteScrollUrl() {
+  const sentinel = document.getElementById('infinite-scroll-sentinel');
+  const search = document.getElementById('player-search')?.value || '';
+  const position = document.getElementById('position-filter')?.value || '';
+  const teamId = document.getElementById('team-filter')?.value || '';
+  
+  let url = '/api/v1/players?page=2';
+  if (search) url += '&search=' + encodeURIComponent(search);
+  if (position) url += '&position=' + encodeURIComponent(position);
+  if (teamId) url += '&team_id=' + encodeURIComponent(teamId);
+  
+  sentinel.setAttribute('hx-get', url);
+}
+
+// Listen for filter changes to update infinite scroll URL
+document.getElementById('player-search')?.addEventListener('change', updateInfiniteScrollUrl);
+document.getElementById('position-filter')?.addEventListener('change', updateInfiniteScrollUrl);
+document.getElementById('team-filter')?.addEventListener('change', updateInfiniteScrollUrl);
+</script>
+{% endblock %}

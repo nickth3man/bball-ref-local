@@ -13,7 +13,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from app.routers import players_router, teams_router, games_router, stats_router
+from app.routers import players_router, teams_router, games_router, stats_router, search_router
 from app.services.database import (
     close_db_connection,
     get_db_connection,
@@ -59,6 +59,7 @@ app.include_router(players_router, prefix="/api/v1")
 app.include_router(teams_router, prefix="/api/v1")
 app.include_router(games_router, prefix="/api/v1")
 app.include_router(stats_router, prefix="/api/v1")
+app.include_router(search_router, prefix="/api/v1")
 
 
 @app.get("/", response_class=HTMLResponse)

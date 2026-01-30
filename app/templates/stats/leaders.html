@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+
+{% block title %}Stats Leaders - BBall Ref Local{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="mb-8">
+    <div class="flex items-center space-x-3 mb-2">
+        <div class="p-2 bg-bball-orange/10 dark:bg-bball-orange/20 rounded-lg">
+            <i class="ph-fill ph-chart-bar text-2xl text-bball-orange"></i>
+        </div>
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Statistics</h1>
+    </div>
+    <p class="text-gray-600 dark:text-gray-400 ml-12">League leaders and team standings</p>
+</div>
+
+<!-- View Toggle: Leaders | Standings -->
+<div class="flex space-x-2 mb-6 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg inline-flex">
+    <button id="leaders-toggle"
+            hx-get="/api/v1/stats/leaders?category=points&season={{ season }}"
+            hx-target="#stats-content"
+            hx-push-url="true"
+            class="px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center space-x-2
+                   {% if view == 'leaders' or not view %}
+                       bg-white dark:bg-bball-gray text-bball-orange shadow-sm
+                   {% else %}
+                       text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white
+                   {% endif %}">
+        <i class="ph-fill ph-trophy"></i>
+        <span>Leaders</span>
+    </button>
+    <button id="standings-toggle"
+            hx-get="/api/v1/stats/standings?season={{ season }}"
+            hx-target="#stats-content"
+            hx-push-url="true"
+            class="px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center space-x-2
+                   {% if view == 'standings' %}
+                       bg-white dark:bg-bball-gray text-bball-orange shadow-sm
+                   {% else %}
+                       text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white
+                   {% endif %}">
+        <i class="ph-fill ph-list-numbers"></i>
+        <span>Standings</span>
+    </button>
+</div>
+
+<!-- Season Selector -->
+<div class="mb-6 flex items-center space-x-4">
+    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Season:</label>
+    <select id="season-selector"
+            name="season"
+            hx-get="{% if view == 'standings' %}/api/v1/stats/standings{% else %}/api/v1/stats/leaders{% endif %}"
+            hx-target="#stats-content"
+            hx-include="[name='season']"
+            hx-vals='{"category": "{{ category|default('points') }}"}'
+            class="px-4 py-2 bg-white dark:bg-bball-gray border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-bball-orange focus:border-transparent cursor-pointer">
+        {% for yr in range(2024, 1945, -1) %}
+        <option value="{{ yr }}" {% if yr == season|default(2024) %}selected{% endif %}>{{ yr }}-{{ (yr + 1) % 100 }}</option>
+        {% endfor %}
+    </select>
+    
+    <!-- Loading Indicator -->
+    <span class="htmx-indicator flex items-center text-sm text-bball-orange">
+        <div class="htmx-loading mr-2"></div>
+        Loading...
+    </span>
+</div>
+
+<!-- Category Tabs (only for Leaders view) -->
+<div id="category-tabs" class="{% if view == 'standings' %}hidden{% endif %} border-b border-gray-200 dark:border-gray-700 mb-6">
+    <div class="flex space-x-1 overflow-x-auto pb-1 scrollbar-hide">
+        {% set categories = [
+            ('points', 'Points', 'ph-target'),
+            ('rebounds', 'Rebounds', 'ph-arrows-in-line-vertical'),
+            ('assists', 'Assists', 'ph-hand-heart'),
+            ('steals', 'Steals', 'ph-hand-grabbing'),
+            ('blocks', 'Blocks', 'ph-hand-palm'),
+            ('fg_pct', 'FG%', 'ph-basketball'),
+            ('fg3_pct', '3P%', 'ph-number-circle-three'),
+            ('ft_pct', 'FT%', 'ph-person-simple-throw')
+        ] %}
+        
+        {% for cat_key, cat_label, cat_icon in categories %}
+        <button hx-get="/api/v1/stats/leaders?category={{ cat_key }}&season={{ season|default(2024) }}"
+                hx-target="#stats-content"
+                hx-push-url="true"
+                class="category-tab px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex items-center space-x-2
+                       {% if category == cat_key or (not category and cat_key == 'points') %}
+                           border-bball-orange text-bball-orange
+                       {% else %}
+                           border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600
+                       {% endif %}">
+            <i class="ph-fill {{ cat_icon }}"></i>
+            <span>{{ cat_label }}</span>
+        </button>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Conference Tabs (only for Standings view) -->
+<div id="conference-tabs" class="{% if view != 'standings' %}hidden{% endif %} border-b border-gray-200 dark:border-gray-700 mb-6">
+    <div class="flex space-x-1 overflow-x-auto pb-1 scrollbar-hide">
+        <button hx-get="/api/v1/stats/standings?season={{ season|default(2024) }}"
+                hx-target="#stats-content"
+                hx-push-url="true"
+                class="conference-tab px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex items-center space-x-2
+                       {% if not conference %}
+                           border-bball-orange text-bball-orange
+                       {% else %}
+                           border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600
+                       {% endif %}">
+            <i class="ph-fill ph-globe"></i>
+            <span>Full League</span>
+        </button>
+        <button hx-get="/api/v1/stats/standings?conference=Eastern&season={{ season|default(2024) }}"
+                hx-target="#stats-content"
+                hx-push-url="true"
+                class="conference-tab px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex items-center space-x-2
+                       {% if conference == 'Eastern' %}
+                           border-blue-500 text-blue-500
+                       {% else %}
+                           border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600
+                       {% endif %}">
+            <i class="ph-fill ph-map-pin"></i>
+            <span>Eastern</span>
+        </button>
+        <button hx-get="/api/v1/stats/standings?conference=Western&season={{ season|default(2024) }}"
+                hx-target="#stats-content"
+                hx-push-url="true"
+                class="conference-tab px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex items-center space-x-2
+                       {% if conference == 'Western' %}
+                           border-red-500 text-red-500
+                       {% else %}
+                           border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600
+                       {% endif %}">
+            <i class="ph-fill ph-map-pin"></i>
+            <span>Western</span>
+        </button>
+    </div>
+</div>
+
+<!-- Content Area -->
+<div id="stats-content" class="min-h-[400px]">
+    {% if view == 'standings' %}
+        {% include "partials/standings_table.html" %}
+    {% else %}
+        {% include "partials/leaders_table.html" %}
+    {% endif %}
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Handle toggle visibility when switching between Leaders and Standings
+    document.body.addEventListener('htmx:afterSwap', function(evt) {
+        if (evt.detail.target.id === 'stats-content') {
+            const url = new URL(evt.detail.xhr.responseURL);
+            const path = url.pathname;
+            const isStandings = path.includes('standings');
+            
+            const categoryTabs = document.getElementById('category-tabs');
+            const conferenceTabs = document.getElementById('conference-tabs');
+            const leadersToggle = document.getElementById('leaders-toggle');
+            const standingsToggle = document.getElementById('standings-toggle');
+            
+            if (isStandings) {
+                categoryTabs.classList.add('hidden');
+                conferenceTabs.classList.remove('hidden');
+                
+                // Update toggle button styles
+                standingsToggle.classList.add('bg-white', 'dark:bg-bball-gray', 'text-bball-orange', 'shadow-sm');
+                standingsToggle.classList.remove('text-gray-600', 'dark:text-gray-400');
+                leadersToggle.classList.remove('bg-white', 'dark:bg-bball-gray', 'text-bball-orange', 'shadow-sm');
+                leadersToggle.classList.add('text-gray-600', 'dark:text-gray-400');
+                
+                // Update season selector hx-get
+                document.getElementById('season-selector').setAttribute('hx-get', '/api/v1/stats/standings');
+            } else {
+                categoryTabs.classList.remove('hidden');
+                conferenceTabs.classList.add('hidden');
+                
+                // Update toggle button styles
+                leadersToggle.classList.add('bg-white', 'dark:bg-bball-gray', 'text-bball-orange', 'shadow-sm');
+                leadersToggle.classList.remove('text-gray-600', 'dark:text-gray-400');
+                standingsToggle.classList.remove('bg-white', 'dark:bg-bball-gray', 'text-bball-orange', 'shadow-sm');
+                standingsToggle.classList.add('text-gray-600', 'dark:text-gray-400');
+                
+                // Update season selector hx-get and extract category from URL
+                const category = url.searchParams.get('category') || 'points';
+                const seasonSelector = document.getElementById('season-selector');
+                seasonSelector.setAttribute('hx-get', '/api/v1/stats/leaders');
+                seasonSelector.setAttribute('hx-vals', JSON.stringify({"category": category}));
+                
+                // Update active tab styling
+                document.querySelectorAll('.category-tab').forEach(tab => {
+                    const tabUrl = new URL(tab.getAttribute('hx-get'), window.location.origin);
+                    const tabCategory = tabUrl.searchParams.get('category');
+                    if (tabCategory === category) {
+                        tab.classList.add('border-bball-orange', 'text-bball-orange');
+                        tab.classList.remove('border-transparent', 'text-gray-500', 'dark:text-gray-400');
+                    } else {
+                        tab.classList.remove('border-bball-orange', 'text-bball-orange');
+                        tab.classList.add('border-transparent', 'text-gray-500', 'dark:text-gray-400');
+                    }
+                });
+            }
+        }
+    });
+</script>
+{% endblock %}

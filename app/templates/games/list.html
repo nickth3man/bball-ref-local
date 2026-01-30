@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% block title %}Games - BBall Ref Local{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div class="mb-8">
+    <div class="flex items-center space-x-3 mb-2">
+        <div class="p-2 bg-green-500/10 rounded-lg">
+            <i class="ph-fill ph-trophy text-2xl text-green-500"></i>
+        </div>
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Games</h1>
+    </div>
+    <p class="text-gray-600 dark:text-gray-400">Browse game results, box scores, and schedules</p>
+</div>
+
+<!-- Filter Bar -->
+<div id="games-filter" class="bg-white dark:bg-bball-gray rounded-xl p-4 mb-6 shadow-md">
+    <form id="games-filter-form" 
+          hx-get="/api/v1/games" 
+          hx-target="#games-container"
+          hx-trigger="submit"
+          hx-indicator="#games-loading"
+          class="flex flex-col lg:flex-row gap-4 items-end lg:items-center">
+        
+        <!-- Date Range -->
+        <div class="flex flex-col sm:flex-row gap-2 flex-1">
+            <div class="flex-1">
+                <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">From Date</label>
+                <input type="date" 
+                       name="date_from" 
+                       value="{{ date_from or '' }}"
+                       class="w-full px-3 py-2 bg-gray-50 dark:bg-bball-black border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-bball-orange focus:border-transparent">
+            </div>
+            <div class="flex-1">
+                <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">To Date</label>
+                <input type="date" 
+                       name="date_to" 
+                       value="{{ date_to or '' }}"
+                       class="w-full px-3 py-2 bg-gray-50 dark:bg-bball-black border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-bball-orange focus:border-transparent">
+            </div>
+        </div>
+        
+        <!-- Team Selector -->
+        <div class="flex-1 min-w-[200px]">
+            <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Team</label>
+            <select name="team_id" 
+                    class="w-full px-3 py-2 bg-gray-50 dark:bg-bball-black border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-bball-orange focus:border-transparent">
+                <option value="">All Teams</option>
+                {% for team in teams %}
+                <option value="{{ team.team_id }}" {% if selected_team_id == team.team_id %}selected{% endif %}>
+                    {{ team.display_name }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <!-- Season Selector -->
+        <div class="flex-1 min-w-[150px]">
+            <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Season</label>
+            <select name="season" 
+                    class="w-full px-3 py-2 bg-gray-50 dark:bg-bball-black border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-bball-orange focus:border-transparent">
+                <option value="">All Seasons</option>
+                {% for season in seasons %}
+                <option value="{{ season }}" {% if selected_season == season %}selected{% endif %}>
+                    {{ season }}-{{ season + 1 }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <!-- Action Buttons -->
+        <div class="flex gap-2">
+            <button type="button"
+                    hx-get="/api/v1/games?date_from={{ today }}&date_to={{ today }}"
+                    hx-target="#games-container"
+                    hx-indicator="#games-loading"
+                    class="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-sm font-medium">
+                <i class="ph ph-calendar-blank mr-1"></i>
+                Today
+            </button>
+            <button type="submit" 
+                    class="px-4 py-2 bg-bball-orange text-white rounded-lg hover:bg-bball-orange-dark transition-colors text-sm font-medium">
+                <i class="ph ph-funnel mr-1"></i>
+                Apply Filters
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- Games List -->
+<div id="games-container" class="space-y-6" hx-swap="innerHTML">
+    {% include "partials/games_list_by_date.html" %}
+</div>
+
+<!-- Infinite Scroll Sentinel -->
+{% if pagination and pagination.has_next %}
+<div id="games-sentinel"
+     hx-get="/api/v1/games?page={{ pagination.next_page }}&{{ query_params }}"
+     hx-trigger="revealed"
+     hx-swap="beforeend"
+     hx-target="#games-container"
+     hx-indicator="#games-loading"
+     class="py-4">
+</div>
+{% endif %}
+
+<!-- Loading Indicator -->
+<div id="games-loading" class="htmx-indicator text-center py-4">
+    <div class="htmx-loading inline-block"></div>
+    <span class="ml-2 text-sm text-gray-500 dark:text-gray-400">Loading more games...</span>
+</div>
+{% endblock %}

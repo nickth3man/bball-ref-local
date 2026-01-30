@@ -68,6 +68,104 @@
         @keyframes htmx-spin {
             to { transform: rotate(360deg); }
         }
+        
+        /* Global Search Styles */
+        #search-results:not(.hidden) {
+            display: block;
+        }
+        
+        #search-results .search-result-item {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid rgba(229, 231, 235, 0.5);
+            cursor: pointer;
+            transition: background-color 0.15s ease;
+        }
+        
+        #search-results .search-result-item:hover {
+            background-color: rgba(255, 107, 0, 0.1);
+        }
+        
+        #search-results .search-result-item:last-child {
+            border-bottom: none;
+        }
+        
+        #search-results .search-icon {
+            width: 2rem;
+            height: 2rem;
+            border-radius: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 0.75rem;
+            flex-shrink: 0;
+        }
+        
+        #search-results .search-icon.player {
+            background: linear-gradient(135deg, #FF6B00 0%, #E55A00 100%);
+            color: white;
+        }
+        
+        #search-results .search-icon.team {
+            background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
+            color: white;
+        }
+        
+        #search-results .search-icon.game {
+            background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+            color: white;
+        }
+        
+        #search-results .search-info {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        #search-results .search-name {
+            font-weight: 600;
+            color: #111827;
+            font-size: 0.875rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        #search-results .search-meta {
+            font-size: 0.75rem;
+            color: #6B7280;
+        }
+        
+        #search-results .search-empty {
+            padding: 2rem;
+            text-align: center;
+            color: #6B7280;
+        }
+        
+        .dark #search-results .search-result-item {
+            border-bottom-color: rgba(75, 85, 99, 0.5);
+        }
+        
+        .dark #search-results .search-result-item:hover {
+            background-color: rgba(255, 107, 0, 0.15);
+        }
+        
+        .dark #search-results .search-name {
+            color: #F9FAFB;
+        }
+        
+        .dark #search-results .search-meta {
+            color: #9CA3AF;
+        }
+        
+        /* Hide scrollbar for category tabs */
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+        .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
     </style>
     
     {% block head %}{% endblock %}
@@ -109,6 +207,31 @@
                     </div>
                 </div>
                 
+                <!-- Global Search -->
+                <div class="hidden md:flex items-center mr-4">
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <i class="ph ph-magnifying-glass text-gray-400"></i>
+                        </div>
+                        <input type="text"
+                               id="global-search"
+                               name="q"
+                               placeholder="Search players, teams..."
+                               hx-get="/api/v1/search"
+                               hx-trigger="keyup changed delay:300ms, search"
+                               hx-target="#search-results"
+                               hx-indicator="#search-loading"
+                               autocomplete="off"
+                               class="w-64 pl-10 pr-4 py-2 bg-gray-100 dark:bg-gray-700 border border-transparent rounded-lg text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-bball-orange focus:bg-white dark:focus:bg-bball-gray focus:border-transparent transition-all">
+                        <div id="search-loading" class="htmx-indicator absolute inset-y-0 right-0 pr-3 flex items-center">
+                            <div class="htmx-loading w-4 h-4 border-2"></div>
+                        </div>
+                        <div id="search-results" class="hidden absolute top-full left-0 right-0 mt-2 bg-white dark:bg-bball-gray rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden z-50 max-h-80 overflow-y-auto">
+                            <!-- Search results will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Right side: Dark mode toggle and Mobile menu button -->
                 <div class="flex items-center space-x-2">
                     <!-- Dark Mode Toggle -->
@@ -179,6 +302,57 @@
     
     <!-- Application JavaScript -->
     <script src="/static/js/app.js"></script>
+    
+    <!-- Global Search JavaScript -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const searchInput = document.getElementById('global-search');
+            const searchResults = document.getElementById('search-results');
+            
+            if (searchInput && searchResults) {
+                // Show results when typing
+                searchInput.addEventListener('input', function() {
+                    if (this.value.length > 0) {
+                        searchResults.classList.remove('hidden');
+                    } else {
+                        searchResults.classList.add('hidden');
+                    }
+                });
+                
+                // Handle HTMX after swap - re-add click handlers
+                document.body.addEventListener('htmx:afterSwap', function(evt) {
+                    if (evt.detail.target.id === 'search-results') {
+                        // Show results when content is loaded
+                        if (searchInput.value.length > 0) {
+                            searchResults.classList.remove('hidden');
+                        }
+                    }
+                });
+                
+                // Close search when clicking outside
+                document.addEventListener('click', function(evt) {
+                    if (!searchInput.contains(evt.target) && !searchResults.contains(evt.target)) {
+                        searchResults.classList.add('hidden');
+                    }
+                });
+                
+                // Focus input shows results if has value
+                searchInput.addEventListener('focus', function() {
+                    if (this.value.length > 0 && searchResults.innerHTML.trim() !== '') {
+                        searchResults.classList.remove('hidden');
+                    }
+                });
+                
+                // Keyboard navigation
+                searchInput.addEventListener('keydown', function(evt) {
+                    if (evt.key === 'Escape') {
+                        searchResults.classList.add('hidden');
+                        this.blur();
+                    }
+                });
+            }
+        });
+    </script>
     
     {% block scripts %}{% endblock %}
 </body>

@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+
+{% block title %}Teams - BBall Ref Local{% endblock %}
+
+{% block content %}
+<div class="flex h-[calc(100vh-200px)]">
+    <!-- Left Sidebar -->
+    <div class="w-[35%] flex flex-col border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-bball-gray">
+        <!-- Conference Tabs -->
+        <div class="flex border-b border-gray-200 dark:border-gray-700 sticky top-0 bg-white dark:bg-bball-gray z-10">
+            <button hx-get="/api/v1/teams" 
+                    hx-target="#team-list-container" 
+                    hx-swap="innerHTML"
+                    hx-indicator="#team-list-indicator"
+                    class="flex-1 px-4 py-3 text-sm font-medium border-b-2 transition-colors text-bball-orange border-bball-orange hover:bg-gray-50 dark:hover:bg-gray-800">
+                <i class="ph ph-shield mr-1.5"></i>All Teams
+            </button>
+            <button hx-get="/api/v1/teams?conference=Eastern" 
+                    hx-target="#team-list-container" 
+                    hx-swap="innerHTML"
+                    hx-indicator="#team-list-indicator"
+                    class="flex-1 px-4 py-3 text-sm font-medium border-b-2 transition-colors text-gray-600 dark:text-gray-400 border-transparent hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-blue-600">
+                <i class="ph ph-crown mr-1.5"></i>Eastern
+            </button>
+            <button hx-get="/api/v1/teams?conference=Western" 
+                    hx-target="#team-list-container" 
+                    hx-swap="innerHTML"
+                    hx-indicator="#team-list-indicator"
+                    class="flex-1 px-4 py-3 text-sm font-medium border-b-2 transition-colors text-gray-600 dark:text-gray-400 border-transparent hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-red-600">
+                <i class="ph ph-cowboy-hat mr-1.5"></i>Western
+            </button>
+        </div>
+        
+        <!-- Loading Indicator -->
+        <div id="team-list-indicator" class="htmx-indicator py-2 px-4 bg-blue-50 dark:bg-blue-900/20">
+            <div class="flex items-center space-x-2">
+                <div class="htmx-loading"></div>
+                <span class="text-sm text-blue-600 dark:text-blue-400">Loading teams...</span>
+            </div>
+        </div>
+        
+        <!-- Team Cards -->
+        <div id="team-list-container" class="flex-1 overflow-y-auto p-4">
+            {% include "partials/team_list.html" %}
+        </div>
+    </div>
+    
+    <!-- Right Detail Panel -->
+    <div class="w-[65%] bg-gray-50 dark:bg-bball-black overflow-y-auto">
+        <div id="team-detail" class="p-6 h-full">
+            <!-- Empty State -->
+            <div class="flex flex-col items-center justify-center h-full text-center">
+                <div class="w-24 h-24 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 rounded-full flex items-center justify-center mb-6">
+                    <i class="ph ph-shield text-5xl text-gray-300 dark:text-gray-600"></i>
+                </div>
+                <h3 class="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">Select a Team</h3>
+                <p class="text-gray-500 dark:text-gray-400 max-w-md">Click on any team from the sidebar to view detailed information, roster, and schedule.</p>
+                
+                <div class="flex items-center space-x-4 mt-8">
+                    <div class="flex items-center text-sm text-gray-400 dark:text-gray-500">
+                        <i class="ph ph-users mr-1.5"></i>
+                        <span>View roster</span>
+                    </div>
+                    <div class="flex items-center text-sm text-gray-400 dark:text-gray-500">
+                        <i class="ph ph-calendar mr-1.5"></i>
+                        <span>Check schedule</span>
+                    </div>
+                    <div class="flex items-center text-sm text-gray-400 dark:text-gray-500">
+                        <i class="ph ph-chart-bar mr-1.5"></i>
+                        <span>Team stats</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Tab switching logic for active state
+    document.addEventListener('htmx:afterRequest', function(evt) {
+        // Update active tab styling
+        const buttons = document.querySelectorAll('[hx-target="#team-list-container"]');
+        buttons.forEach(btn => {
+            const isEastern = btn.getAttribute('hx-get')?.includes('conference=Eastern');
+            const isWestern = btn.getAttribute('hx-get')?.includes('conference=Western');
+            const isAll = !isEastern && !isWestern;
+            
+            if (evt.detail.requestConfig.path === btn.getAttribute('hx-get')) {
+                // Active state
+                btn.classList.remove('border-transparent', 'text-gray-600', 'dark:text-gray-400');
+                btn.classList.add('text-bball-orange', 'border-bball-orange');
+                if (isEastern) {
+                    btn.classList.add('text-blue-600');
+                    btn.classList.remove('text-bball-orange');
+                } else if (isWestern) {
+                    btn.classList.add('text-red-600');
+                    btn.classList.remove('text-bball-orange');
+                }
+            } else {
+                // Inactive state
+                btn.classList.add('border-transparent', 'text-gray-600', 'dark:text-gray-400');
+                btn.classList.remove('text-bball-orange', 'text-blue-600', 'text-red-600', 'border-bball-orange');
+            }
+        });
+    });
+</script>
+{% endblock %}

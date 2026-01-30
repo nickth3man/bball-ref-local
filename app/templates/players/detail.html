@@ -1,0 +1,261 @@
+{# Player Detail Page - Full player profile with tabbed interface #}
+{% extends "base.html" %}
+
+{% block title %}{{ player.full_name }} - Player Profile | BBall Ref Local{% endblock %}
+
+{% block content %}
+{# Back Button #}
+<div class="mb-4">
+    <a href="/players" 
+       class="inline-flex items-center text-gray-600 dark:text-gray-400 hover:text-bball-orange transition-colors">
+        <i class="ph ph-arrow-left mr-2"></i>
+        <span class="font-medium">Back to Players</span>
+    </a>
+</div>
+
+{# Player Header Card #}
+<div class="bg-gradient-to-r from-bball-orange to-bball-orange-dark rounded-xl p-6 mb-6 shadow-lg">
+    <div class="flex flex-col md:flex-row items-start md:items-center gap-6">
+        {# Player Photo/Avatar #}
+        <div class="flex-shrink-0">
+            <div class="w-24 h-24 md:w-32 md:h-32 bg-white rounded-full flex items-center justify-center text-bball-orange font-bold text-4xl md:text-5xl shadow-xl border-4 border-white/30">
+                {{ player.first_name[0] }}{{ player.last_name[0] }}
+            </div>
+        </div>
+        
+        {# Player Info #}
+        <div class="flex-grow text-white">
+            <div class="flex flex-col md:flex-row md:items-center gap-2 md:gap-4 mb-3">
+                <h1 class="text-3xl md:text-4xl font-bold">{{ player.full_name }}</h1>
+                {% if player.jersey_number %}
+                <span class="text-2xl md:text-3xl font-bold text-white/80">#{{ player.jersey_number }}</span>
+                {% endif %}
+            </div>
+            
+            <div class="flex flex-wrap items-center gap-3 mb-4">
+                {# Team Badge #}
+                {% if player.team_id %}
+                <a href="/teams/{{ player.team_id }}" 
+                   class="inline-flex items-center px-3 py-1 bg-white/20 rounded-full text-sm font-medium hover:bg-white/30 transition-colors">
+                    <i class="ph ph-shield mr-1.5"></i>
+                    {{ team_name or 'Team' }}
+                </a>
+                {% else %}
+                <span class="inline-flex items-center px-3 py-1 bg-white/20 rounded-full text-sm font-medium">
+                    <i class="ph ph-user mr-1.5"></i>
+                    Free Agent
+                </span>
+                {% endif %}
+                
+                {# Position Badge #}
+                <span class="px-3 py-1 bg-white/90 text-bball-orange rounded-full text-sm font-bold">
+                    {{ player.position }}
+                </span>
+            </div>
+            
+            {# Physical & Bio Info #}
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                {% if player.height %}
+                <div class="flex items-center gap-2">
+                    <i class="ph ph-ruler text-white/70"></i>
+                    <span>{{ player.height_display }}</span>
+                </div>
+                {% endif %}
+                
+                {% if player.weight %}
+                <div class="flex items-center gap-2">
+                    <i class="ph ph-scales text-white/70"></i>
+                    <span>{{ player.weight }} lbs</span>
+                </div>
+                {% endif %}
+                
+                {% if player.birth_date %}
+                <div class="flex items-center gap-2">
+                    <i class="ph ph-cake text-white/70"></i>
+                    <span>{{ player.birth_date.strftime('%b %d, %Y') }}</span>
+                </div>
+                {% endif %}
+                
+                {% if player.country %}
+                <div class="flex items-center gap-2">
+                    <i class="ph ph-globe text-white/70"></i>
+                    <span>{{ player.country }}</span>
+                </div>
+                {% endif %}
+            </div>
+            
+            {# Draft Information #}
+            {% if player.draft_year %}
+            <div class="mt-3 flex items-center gap-2 text-sm text-white/90">
+                <i class="ph ph-trophy text-white/70"></i>
+                <span>{{ player.draft_year }} NBA Draft - Round {{ player.draft_round }}, Pick {{ player.draft_number }}</span>
+            </div>
+            {% endif %}
+        </div>
+        
+        {# Key Career Stats #}
+        {% if career_stats %}
+        <div class="flex-shrink-0 bg-white/10 rounded-lg p-4 backdrop-blur-sm">
+            <h3 class="text-sm font-medium text-white/80 mb-3 uppercase tracking-wide">Career Averages</h3>
+            <div class="grid grid-cols-3 gap-4 text-center">
+                <div>
+                    <p class="text-2xl font-bold text-white">{{ "%.1f"|format(career_stats.points / career_stats.games_played) if career_stats.games_played > 0 else '0.0' }}</p>
+                    <p class="text-xs text-white/70 uppercase">PPG</p>
+                </div>
+                <div>
+                    <p class="text-2xl font-bold text-white">{{ "%.1f"|format(career_stats.rebounds_total / career_stats.games_played) if career_stats.games_played > 0 else '0.0' }}</p>
+                    <p class="text-xs text-white/70 uppercase">RPG</p>
+                </div>
+                <div>
+                    <p class="text-2xl font-bold text-white">{{ "%.1f"|format(career_stats.assists / career_stats.games_played) if career_stats.games_played > 0 else '0.0' }}</p>
+                    <p class="text-xs text-white/70 uppercase">APG</p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{# Season Selector #}
+<div class="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+    <div class="flex items-center gap-3">
+        <label for="season-select" class="text-sm font-medium text-gray-700 dark:text-gray-300">
+            <i class="ph ph-calendar mr-1"></i>
+            Season:
+        </label>
+        <select id="season-select" 
+                name="season"
+                class="px-3 py-2 bg-white dark:bg-bball-gray border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-bball-orange focus:border-transparent"
+                hx-get="/api/v1/players/{{ player.player_id }}/stats"
+                hx-target="#player-tab-content"
+                hx-indicator="#tab-loading"
+                hx-push-url="false"
+                onchange="updateTabContent(this.value)">
+            <option value="">All Seasons</option>
+            {% for season in available_seasons %}
+            <option value="{{ season }}" {% if selected_season == season %}selected{% endif %}>
+                {{ season }}-{{ (season + 1) % 100 }}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+    
+    {# Loading Indicator #}
+    <span id="tab-loading" class="htmx-indicator flex items-center text-sm text-gray-500">
+        <div class="htmx-loading mr-2"></div>
+        Loading...
+    </span>
+</div>
+
+{# Tab Navigation #}
+<div class="border-b border-gray-200 dark:border-gray-700 mb-6">
+    <nav class="flex space-x-1" aria-label="Player Tabs">
+        <button hx-get="/api/v1/players/{{ player.player_id }}/stats?tab=seasons{% if selected_season %}&season={{ selected_season }}{% endif %}"
+                hx-target="#player-tab-content"
+                hx-indicator="#tab-loading"
+                hx-push-url="true"
+                class="tab-btn px-4 py-3 text-sm font-medium border-b-2 border-bball-orange text-bball-orange transition-colors"
+                data-tab="seasons"
+                onclick="setActiveTab('seasons')">
+            <i class="ph ph-chart-bar mr-2"></i>
+            Season Stats
+        </button>
+        
+        <button hx-get="/api/v1/players/{{ player.player_id }}/games?tab=games{% if selected_season %}&season={{ selected_season }}{% endif %}"
+                hx-target="#player-tab-content"
+                hx-indicator="#tab-loading"
+                hx-push-url="true"
+                class="tab-btn px-4 py-3 text-sm font-medium border-b-2 border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+                data-tab="games"
+                onclick="setActiveTab('games')">
+            <i class="ph ph-list-dashes mr-2"></i>
+            Game Log
+        </button>
+        
+        <button hx-get="/api/v1/players/{{ player.player_id }}/stats?tab=career"
+                hx-target="#player-tab-content"
+                hx-indicator="#tab-loading"
+                hx-push-url="true"
+                class="tab-btn px-4 py-3 text-sm font-medium border-b-2 border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+                data-tab="career"
+                onclick="setActiveTab('career')">
+            <i class="ph ph-trend-up mr-2"></i>
+            Career Totals
+        </button>
+    </nav>
+</div>
+
+{# Tab Content Area #}
+<div id="player-tab-content" class="min-h-[400px]">
+    {# Default content - Season Stats #}
+    {% include "partials/player_stats_table.html" %}
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Active tab state management
+    function setActiveTab(tabName) {
+        // Update tab styles
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            if (btn.dataset.tab === tabName) {
+                btn.classList.remove('border-transparent', 'text-gray-500', 'dark:text-gray-400');
+                btn.classList.add('border-bball-orange', 'text-bball-orange');
+            } else {
+                btn.classList.remove('border-bball-orange', 'text-bball-orange');
+                btn.classList.add('border-transparent', 'text-gray-500', 'dark:text-gray-400');
+            }
+        });
+        
+        // Store active tab in URL
+        const url = new URL(window.location);
+        url.searchParams.set('tab', tabName);
+        window.history.pushState({}, '', url);
+    }
+    
+    // Update tab content when season changes
+    function updateTabContent(season) {
+        const activeTab = document.querySelector('.tab-btn.border-bball-orange');
+        if (activeTab) {
+            const tabName = activeTab.dataset.tab;
+            let url = `/api/v1/players/{{ player.player_id }}/`;
+            
+            if (tabName === 'games') {
+                url += `games?tab=${tabName}`;
+            } else {
+                url += `stats?tab=${tabName}`;
+            }
+            
+            if (season) {
+                url += `&season=${season}`;
+            }
+            
+            htmx.ajax('GET', url, {
+                target: '#player-tab-content',
+                indicator: '#tab-loading'
+            });
+        }
+    }
+    
+    // Initialize active tab from URL on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const tabParam = urlParams.get('tab');
+        if (tabParam) {
+            setActiveTab(tabParam);
+        }
+    });
+    
+    // Handle HTMX after-request to update tab styles
+    document.body.addEventListener('htmx:afterRequest', function(evt) {
+        if (evt.detail.target.id === 'player-tab-content') {
+            const url = new URL(evt.detail.pathInfo.requestPath, window.location.origin);
+            const tabParam = url.searchParams.get('tab');
+            if (tabParam) {
+                setActiveTab(tabParam);
+            }
+        }
+    });
+</script>
+{% endblock %}
