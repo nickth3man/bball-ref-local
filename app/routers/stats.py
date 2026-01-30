@@ -146,6 +146,15 @@ def _build_leaders_query(category: str) -> str:
         The SQL query string.
     """
     stat_column = CATEGORY_COLUMN_MAP[category]
+
+    # For percentages, calculate from totals rather than averaging averages
+    if category.endswith("_pct"):
+        made_col = category.replace("_pct", "_made")
+        attempted_col = category.replace("_pct", "_attempted")
+        avg_value_expr = f"CAST(SUM(pgs.{made_col}) AS REAL) / NULLIF(SUM(pgs.{attempted_col}), 0)"
+    else:
+        avg_value_expr = f"AVG(pgs.{stat_column})"
+
     return f"""
         SELECT
             p.player_id,
@@ -174,7 +183,7 @@ def _build_leaders_query(category: str) -> str:
             t.head_coach as team_head_coach,
             t.conference as team_conference,
             t.division as team_division,
-            AVG(pgs.{stat_column}) as avg_value,
+            {avg_value_expr} as avg_value,
             COUNT(*) as games_played
         FROM player_game_stats pgs
         JOIN players p ON pgs.player_id = p.player_id
@@ -307,8 +316,10 @@ async def get_league_leaders(
     try:
         results = execute_query(query, [season, limit])
     except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Failed to query league leaders: {e}", exc_info=True)
         raise HTTPException(
-            status_code=500, detail=f"Failed to query league leaders: {str(e)}"
+            status_code=500, detail="An internal error occurred while querying league leaders."
         ) from e
 
     # Build response using helper function
@@ -448,9 +459,9 @@ def _build_record_string(wins: int, losses: int) -> str:
 class RankingTracker:
     """Helper class to track conference and division rankings."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.conference_rankings: dict[str, int] = {}
-        self.division_rankings: dict[str, int] = {}
+        self.division_rankings: dict[str, dict[str, int]] = {}
 
     def get_conference_rank(self, conference: str) -> int:
         """Get and increment the conference rank."""
@@ -459,9 +470,12 @@ class RankingTracker:
 
     def get_division_rank(self, conference: str, division: str) -> int:
         """Get and increment the division rank."""
-        div_key = f"{conference}_{division}"
-        self.division_rankings[div_key] = self.division_rankings.get(div_key, 0) + 1
-        return self.division_rankings[div_key]
+        if conference not in self.division_rankings:
+            self.division_rankings[conference] = {}
+
+        conf_div_ranks = self.division_rankings[conference]
+        conf_div_ranks[division] = conf_div_ranks.get(division, 0) + 1
+        return conf_div_ranks[division]
 
 
 def _map_row_to_standings_entry(row: tuple, rankings: RankingTracker) -> StandingsEntry:
@@ -544,7 +558,9 @@ async def get_standings(
         query, params = _build_standings_query(season, conference)
         results = execute_query(query, params)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to query standings: {str(e)}") from e
+        import logging
+        logging.getLogger(__name__).error(f"Failed to query standings: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="An internal error occurred while querying standings.") from e
 
     # Build standings with rankings
     rankings = RankingTracker()

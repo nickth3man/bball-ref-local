@@ -4,6 +4,7 @@ Provides REST API endpoints for team information, rosters, stats, and games.
 Supports both JSON API responses and HTMX partial template rendering.
 """
 
+import logging
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, Request, Response
@@ -17,6 +18,7 @@ from app.services.export_service import export_team_stats
 from app.services.htmx_utils import is_htmx_request
 
 router = APIRouter(prefix="/api/v1/teams", tags=["teams"])
+logger = logging.getLogger(__name__)
 
 
 @router.get("/", response_model=None)
@@ -108,7 +110,8 @@ async def list_teams(
 
         return teams
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch teams: {e}") from e
+        logger.error("Failed to fetch teams: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to fetch teams.") from e
 
 
 @router.get("/{team_id}", response_model=None)
@@ -182,7 +185,8 @@ async def get_team(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch team: {e}") from e
+        logger.error("Failed to fetch team: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to fetch team.") from e
 
 
 @router.get("/{team_id}/roster", response_model=None)
@@ -256,7 +260,8 @@ async def get_team_roster(
 
         return players
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch roster: {e}") from e
+        logger.error("Failed to fetch roster: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to fetch roster.") from e
 
 
 @router.get("/{team_id}/stats", response_model=None)
@@ -309,7 +314,7 @@ async def get_team_stats(
             AND (g.home_team_id = ? OR g.away_team_id = ?)
             AND g.status = 'final'
         """
-        results = execute_query(query, [team_id, team_id, season, team_id, team_id])
+        results = execute_query(query, [team_id, team_id, team_id, season, team_id, team_id])
 
         if not results or not results[0][0]:
             stats = {
@@ -370,7 +375,8 @@ async def get_team_stats(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch team stats: {e}") from e
+        logger.error("Failed to fetch team stats: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to fetch team stats.") from e
 
 
 @router.get("/{team_id}/games", response_model=None)
@@ -471,7 +477,8 @@ async def get_team_games(
 
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch team games: {e}") from e
+        logger.error("Failed to fetch team games: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to fetch team games.") from e
 
 
 @router.get("/{team_id}/export")

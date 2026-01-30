@@ -4,6 +4,7 @@ Provides RESTful endpoints for player profiles, statistics, and game logs.
 Supports both JSON API responses and HTMX partial HTML responses.
 """
 
+import logging
 from typing import Annotated, Any
 
 from fastapi import APIRouter, HTTPException, Query, Request, Response
@@ -18,6 +19,7 @@ from app.services.export_service import export_game_logs, export_player_stats
 from app.services.htmx_utils import get_templates, is_htmx_request
 
 router = APIRouter(prefix="/api/v1/players", tags=["players"])
+logger = logging.getLogger(__name__)
 
 
 class PlayerSeasonStats(BaseModel):
@@ -113,20 +115,25 @@ def _build_player_from_row(row: tuple) -> Player:
     Returns:
         Populated Player instance.
     """
+    first_name = row[1] if len(row) > 1 else ""
+    last_name = row[2] if len(row) > 2 else ""
+    full_name = f"{first_name} {last_name}".strip()
+
     return Player(
-        player_id=row[0],
-        first_name=row[1],
-        last_name=row[2],
-        team_id=row[3],
-        position=row[4],
-        jersey_number=row[5],
-        height=row[6],
-        weight=row[7],
-        birth_date=row[8],
-        country=row[9],
-        draft_year=row[10],
-        draft_round=row[11],
-        draft_number=row[12],
+        player_id=str(row[0]) if row[0] is not None else "",
+        first_name=first_name,
+        last_name=last_name,
+        full_name=full_name,
+        team_id=str(row[3]) if row[3] is not None else None,
+        position=row[4] if len(row) > 4 else None,
+        jersey_number=row[5] if len(row) > 5 else None,
+        height=row[6] if len(row) > 6 else None,
+        weight=row[7] if len(row) > 7 else None,
+        birth_date=row[8] if len(row) > 8 else None,
+        country=row[9] if len(row) > 9 else None,
+        draft_year=row[10] if len(row) > 10 else None,
+        draft_round=row[11] if len(row) > 11 else None,
+        draft_number=row[12] if len(row) > 12 else None,
     )
 
 
@@ -207,9 +214,34 @@ def _get_career_stats(player_id: int, season: int | None) -> PlayerSeasonStats:
     """
 
     try:
-        career_row = execute_query(career_query, params)[0]
+        result = execute_query(career_query, params)
+        if not result:
+            # Return empty stats for player with no games
+            return PlayerSeasonStats(
+                season=season or 0,
+                games_played=0,
+                minutes_played=0,
+                points=0,
+                rebounds_total=0,
+                assists=0,
+                steals=0,
+                blocks=0,
+                fg_made=0,
+                fg_attempted=0,
+                fg_pct=None,
+                fg3_made=0,
+                fg3_attempted=0,
+                fg3_pct=None,
+                ft_made=0,
+                ft_attempted=0,
+                ft_pct=None,
+                turnovers=0,
+                personal_fouls=0,
+            )
+        career_row = result[0]
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch career stats: {e}") from e
+        logger.error("Failed to fetch career stats: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to fetch career statistics.") from e
 
     fg_attempted = career_row[8] or 0
     fg3_attempted = career_row[10] or 0
@@ -278,7 +310,8 @@ def _get_season_stats(player_id: int) -> list[PlayerSeasonStats]:
     try:
         season_rows = execute_query(season_query, [player_id])
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch season stats: {e}") from e
+        logger.error("Failed to fetch season stats: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to fetch season statistics.") from e
 
     return [_build_stats_from_row(row) for row in season_rows]
 
@@ -319,7 +352,8 @@ def _get_recent_games(player_id: int, season: int | None, limit: int = 10) -> li
     try:
         recent_rows = execute_query(recent_query, query_params)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch recent games: {e}") from e
+        logger.error("Failed to fetch recent games: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to fetch recent games.") from e
 
     return [
         PlayerGameStats(
@@ -410,7 +444,8 @@ async def list_players(
     try:
         rows = execute_query(query, query_params)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch players: {e}") from e
+        logger.error("Failed to fetch players: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to fetch players.") from e
 
     total = rows[0][-1] if rows else 0
     players = [_build_player_from_row(row[:-1]) for row in rows]
@@ -468,7 +503,8 @@ async def get_player(
     try:
         rows = execute_query(query, [player_id])
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch player: {e}") from e
+        logger.error("Failed to fetch player: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to fetch player.") from e
 
     if not rows:
         raise HTTPException(status_code=404, detail=f"Player with ID {player_id} not found")
@@ -507,8 +543,17 @@ async def get_player_stats(
     Raises:
         HTTPException: 404 if player not found, 500 if query fails.
     """
+    # Verify player exists first
+    try:
+        if not execute_query("SELECT 1 FROM players WHERE player_id = ?", [player_id]):
+            raise HTTPException(status_code=404, detail=f"Player {player_id} not found")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to verify player: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to verify player.") from e
+
     # Fetch all stats components using helper functions
-    # Player existence is handled naturally - empty stats indicate player not found
     career_stats = _get_career_stats(player_id, season)
     season_stats = _get_season_stats(player_id) if not season else []
     recent_games = _get_recent_games(player_id, season, limit=10)
@@ -585,7 +630,8 @@ async def get_player_games(
     try:
         rows = execute_query(query, query_params)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch games: {e}") from e
+        logger.error("Failed to fetch games: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to fetch games.") from e
 
     total_count = rows[0][-1] if rows else 0
 
@@ -746,7 +792,8 @@ async def get_player_gamelog_enhanced(
         count_result = execute_query(count_query, params)
         total_count = count_result[0][0] if count_result else 0
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to count games: {e}") from e
+        logger.error("Failed to count games: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to count games.") from e
 
     # Main query with sorting and pagination
     query = f"""
@@ -793,10 +840,14 @@ async def get_player_gamelog_enhanced(
     try:
         rows = execute_query(query, params)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch games: {e}") from e
+        logger.error("Failed to fetch games: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to fetch games.") from e
 
     # Calculate pagination
-    page_size_int = total_count if isinstance(page_size, str) and page_size.lower() == "all" else int(page_size) if isinstance(page_size, int) else 50
+    if isinstance(page_size, str) and page_size.lower() == "all":
+        page_size_int = total_count
+    else:
+        page_size_int = int(page_size) if isinstance(page_size, (int, str)) else 50
     total_pages = (total_count + page_size_int - 1) // page_size_int if page_size_int > 0 else 1
 
     games = []
@@ -927,7 +978,8 @@ async def get_player_index(
     try:
         rows = execute_query(query, params)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch player index: {e}") from e
+        logger.error("Failed to fetch player index: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to fetch player index.") from e
 
     # Organize players by first letter of last name
     players_by_letter: dict[str, list[dict[str, Any]]] = {}

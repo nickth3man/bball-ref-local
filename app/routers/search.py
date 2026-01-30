@@ -195,12 +195,16 @@ def _search_teams(query: str, limit: int) -> list[SearchResult]:
 
     results = []
     for row in rows:
-        team_id, full_name, abbreviation, nickname, city, conference, division, _ = row
+        # Unpack row - handle both 7 columns (without relevance) and 8 columns (with relevance)
+        if len(row) == 8:
+            team_id, full_name, abbreviation, _nickname, _city, conference, division, _ = row
+        else:
+            team_id, full_name, abbreviation, _nickname, _city, conference, division = row
         subtitle = f"{conference} - {division}"
 
         results.append(
             SearchResult(
-                type="team", id=team_id, name=full_name, subtitle=subtitle, url=f"/teams/{team_id}"
+                type="team", id=str(team_id), name=full_name, subtitle=subtitle, url=f"/teams/{team_id}"
             )
         )
 
@@ -340,4 +344,7 @@ async def search(
         return response_data
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Search failed: {e}") from e
+        # Log the actual error for debugging but don't expose internals to client
+        import logging
+        logging.getLogger(__name__).error(f"Search failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="An internal error occurred during search.") from e

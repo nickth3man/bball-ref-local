@@ -186,9 +186,9 @@ def transform_player_stats(df: pd.DataFrame) -> pd.DataFrame:
         else:
             df[col] = 0
     
-    # Ensure required IDs are proper types
-    df["player_id"] = pd.to_numeric(df["player_id"], errors="coerce").astype(int)
-    df["team_id"] = pd.to_numeric(df["team_id"], errors="coerce").astype(int)
+    # Ensure required IDs are proper types (string to match Pydantic models)
+    df["player_id"] = df["player_id"].astype(str)
+    df["team_id"] = df["team_id"].astype(str)
     df["game_id"] = df["game_id"].astype(str)
     
     # Select only columns that exist in our database schema
@@ -241,8 +241,8 @@ def load_player_stats(df: pd.DataFrame, batch_size: int = BATCH_SIZE) -> int:
                 (
                     int(row["stat_id"]),
                     str(row["game_id"]),
-                    int(row["player_id"]),
-                    int(row["team_id"]),
+                    str(row["player_id"]),
+                    str(row["team_id"]),
                     row["minutes_played"],
                     int(row["points"]),
                     int(row["rebounds_offensive"]),

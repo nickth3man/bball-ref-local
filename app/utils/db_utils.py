@@ -46,11 +46,8 @@ def entity_exists(entity_type: str, entity_id: int | str) -> bool:
     config = _ENTITY_CONFIG[entity_type]
     query = f"SELECT 1 FROM {config['table']} WHERE {config['id_column']} = ?"
 
-    try:
-        result = execute_query(query, [entity_id])
-        return bool(result)
-    except Exception:
-        return False
+    result = execute_query(query, [entity_id])
+    return bool(result)
 
 
 def paginate_query(
