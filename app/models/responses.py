@@ -4,7 +4,7 @@ This module provides reusable response models for paginated API responses
 and consistent error formatting.
 """
 
-from typing import Any, Generic, TypeVar
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -13,10 +13,8 @@ from app.models.player import Player
 from app.models.stats import PlayerGameStats
 from app.models.team import Team
 
-T = TypeVar("T")
 
-
-class PaginatedResponse(BaseModel, Generic[T]):
+class PaginatedResponse[T](BaseModel):
     """Generic paginated response model.
 
     Attributes:

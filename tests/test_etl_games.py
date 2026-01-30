@@ -63,7 +63,7 @@ class TestExtractGames:
 
     def test_extract_games_playoffs(self, mock_league_game_finder):
         """Test extract_games with playoffs season type."""
-        result = extract_games(season="2024-25", season_type="Playoffs")
+        extract_games(season="2024-25", season_type="Playoffs")
 
         mock_league_game_finder.assert_called_once_with(
             season_nullable="2024-25",

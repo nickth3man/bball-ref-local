@@ -8,7 +8,6 @@ import json
 from io import StringIO
 from unittest.mock import Mock, patch
 
-import pytest
 from fastapi.testclient import TestClient
 
 
@@ -200,7 +199,27 @@ class TestExportContent:
         from app.services.export_service import export_player_stats
 
         mock_execute.return_value = [
-            (2024, 82, 2460.5, 1500, 400, 300, 100, 50, 600, 1200, 0.5, 150, 400, 0.375, 200, 250, 0.8, 150, 200),
+            (
+                2024,
+                82,
+                2460.5,
+                1500,
+                400,
+                300,
+                100,
+                50,
+                600,
+                1200,
+                0.5,
+                150,
+                400,
+                0.375,
+                200,
+                250,
+                0.8,
+                150,
+                200,
+            ),
         ]
 
         response = export_player_stats("123", "csv")
@@ -215,7 +234,27 @@ class TestExportContent:
         from app.services.export_service import export_player_stats
 
         mock_execute.return_value = [
-            (2024, 82, 2460.5, 1500, 400, 300, 100, 50, 600, 1200, 0.5, 150, 400, 0.375, 200, 250, 0.8, 150, 200),
+            (
+                2024,
+                82,
+                2460.5,
+                1500,
+                400,
+                300,
+                100,
+                50,
+                600,
+                1200,
+                0.5,
+                150,
+                400,
+                0.375,
+                200,
+                250,
+                0.8,
+                150,
+                200,
+            ),
         ]
 
         response = export_player_stats("123", "csv")
@@ -225,10 +264,25 @@ class TestExportContent:
         headers = next(reader)
 
         expected_headers = [
-            "season", "games_played", "minutes", "points", "rebounds",
-            "assists", "steals", "blocks", "fg_made", "fg_attempted", "fg_pct",
-            "fg3_made", "fg3_attempted", "fg3_pct", "ft_made", "ft_attempted", "ft_pct",
-            "turnovers", "personal_fouls",
+            "season",
+            "games_played",
+            "minutes",
+            "points",
+            "rebounds",
+            "assists",
+            "steals",
+            "blocks",
+            "fg_made",
+            "fg_attempted",
+            "fg_pct",
+            "fg3_made",
+            "fg3_attempted",
+            "fg3_pct",
+            "ft_made",
+            "ft_attempted",
+            "ft_pct",
+            "turnovers",
+            "personal_fouls",
         ]
 
         assert headers == expected_headers

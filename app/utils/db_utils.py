@@ -8,7 +8,6 @@ from typing import Any
 
 from app.services.database import execute_query
 
-
 # Valid entity types for existence checks
 VALID_ENTITY_TYPES = {"player", "team", "game"}
 

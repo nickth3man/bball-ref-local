@@ -49,7 +49,7 @@ class TestRunETLPipeline:
 
     def test_run_etl_pipeline_with_playoffs(self, mock_etl_modules, mock_set_app_metadata):
         """Test pipeline with playoffs season type."""
-        result = run_etl_pipeline(season="2023-24", season_type="Playoffs")
+        run_etl_pipeline(season="2023-24", season_type="Playoffs")
 
         mock_etl_modules["games"].assert_called_once_with(season="2023-24", season_type="Playoffs")
         mock_etl_modules["stats"].assert_called_once_with(
@@ -58,7 +58,7 @@ class TestRunETLPipeline:
 
     def test_run_etl_pipeline_with_batch_size(self, mock_etl_modules, mock_set_app_metadata):
         """Test pipeline with custom batch size."""
-        result = run_etl_pipeline(batch_size=500)
+        run_etl_pipeline(batch_size=500)
 
         mock_etl_modules["stats"].assert_called_once_with(
             season=None, season_type="Regular Season", batch_size=500

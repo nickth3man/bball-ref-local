@@ -6,7 +6,7 @@ schema initialization, and metadata operations with proper mocking.
 
 import sys
 from pathlib import Path
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -371,10 +371,7 @@ class TestDatabaseIntegration:
         mock_conn.execute.return_value = mock_cursor
         mock_connect.return_value = mock_conn
 
-        # Act - Get connection
-        conn = db_module.get_db_connection()
-
-        # Execute query
+        # Act - Get connection and execute query
         result = db_module.execute_query("SELECT * FROM test", None)
 
         # Close connection

@@ -11,20 +11,26 @@ dependencies = [
     "nba-api>=1.11.3",
     "pandas>=2.2.3,<3.0.0",
     "pydantic>=2.9.0,<3.0.0",
+    "pydantic-settings>=2.12.0",
     "uvicorn[standard]>=0.32.0,<0.35.0",
 ]
 
 [dependency-groups]
 dev = [
     "httpx>=0.28.1",
+    "pandas-stubs>=2.3.3.260113",
+    "pyarrow-stubs>=20.0.0.20251215",
     "pytest>=9.0.2",
     "ruff>=0.14.14",
     "ty>=0.0.0",
+    "types-requests>=2.32.4.20260107",
 ]
 
 [tool.ruff]
 target-version = "py312"
 line-length = 100
+
+[tool.ruff.lint]
 select = [
     "E",   # pycodestyle errors
     "F",   # Pyflakes
@@ -38,6 +44,9 @@ select = [
 ]
 ignore = [
     "E501",  # Line too long (handled by formatter)
+    "E402",  # Module level import not at top (intentional for sys.path.insert)
+    "W291",  # Trailing whitespace (inside SQL strings for readability)
+    "W293",  # Blank line contains whitespace (inside SQL strings)
 ]
 
 [tool.ruff.format]
@@ -46,7 +55,7 @@ indent-style = "space"
 skip-magic-trailing-comma = false
 line-ending = "auto"
 
-[tool.ruff.isort]
+[tool.ruff.lint.isort]
 known-first-party = ["app"]
 
 [tool.pytest.ini_options]

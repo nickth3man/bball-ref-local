@@ -1,6 +1,5 @@
 """Tests for game log pagination and filtering."""
 
-import pytest
 from fastapi.testclient import TestClient
 
 
@@ -44,7 +43,9 @@ class TestGameLogPagination:
 
     def test_game_log_invalid_page_size(self, client: TestClient, sample_player: dict) -> None:
         """Test invalid page size parameter."""
-        response = client.get(f"/api/v1/players/{sample_player['id']}/gamelog/2024?page_size=invalid")
+        response = client.get(
+            f"/api/v1/players/{sample_player['id']}/gamelog/2024?page_size=invalid"
+        )
 
         assert response.status_code == 422
 
@@ -54,7 +55,9 @@ class TestGameLogSorting:
 
     def test_game_log_sort_by_date(self, client: TestClient, sample_player: dict) -> None:
         """Test sorting game log by date."""
-        response = client.get(f"/api/v1/players/{sample_player['id']}/gamelog/2024?sort_by=date&sort_order=desc")
+        response = client.get(
+            f"/api/v1/players/{sample_player['id']}/gamelog/2024?sort_by=date&sort_order=desc"
+        )
 
         assert response.status_code == 200
         data = response.json()
@@ -62,7 +65,9 @@ class TestGameLogSorting:
 
     def test_game_log_sort_by_points(self, client: TestClient, sample_player: dict) -> None:
         """Test sorting game log by points."""
-        response = client.get(f"/api/v1/players/{sample_player['id']}/gamelog/2024?sort_by=pts&sort_order=desc")
+        response = client.get(
+            f"/api/v1/players/{sample_player['id']}/gamelog/2024?sort_by=pts&sort_order=desc"
+        )
 
         assert response.status_code == 200
         data = response.json()
@@ -136,7 +141,9 @@ class TestGameLogFiltering:
 
     def test_game_log_combined_filters(self, client: TestClient, sample_player: dict) -> None:
         """Test combining home/away and win/loss filters."""
-        response = client.get(f"/api/v1/players/{sample_player['id']}/gamelog/2024?home_away=home&result=win")
+        response = client.get(
+            f"/api/v1/players/{sample_player['id']}/gamelog/2024?home_away=home&result=win"
+        )
 
         assert response.status_code == 200
         data = response.json()
@@ -151,7 +158,9 @@ class TestGameLogFiltering:
 class TestGameLogUI:
     """Tests for game log UI components."""
 
-    def test_game_log_has_pagination_controls(self, client: TestClient, sample_player: dict) -> None:
+    def test_game_log_has_pagination_controls(
+        self, client: TestClient, sample_player: dict
+    ) -> None:
         """Test game log template includes pagination controls."""
         response = client.get(f"/players/{sample_player['id']}", headers={"Accept": "text/html"})
 
@@ -177,7 +186,7 @@ class TestGameLogUI:
         """Test game log updates via HTMX."""
         response = client.get(
             f"/api/v1/players/{sample_player['id']}/gamelog/2024?page=1",
-            headers={"HX-Request": "true"}
+            headers={"HX-Request": "true"},
         )
 
         assert response.status_code == 200

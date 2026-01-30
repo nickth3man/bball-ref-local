@@ -18,20 +18,21 @@ from app.services.htmx_utils import get_templates, is_htmx_request
 
 def _sanitize_query(query: str) -> str:
     """Sanitize user search query to prevent XSS attacks.
-    
+
     Strips HTML tags and escapes special characters.
-    
+
     Args:
         query: Raw user input query string.
-        
+
     Returns:
         Sanitized query string safe for HTML rendering.
     """
     # Remove HTML tags
-    query = re.sub(r'<[^>]+>', '', query)
+    query = re.sub(r"<[^>]+>", "", query)
     # Escape special HTML characters
     query = html.escape(query)
     return query
+
 
 router = APIRouter(prefix="/api/v1", tags=["search"])
 
@@ -204,7 +205,11 @@ def _search_teams(query: str, limit: int) -> list[SearchResult]:
 
         results.append(
             SearchResult(
-                type="team", id=str(team_id), name=full_name, subtitle=subtitle, url=f"/teams/{team_id}"
+                type="team",
+                id=str(team_id),
+                name=full_name,
+                subtitle=subtitle,
+                url=f"/teams/{team_id}",
             )
         )
 
@@ -323,7 +328,9 @@ async def search(
         # Combine results: players first, then teams, then games
         all_results = player_results + team_results + game_results
 
-        response_data = SearchResponse(query=sanitized_query, results=all_results, total=len(all_results))
+        response_data = SearchResponse(
+            query=sanitized_query, results=all_results, total=len(all_results)
+        )
 
         # Return HTML if HTMX request
         if is_htmx_request(request):
@@ -346,5 +353,8 @@ async def search(
     except Exception as e:
         # Log the actual error for debugging but don't expose internals to client
         import logging
+
         logging.getLogger(__name__).error(f"Search failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="An internal error occurred during search.") from e
+        raise HTTPException(
+            status_code=500, detail="An internal error occurred during search."
+        ) from e

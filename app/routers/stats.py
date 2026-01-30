@@ -317,16 +317,14 @@ async def get_league_leaders(
         results = execute_query(query, [season, limit])
     except Exception as e:
         import logging
+
         logging.getLogger(__name__).error(f"Failed to query league leaders: {e}", exc_info=True)
         raise HTTPException(
             status_code=500, detail="An internal error occurred while querying league leaders."
         ) from e
 
     # Build response using helper function
-    leaders = [
-        _map_row_to_leader_entry(row, idx)
-        for idx, row in enumerate(results, start=1)
-    ]
+    leaders = [_map_row_to_leader_entry(row, idx) for idx, row in enumerate(results, start=1)]
 
     response_data = LeadersResponse(
         category=category,
@@ -559,15 +557,15 @@ async def get_standings(
         results = execute_query(query, params)
     except Exception as e:
         import logging
+
         logging.getLogger(__name__).error(f"Failed to query standings: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="An internal error occurred while querying standings.") from e
+        raise HTTPException(
+            status_code=500, detail="An internal error occurred while querying standings."
+        ) from e
 
     # Build standings with rankings
     rankings = RankingTracker()
-    standings = [
-        _map_row_to_standings_entry(row, rankings)
-        for row in results
-    ]
+    standings = [_map_row_to_standings_entry(row, rankings) for row in results]
 
     response_data = StandingsResponse(
         season=season,

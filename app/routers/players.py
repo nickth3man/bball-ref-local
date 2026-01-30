@@ -693,18 +693,10 @@ async def get_player_gamelog_enhanced(
     page_size: Annotated[
         int | str, Query(description="Items per page (50, 100, 200, or 'all')")
     ] = 50,
-    sort_by: Annotated[
-        str, Query(description="Column to sort by")
-    ] = "game_date",
-    sort_order: Annotated[
-        str, Query(description="Sort order (asc or desc)")
-    ] = "desc",
-    home_away: Annotated[
-        str, Query(description="Filter by home/away (home, away, all)")
-    ] = "all",
-    result: Annotated[
-        str, Query(description="Filter by result (win, loss, all)")
-    ] = "all",
+    sort_by: Annotated[str, Query(description="Column to sort by")] = "game_date",
+    sort_order: Annotated[str, Query(description="Sort order (asc or desc)")] = "desc",
+    home_away: Annotated[str, Query(description="Filter by home/away (home, away, all)")] = "all",
+    result: Annotated[str, Query(description="Filter by result (win, loss, all)")] = "all",
 ) -> HTMLResponse:
     """Get enhanced player game log with sorting, pagination, and filtering.
 
@@ -852,30 +844,32 @@ async def get_player_gamelog_enhanced(
 
     games = []
     for row in rows:
-        games.append({
-            "game_date": row[0],
-            "season": row[1],
-            "opponent_abbreviation": row[2],
-            "opponent_id": row[3],
-            "is_home": bool(row[4]),
-            "is_win": bool(row[5]),
-            "team_score": row[6],
-            "opponent_score": row[7],
-            "minutes_played": row[8],
-            "points": row[9],
-            "rebounds_total": row[10],
-            "assists": row[11],
-            "steals": row[12],
-            "blocks": row[13],
-            "fg_made": row[14],
-            "fg_attempted": row[15],
-            "fg3_made": row[16],
-            "fg3_attempted": row[17],
-            "ft_made": row[18],
-            "ft_attempted": row[19],
-            "turnovers": row[20],
-            "personal_fouls": row[21],
-        })
+        games.append(
+            {
+                "game_date": row[0],
+                "season": row[1],
+                "opponent_abbreviation": row[2],
+                "opponent_id": row[3],
+                "is_home": bool(row[4]),
+                "is_win": bool(row[5]),
+                "team_score": row[6],
+                "opponent_score": row[7],
+                "minutes_played": row[8],
+                "points": row[9],
+                "rebounds_total": row[10],
+                "assists": row[11],
+                "steals": row[12],
+                "blocks": row[13],
+                "fg_made": row[14],
+                "fg_attempted": row[15],
+                "fg3_made": row[16],
+                "fg3_attempted": row[17],
+                "ft_made": row[18],
+                "ft_attempted": row[19],
+                "turnovers": row[20],
+                "personal_fouls": row[21],
+            }
+        )
 
     return templates.TemplateResponse(
         "partials/player_game_log.html",
@@ -924,7 +918,7 @@ async def export_player_data(
 
     if export_type == "stats":
         return export_player_stats(player_id, format_type)
-    
+
     if export_type == "games":
         return export_game_logs(player_id, season, format_type)
 
@@ -935,7 +929,9 @@ async def export_player_data(
 @router.get("/index", response_model=None)
 async def get_player_index(
     request: Request,
-    letter: Annotated[str | None, Query(description="Filter by first letter of last name (A-Z)")] = None,
+    letter: Annotated[
+        str | None, Query(description="Filter by first letter of last name (A-Z)")
+    ] = None,
 ) -> HTMLResponse:
     """Get alphabetical player index with A-Z navigation.
 

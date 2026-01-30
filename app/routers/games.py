@@ -364,37 +364,45 @@ async def get_game_box_score(
     )
 
     # Extract team data (same in all rows)
-    home_team = Team(
-        team_id=first_row[10],
-        full_name=first_row[11],
-        abbreviation=first_row[12],
-        nickname=first_row[13],
-        city=first_row[14],
-        state=first_row[15],
-        year_founded=first_row[16],
-        arena=first_row[17],
-        owner=first_row[18],
-        general_manager=first_row[19],
-        head_coach=first_row[20],
-        conference=first_row[21],
-        division=first_row[22],
-    ) if first_row[10] else None
+    home_team = (
+        Team(
+            team_id=first_row[10],
+            full_name=first_row[11],
+            abbreviation=first_row[12],
+            nickname=first_row[13],
+            city=first_row[14],
+            state=first_row[15],
+            year_founded=first_row[16],
+            arena=first_row[17],
+            owner=first_row[18],
+            general_manager=first_row[19],
+            head_coach=first_row[20],
+            conference=first_row[21],
+            division=first_row[22],
+        )
+        if first_row[10]
+        else None
+    )
 
-    away_team = Team(
-        team_id=first_row[23],
-        full_name=first_row[24],
-        abbreviation=first_row[25],
-        nickname=first_row[26],
-        city=first_row[27],
-        state=first_row[28],
-        year_founded=first_row[29],
-        arena=first_row[30],
-        owner=first_row[31],
-        general_manager=first_row[32],
-        head_coach=first_row[33],
-        conference=first_row[34],
-        division=first_row[35],
-    ) if first_row[23] else None
+    away_team = (
+        Team(
+            team_id=first_row[23],
+            full_name=first_row[24],
+            abbreviation=first_row[25],
+            nickname=first_row[26],
+            city=first_row[27],
+            state=first_row[28],
+            year_founded=first_row[29],
+            arena=first_row[30],
+            owner=first_row[31],
+            general_manager=first_row[32],
+            head_coach=first_row[33],
+            conference=first_row[34],
+            division=first_row[35],
+        )
+        if first_row[23]
+        else None
+    )
 
     # Extract player stats
     home_players: list[PlayerGameStats] = []

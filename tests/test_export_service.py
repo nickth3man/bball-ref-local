@@ -228,7 +228,27 @@ class TestExportPlayerStats:
     def test_export_player_stats_csv(self, mock_execute: Mock) -> None:
         """Test exporting player stats in CSV format."""
         mock_execute.return_value = [
-            (2024, 82, 2460.5, 1500, 400, 300, 100, 50, 600, 1200, 0.5, 150, 400, 0.375, 200, 250, 0.8, 150, 200),
+            (
+                2024,
+                82,
+                2460.5,
+                1500,
+                400,
+                300,
+                100,
+                50,
+                600,
+                1200,
+                0.5,
+                150,
+                400,
+                0.375,
+                200,
+                250,
+                0.8,
+                150,
+                200,
+            ),
         ]
 
         response = export_player_stats("123", "csv")
@@ -241,7 +261,27 @@ class TestExportPlayerStats:
     def test_export_player_stats_json(self, mock_execute: Mock) -> None:
         """Test exporting player stats in JSON format."""
         mock_execute.return_value = [
-            (2024, 82, 2460.5, 1500, 400, 300, 100, 50, 600, 1200, 0.5, 150, 400, 0.375, 200, 250, 0.8, 150, 200),
+            (
+                2024,
+                82,
+                2460.5,
+                1500,
+                400,
+                300,
+                100,
+                50,
+                600,
+                1200,
+                0.5,
+                150,
+                400,
+                0.375,
+                200,
+                250,
+                0.8,
+                150,
+                200,
+            ),
         ]
 
         response = export_player_stats("123", "json")
@@ -278,7 +318,27 @@ class TestExportTeamStats:
     def test_export_team_stats_csv(self, mock_execute: Mock) -> None:
         """Test exporting team stats in CSV format."""
         mock_execute.return_value = [
-            (2024, 82, 50, 32, 9000, 110.0, 3000, 6000, 0.5, 800, 2200, 0.364, 1200, 1600, 3500, 1800, 400, 300, 500),
+            (
+                2024,
+                82,
+                50,
+                32,
+                9000,
+                110.0,
+                3000,
+                6000,
+                0.5,
+                800,
+                2200,
+                0.364,
+                1200,
+                1600,
+                3500,
+                1800,
+                400,
+                300,
+                500,
+            ),
         ]
 
         response = export_team_stats("1610612738", "csv")
@@ -290,7 +350,27 @@ class TestExportTeamStats:
     def test_export_team_stats_json(self, mock_execute: Mock) -> None:
         """Test exporting team stats in JSON format."""
         mock_execute.return_value = [
-            (2024, 82, 50, 32, 9000, 110.0, 3000, 6000, 0.5, 800, 2200, 0.364, 1200, 1600, 3500, 1800, 400, 300, 500),
+            (
+                2024,
+                82,
+                50,
+                32,
+                9000,
+                110.0,
+                3000,
+                6000,
+                0.5,
+                800,
+                2200,
+                0.364,
+                1200,
+                1600,
+                3500,
+                1800,
+                400,
+                300,
+                500,
+            ),
         ]
 
         response = export_team_stats("1610612738", "json")
@@ -317,7 +397,32 @@ class TestExportGameLogs:
     def test_export_game_logs_csv(self, mock_execute: Mock) -> None:
         """Test exporting game logs in CSV format."""
         mock_execute.return_value = [
-            (date(2024, 1, 15), 2024, "LAL", "Home", "Win", 120, 110, 35.5, 30, 8, 5, 2, 1, 10, 20, 0.5, 2, 5, 0.4, 8, 10, 0.8, 3, 2),
+            (
+                date(2024, 1, 15),
+                2024,
+                "LAL",
+                "Home",
+                "Win",
+                120,
+                110,
+                35.5,
+                30,
+                8,
+                5,
+                2,
+                1,
+                10,
+                20,
+                0.5,
+                2,
+                5,
+                0.4,
+                8,
+                10,
+                0.8,
+                3,
+                2,
+            ),
         ]
 
         response = export_game_logs("123", season=2024, format_type="csv")
@@ -329,7 +434,32 @@ class TestExportGameLogs:
     def test_export_game_logs_all_seasons(self, mock_execute: Mock) -> None:
         """Test exporting game logs without season filter."""
         mock_execute.return_value = [
-            (date(2024, 1, 15), 2024, "LAL", "Home", "Win", 120, 110, 35.5, 30, 8, 5, 2, 1, 10, 20, 0.5, 2, 5, 0.4, 8, 10, 0.8, 3, 2),
+            (
+                date(2024, 1, 15),
+                2024,
+                "LAL",
+                "Home",
+                "Win",
+                120,
+                110,
+                35.5,
+                30,
+                8,
+                5,
+                2,
+                1,
+                10,
+                20,
+                0.5,
+                2,
+                5,
+                0.4,
+                8,
+                10,
+                0.8,
+                3,
+                2,
+            ),
         ]
 
         response = export_game_logs("123", season=None, format_type="csv")
@@ -341,7 +471,32 @@ class TestExportGameLogs:
     def test_export_game_logs_json(self, mock_execute: Mock) -> None:
         """Test exporting game logs in JSON format."""
         mock_execute.return_value = [
-            (date(2024, 1, 15), 2024, "LAL", "Home", "Win", 120, 110, 35.5, 30, 8, 5, 2, 1, 10, 20, 0.5, 2, 5, 0.4, 8, 10, 0.8, 3, 2),
+            (
+                date(2024, 1, 15),
+                2024,
+                "LAL",
+                "Home",
+                "Win",
+                120,
+                110,
+                35.5,
+                30,
+                8,
+                5,
+                2,
+                1,
+                10,
+                20,
+                0.5,
+                2,
+                5,
+                0.4,
+                8,
+                10,
+                0.8,
+                3,
+                2,
+            ),
         ]
 
         response = export_game_logs("123", season=2024, format_type="json")
@@ -360,7 +515,27 @@ class TestExportBoxScore:
         """Test exporting box score in CSV format."""
         mock_execute.return_value = [
             ("LeBron James", "LAL", 35.5, 30, 8, 5, 2, 1, 10, 20, 0.5, 2, 5, 0.4, 8, 10, 0.8, 3, 2),
-            ("Anthony Davis", "LAL", 32.0, 25, 12, 3, 1, 3, 8, 15, 0.533, 0, 1, 0.0, 9, 10, 0.9, 2, 3),
+            (
+                "Anthony Davis",
+                "LAL",
+                32.0,
+                25,
+                12,
+                3,
+                1,
+                3,
+                8,
+                15,
+                0.533,
+                0,
+                1,
+                0.0,
+                9,
+                10,
+                0.9,
+                2,
+                3,
+            ),
         ]
 
         response = export_box_score("0022400001", "csv")
@@ -400,7 +575,27 @@ class TestExportIntegration:
     def test_player_export_formats_consistency(self, mock_execute: Mock) -> None:
         """Test that CSV and JSON exports contain the same data."""
         mock_execute.return_value = [
-            (2024, 82, 2460.5, 1500, 400, 300, 100, 50, 600, 1200, 0.5, 150, 400, 0.375, 200, 250, 0.8, 150, 200),
+            (
+                2024,
+                82,
+                2460.5,
+                1500,
+                400,
+                300,
+                100,
+                50,
+                600,
+                1200,
+                0.5,
+                150,
+                400,
+                0.375,
+                200,
+                250,
+                0.8,
+                150,
+                200,
+            ),
         ]
 
         csv_response = export_player_stats("123", "csv")

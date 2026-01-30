@@ -25,10 +25,10 @@ class ExportableData(Protocol):
 class DecimalEncoder(json.JSONEncoder):
     """Custom JSON encoder to handle decimal and date types."""
 
-    def default(self, obj: Any) -> Any:
-        if isinstance(obj, (date, datetime)):
-            return obj.isoformat()
-        return super().default(obj)
+    def default(self, o: Any) -> Any:
+        if isinstance(o, (date, datetime)):
+            return o.isoformat()
+        return super().default(o)
 
 
 def _format_value(value: Any) -> str:
@@ -188,10 +188,25 @@ def export_player_stats(player_id: str, format_type: str = "csv") -> Response:
         raise HTTPException(status_code=500, detail=f"Failed to fetch player stats: {e}") from e
 
     columns = [
-        "season", "games_played", "minutes", "points", "rebounds",
-        "assists", "steals", "blocks", "fg_made", "fg_attempted", "fg_pct",
-        "fg3_made", "fg3_attempted", "fg3_pct", "ft_made", "ft_attempted", "ft_pct",
-        "turnovers", "personal_fouls",
+        "season",
+        "games_played",
+        "minutes",
+        "points",
+        "rebounds",
+        "assists",
+        "steals",
+        "blocks",
+        "fg_made",
+        "fg_attempted",
+        "fg_pct",
+        "fg3_made",
+        "fg3_attempted",
+        "fg3_pct",
+        "ft_made",
+        "ft_attempted",
+        "ft_pct",
+        "turnovers",
+        "personal_fouls",
     ]
 
     data = [dict(zip(columns, row, strict=True)) for row in rows]
@@ -254,9 +269,25 @@ def export_team_stats(team_id: str, format_type: str = "csv") -> Response:
         raise HTTPException(status_code=500, detail=f"Failed to fetch team stats: {e}") from e
 
     columns = [
-        "season", "games_played", "wins", "losses", "points_for", "avg_points",
-        "fg_made", "fg_attempted", "fg_pct", "fg3_made", "fg3_attempted", "fg3_pct",
-        "ft_made", "ft_attempted", "rebounds", "assists", "steals", "blocks", "turnovers",
+        "season",
+        "games_played",
+        "wins",
+        "losses",
+        "points_for",
+        "avg_points",
+        "fg_made",
+        "fg_attempted",
+        "fg_pct",
+        "fg3_made",
+        "fg3_attempted",
+        "fg3_pct",
+        "ft_made",
+        "ft_attempted",
+        "rebounds",
+        "assists",
+        "steals",
+        "blocks",
+        "turnovers",
     ]
 
     data = [dict(zip(columns, row, strict=True)) for row in rows]
@@ -350,11 +381,30 @@ def export_game_logs(
         raise HTTPException(status_code=500, detail=f"Failed to fetch game logs: {e}") from e
 
     columns = [
-        "game_date", "season", "opponent", "home_away", "result",
-        "team_score", "opponent_score", "minutes_played", "points", "rebounds",
-        "assists", "steals", "blocks", "fg_made", "fg_attempted", "fg_pct",
-        "fg3_made", "fg3_attempted", "fg3_pct", "ft_made", "ft_attempted", "ft_pct",
-        "turnovers", "personal_fouls",
+        "game_date",
+        "season",
+        "opponent",
+        "home_away",
+        "result",
+        "team_score",
+        "opponent_score",
+        "minutes_played",
+        "points",
+        "rebounds",
+        "assists",
+        "steals",
+        "blocks",
+        "fg_made",
+        "fg_attempted",
+        "fg_pct",
+        "fg3_made",
+        "fg3_attempted",
+        "fg3_pct",
+        "ft_made",
+        "ft_attempted",
+        "ft_pct",
+        "turnovers",
+        "personal_fouls",
     ]
 
     data = [dict(zip(columns, row, strict=True)) for row in rows]
@@ -419,10 +469,25 @@ def export_box_score(game_id: str, format_type: str = "csv") -> Response:
         raise HTTPException(status_code=500, detail=f"Failed to fetch box score: {e}") from e
 
     columns = [
-        "player_name", "team", "minutes_played", "points", "rebounds",
-        "assists", "steals", "blocks", "fg_made", "fg_attempted", "fg_pct",
-        "fg3_made", "fg3_attempted", "fg3_pct", "ft_made", "ft_attempted", "ft_pct",
-        "turnovers", "personal_fouls",
+        "player_name",
+        "team",
+        "minutes_played",
+        "points",
+        "rebounds",
+        "assists",
+        "steals",
+        "blocks",
+        "fg_made",
+        "fg_attempted",
+        "fg_pct",
+        "fg3_made",
+        "fg3_attempted",
+        "fg3_pct",
+        "ft_made",
+        "ft_attempted",
+        "ft_pct",
+        "turnovers",
+        "personal_fouls",
     ]
 
     data = [dict(zip(columns, row, strict=True)) for row in rows]

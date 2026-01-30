@@ -41,7 +41,16 @@ def sample_player_rows():
 def sample_team_rows():
     """Sample team database rows for search results."""
     return [
-        ("1610612747", "Los Angeles Lakers", "LAL", "Lakers", "Los Angeles", "Western", "Pacific", 0),
+        (
+            "1610612747",
+            "Los Angeles Lakers",
+            "LAL",
+            "Lakers",
+            "Los Angeles",
+            "Western",
+            "Pacific",
+            0,
+        ),
         ("1610612738", "Boston Celtics", "BOS", "Celtics", "Boston", "Eastern", "Atlantic", 1),
     ]
 
@@ -50,7 +59,17 @@ def sample_team_rows():
 def sample_game_rows():
     """Sample game database rows for search results."""
     return [
-        ("0022400001", date(2024, 10, 22), 132, 109, "Boston Celtics", "New York Knicks", "BOS", "NYK", 2024),
+        (
+            "0022400001",
+            date(2024, 10, 22),
+            132,
+            109,
+            "Boston Celtics",
+            "New York Knicks",
+            "BOS",
+            "NYK",
+            2024,
+        ),
     ]
 
 
@@ -59,14 +78,14 @@ class TestXSSPrevention:
 
     def test_sanitize_query_script_tag(self):
         """Test that script tags are sanitized."""
-        result = _sanitize_query("<script>alert(\'xss\')</script>")
+        result = _sanitize_query("<script>alert('xss')</script>")
         assert "<script>" not in result
         # Tags are stripped, content remains but escaped
         assert "alert" in result or result == ""
 
     def test_sanitize_query_img_tag(self):
         """Test that img tags with onerror are sanitized."""
-        result = _sanitize_query("<img src=x onerror=alert(\'xss\')>")
+        result = _sanitize_query("<img src=x onerror=alert('xss')>")
         assert "<img" not in result
         # Tags should be stripped
         assert "onerror" not in result
@@ -307,6 +326,7 @@ class TestSearchInternalFunctions:
     def test_search_players_function(self, mock_execute_query, sample_player_rows):
         """Test _search_players function directly."""
         from app.routers.search import _search_players
+
         mock_execute_query.return_value = sample_player_rows[:1]
         results = _search_players("lebron", 10)
         assert len(results) == 1
@@ -317,6 +337,7 @@ class TestSearchInternalFunctions:
     def test_search_teams_function(self, mock_execute_query, sample_team_rows):
         """Test _search_teams function directly."""
         from app.routers.search import _search_teams
+
         mock_execute_query.return_value = sample_team_rows[:1]
         results = _search_teams("lakers", 10)
         assert len(results) == 1
@@ -327,6 +348,7 @@ class TestSearchInternalFunctions:
     def test_search_games_function(self, mock_execute_query, sample_game_rows):
         """Test _search_games function directly."""
         from app.routers.search import _search_games
+
         mock_execute_query.return_value = sample_game_rows[:1]
         results = _search_games("celtics", 10)
         assert len(results) == 1
@@ -337,6 +359,7 @@ class TestSearchInternalFunctions:
     def test_search_result_model(self):
         """Test SearchResult model creation."""
         from app.routers.search import SearchResult
+
         result = SearchResult(
             type="player",
             id="2544",
@@ -351,6 +374,7 @@ class TestSearchInternalFunctions:
     def test_search_response_model(self):
         """Test SearchResponse model creation."""
         from app.routers.search import SearchResponse, SearchResult
+
         results = [
             SearchResult(
                 type="player",

@@ -3,14 +3,12 @@
 import sys
 from pathlib import Path
 
-import pytest
 from fastapi import Request
-from starlette.datastructures import Headers
 
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from app.services.htmx_utils import is_htmx_request, get_templates
+from app.services.htmx_utils import get_templates, is_htmx_request
 
 
 class MockRequest:

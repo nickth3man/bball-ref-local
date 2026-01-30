@@ -10,11 +10,16 @@ from pydantic import ValidationError
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from app.models.player import Player
-from app.models.team import Team
 from app.models.game import Game
+from app.models.player import Player
+from app.models.responses import (
+    APIErrorResponse,
+    PaginatedResponse,
+    PaginationParams,
+    PlayerListResponse,
+)
 from app.models.stats import PlayerGameStats
-from app.models.responses import PaginatedResponse, PlayerListResponse, APIErrorResponse, PaginationParams
+from app.models.team import Team
 
 
 class TestPlayerModel:
@@ -324,13 +329,29 @@ class TestResponseModels:
     """Tests for response models."""
 
     def test_paginated_response_creation(self):
-        items = [Player(player_id="1", first_name="Test", last_name="Player", full_name="Test Player", team_id="123")]
+        items = [
+            Player(
+                player_id="1",
+                first_name="Test",
+                last_name="Player",
+                full_name="Test Player",
+                team_id="123",
+            )
+        ]
         response = PaginatedResponse(items=items, total=1, page=1, page_size=20, pages=1)
         assert response.total == 1
         assert response.page == 1
 
     def test_player_list_response_creation(self):
-        items = [Player(player_id="1", first_name="Test", last_name="Player", full_name="Test Player", team_id="123")]
+        items = [
+            Player(
+                player_id="1",
+                first_name="Test",
+                last_name="Player",
+                full_name="Test Player",
+                team_id="123",
+            )
+        ]
         response = PlayerListResponse(items=items, total=1, page=1, page_size=20, pages=1)
         assert len(response.items) == 1
 

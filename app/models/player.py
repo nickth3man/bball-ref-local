@@ -40,7 +40,7 @@ class Player(BaseModel):
     first_name: str = Field(description="Player's first name")
     last_name: str = Field(description="Player's last name")
     full_name: str = Field(description="Player's full name")
-    team_id: str = Field(description="ID of the player's current team")
+    team_id: str | None = Field(default=None, description="ID of the player's current team")
     position: str | None = Field(
         default=None,
         description="Player's position (PG, SG, SF, PF, C, G, F)",
