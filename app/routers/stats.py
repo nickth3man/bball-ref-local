@@ -120,6 +120,159 @@ class StandingsResponse(BaseModel):
     standings: list[StandingsEntry] = Field(description="List of team standings ordered by rank")
 
 
+def _validate_category(category: str) -> None:
+    """Validate the statistical category.
+
+    Args:
+        category: The category to validate.
+
+    Raises:
+        HTTPException: If category is invalid.
+    """
+    if category not in VALID_CATEGORIES:
+        valid_list = ", ".join(sorted(VALID_CATEGORIES))
+        raise HTTPException(
+            status_code=400, detail=f"Invalid category '{category}'. Valid categories: {valid_list}"
+        )
+
+
+def _build_leaders_query(category: str) -> str:
+    """Build the SQL query for league leaders.
+
+    Args:
+        category: The statistical category.
+
+    Returns:
+        The SQL query string.
+    """
+    stat_column = CATEGORY_COLUMN_MAP[category]
+    return f"""
+        SELECT
+            p.player_id,
+            p.first_name,
+            p.last_name,
+            p.team_id,
+            p.position,
+            p.jersey_number,
+            p.height,
+            p.weight,
+            p.birth_date,
+            p.country,
+            p.draft_year,
+            p.draft_round,
+            p.draft_number,
+            t.team_id as team_team_id,
+            t.full_name as team_full_name,
+            t.abbreviation as team_abbreviation,
+            t.nickname as team_nickname,
+            t.city as team_city,
+            t.state as team_state,
+            t.year_founded as team_year_founded,
+            t.arena as team_arena,
+            t.owner as team_owner,
+            t.general_manager as team_general_manager,
+            t.head_coach as team_head_coach,
+            t.conference as team_conference,
+            t.division as team_division,
+            AVG(pgs.{stat_column}) as avg_value,
+            COUNT(*) as games_played
+        FROM player_game_stats pgs
+        JOIN players p ON pgs.player_id = p.player_id
+        JOIN teams t ON pgs.team_id = t.team_id
+        JOIN games g ON pgs.game_id = g.game_id
+        WHERE g.season = ?
+        GROUP BY
+            p.player_id, p.first_name, p.last_name, p.team_id, p.position,
+            p.jersey_number, p.height, p.weight, p.birth_date, p.country,
+            p.draft_year, p.draft_round, p.draft_number,
+            t.team_id, t.full_name, t.abbreviation, t.nickname, t.city,
+            t.state, t.year_founded, t.arena, t.owner, t.general_manager,
+            t.head_coach, t.conference, t.division
+        HAVING COUNT(*) >= 10
+        ORDER BY avg_value DESC
+        LIMIT ?
+    """
+
+
+def _map_row_to_player(row: tuple) -> Player:
+    """Map a database row to a Player model.
+
+    Args:
+        row: The database row tuple.
+
+    Returns:
+        A Player instance.
+    """
+    first_name = row[1]
+    last_name = row[2]
+    full_name = f"{first_name} {last_name}" if first_name and last_name else ""
+
+    return Player(
+        player_id=row[0],
+        first_name=first_name,
+        last_name=last_name,
+        full_name=full_name,
+        team_id=row[3],
+        position=row[4],
+        jersey_number=row[5],
+        height=row[6],
+        weight=row[7],
+        birth_date=row[8],
+        country=row[9],
+        draft_year=row[10],
+        draft_round=row[11],
+        draft_number=row[12],
+    )
+
+
+def _map_row_to_team(row: tuple) -> Team:
+    """Map a database row to a Team model.
+
+    Args:
+        row: The database row tuple starting at index 13.
+
+    Returns:
+        A Team instance.
+    """
+    return Team(
+        team_id=row[13],
+        full_name=row[14],
+        abbreviation=row[15],
+        nickname=row[16],
+        city=row[17],
+        state=row[18],
+        year_founded=row[19],
+        arena=row[20],
+        owner=row[21],
+        general_manager=row[22],
+        head_coach=row[23],
+        conference=row[24],
+        division=row[25],
+    )
+
+
+def _map_row_to_leader_entry(row: tuple, rank: int) -> LeaderEntry:
+    """Map a database row to a LeaderEntry model.
+
+    Args:
+        row: The database row tuple.
+        rank: The ranking position.
+
+    Returns:
+        A LeaderEntry instance.
+    """
+    player = _map_row_to_player(row)
+    team = _map_row_to_team(row)
+
+    return LeaderEntry(
+        rank=rank,
+        player=player,
+        team=team,
+        value=round(row[26], 3),
+        games=row[27],
+    )
+
+
 @router.get("/leaders", response_model=LeadersResponse)
 async def get_league_leaders(
     request: Request,
@@ -147,115 +300,22 @@ async def get_league_leaders(
     Raises:
         HTTPException: If category is invalid (400) or database query fails (500).
     """
-    # Validate category
-    if category not in VALID_CATEGORIES:
-        valid_list = ", ".join(sorted(VALID_CATEGORIES))
-        raise HTTPException(
-            status_code=400, detail=f"Invalid category '{category}'. Valid categories: {valid_list}"
-        )
+    _validate_category(category)
 
-    # Build and execute query
-    stat_column = CATEGORY_COLUMN_MAP[category]
+    query = _build_leaders_query(category)
 
     try:
-        query = f"""
-            SELECT
-                p.player_id,
-                p.first_name,
-                p.last_name,
-                p.team_id,
-                p.position,
-                p.jersey_number,
-                p.height,
-                p.weight,
-                p.birth_date,
-                p.country,
-                p.draft_year,
-                p.draft_round,
-                p.draft_number,
-                t.team_id as team_team_id,
-                t.full_name as team_full_name,
-                t.abbreviation as team_abbreviation,
-                t.nickname as team_nickname,
-                t.city as team_city,
-                t.state as team_state,
-                t.year_founded as team_year_founded,
-                t.arena as team_arena,
-                t.owner as team_owner,
-                t.general_manager as team_general_manager,
-                t.head_coach as team_head_coach,
-                t.conference as team_conference,
-                t.division as team_division,
-                AVG(pgs.{stat_column}) as avg_value,
-                COUNT(*) as games_played
-            FROM player_game_stats pgs
-            JOIN players p ON pgs.player_id = p.player_id
-            JOIN teams t ON pgs.team_id = t.team_id
-            JOIN games g ON pgs.game_id = g.game_id
-            WHERE g.season = ?
-            GROUP BY
-                p.player_id, p.first_name, p.last_name, p.team_id, p.position,
-                p.jersey_number, p.height, p.weight, p.birth_date, p.country,
-                p.draft_year, p.draft_round, p.draft_number,
-                t.team_id, t.full_name, t.abbreviation, t.nickname, t.city,
-                t.state, t.year_founded, t.arena, t.owner, t.general_manager,
-                t.head_coach, t.conference, t.division
-            HAVING COUNT(*) >= 10
-            ORDER BY avg_value DESC
-            LIMIT ?
-        """
-
         results = execute_query(query, [season, limit])
-
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Failed to query league leaders: {str(e)}"
         ) from e
 
-    # Build response
-    leaders = []
-    for idx, row in enumerate(results, start=1):
-        player = Player(
-            player_id=row[0],
-            first_name=row[1],
-            last_name=row[2],
-            team_id=row[3],
-            position=row[4],
-            jersey_number=row[5],
-            height=row[6],
-            weight=row[7],
-            birth_date=row[8],
-            country=row[9],
-            draft_year=row[10],
-            draft_round=row[11],
-            draft_number=row[12],
-        )
-
-        team = Team(
-            team_id=row[13],
-            full_name=row[14],
-            abbreviation=row[15],
-            nickname=row[16],
-            city=row[17],
-            state=row[18],
-            year_founded=row[19],
-            arena=row[20],
-            owner=row[21],
-            general_manager=row[22],
-            head_coach=row[23],
-            conference=row[24],
-            division=row[25],
-        )
-
-        leaders.append(
-            LeaderEntry(
-                rank=idx,
-                player=player,
-                team=team,
-                value=round(row[26], 3),
-                games=row[27],
-            )
-        )
+    # Build response using helper function
+    leaders = [
+        _map_row_to_leader_entry(row, idx)
+        for idx, row in enumerate(results, start=1)
+    ]
 
     response_data = LeadersResponse(
         category=category,
@@ -277,6 +337,183 @@ async def get_league_leaders(
         )
 
     return response_data
+
+
+def _validate_conference(conference: str | None) -> None:
+    """Validate the conference filter.
+
+    Args:
+        conference: The conference to validate.
+
+    Raises:
+        HTTPException: If conference is invalid.
+    """
+    if conference and conference not in ("Eastern", "Western"):
+        raise HTTPException(
+            status_code=400, detail="Invalid conference. Must be 'Eastern' or 'Western'"
+        )
+
+
+def _build_standings_query(season: int, conference: str | None) -> tuple[str, list]:
+    """Build the SQL query for team standings.
+
+    Args:
+        season: The season year.
+        conference: Optional conference filter.
+
+    Returns:
+        A tuple of (query_string, params).
+    """
+    query = """
+        SELECT
+            t.team_id,
+            t.full_name,
+            t.abbreviation,
+            t.nickname,
+            t.city,
+            t.state,
+            t.year_founded,
+            t.arena,
+            t.owner,
+            t.general_manager,
+            t.head_coach,
+            t.conference,
+            t.division,
+            SUM(CASE
+                WHEN (g.home_team_id = t.team_id AND g.home_score > g.away_score)
+                     OR (g.away_team_id = t.team_id AND g.away_score > g.home_score)
+                THEN 1 ELSE 0
+            END) as wins,
+            SUM(CASE
+                WHEN (g.home_team_id = t.team_id AND g.home_score < g.away_score)
+                     OR (g.away_team_id = t.team_id AND g.away_score < g.home_score)
+                THEN 1 ELSE 0
+            END) as losses,
+            SUM(CASE WHEN g.home_team_id = t.team_id AND g.home_score > g.away_score THEN 1 ELSE 0 END) as home_wins,
+            SUM(CASE WHEN g.home_team_id = t.team_id AND g.home_score < g.away_score THEN 1 ELSE 0 END) as home_losses,
+            SUM(CASE WHEN g.away_team_id = t.team_id AND g.away_score > g.home_score THEN 1 ELSE 0 END) as away_wins,
+            SUM(CASE WHEN g.away_team_id = t.team_id AND g.away_score < g.home_score THEN 1 ELSE 0 END) as away_losses
+        FROM teams t
+        LEFT JOIN games g ON (t.team_id = g.home_team_id OR t.team_id = g.away_team_id)
+            AND g.season = ?
+            AND g.status = 'completed'
+        WHERE 1=1
+    """
+
+    params: list = [season]
+
+    if conference:
+        query += " AND t.conference = ?"
+        params.append(conference)
+
+    query += """
+        GROUP BY
+            t.team_id, t.full_name, t.abbreviation, t.nickname, t.city,
+            t.state, t.year_founded, t.arena, t.owner, t.general_manager,
+            t.head_coach, t.conference, t.division
+        ORDER BY
+            t.conference, wins DESC
+    """
+
+    return query, params
+
+
+def _calculate_win_percentage(wins: int, losses: int) -> float:
+    """Calculate win percentage.
+
+    Args:
+        wins: Number of wins.
+        losses: Number of losses.
+
+    Returns:
+        The win percentage (0.0 to 1.0).
+    """
+    total_games = wins + losses
+    return wins / total_games if total_games > 0 else 0.0
+
+
+def _build_record_string(wins: int, losses: int) -> str:
+    """Build a record string from wins and losses.
+
+    Args:
+        wins: Number of wins.
+        losses: Number of losses.
+
+    Returns:
+        The record string (e.g., "25-10").
+    """
+    return f"{wins}-{losses}"
+
+
+class RankingTracker:
+    """Helper class to track conference and division rankings."""
+
+    def __init__(self):
+        self.conference_rankings: dict[str, int] = {}
+        self.division_rankings: dict[str, int] = {}
+
+    def get_conference_rank(self, conference: str) -> int:
+        """Get and increment the conference rank."""
+        self.conference_rankings[conference] = self.conference_rankings.get(conference, 0) + 1
+        return self.conference_rankings[conference]
+
+    def get_division_rank(self, conference: str, division: str) -> int:
+        """Get and increment the division rank."""
+        div_key = f"{conference}_{division}"
+        self.division_rankings[div_key] = self.division_rankings.get(div_key, 0) + 1
+        return self.division_rankings[div_key]
+
+
+def _map_row_to_standings_entry(row: tuple, rankings: RankingTracker) -> StandingsEntry:
+    """Map a database row to a StandingsEntry model.
+
+    Args:
+        row: The database row tuple.
+        rankings: The ranking tracker instance.
+
+    Returns:
+        A StandingsEntry instance.
+    """
+    team = Team(
+        team_id=row[0],
+        full_name=row[1],
+        abbreviation=row[2],
+        nickname=row[3],
+        city=row[4],
+        state=row[5],
+        year_founded=row[6],
+        arena=row[7],
+        owner=row[8],
+        general_manager=row[9],
+        head_coach=row[10],
+        conference=row[11],
+        division=row[12],
+    )
+
+    wins = row[13] or 0
+    losses = row[14] or 0
+    home_wins = row[15] or 0
+    home_losses = row[16] or 0
+    away_wins = row[17] or 0
+    away_losses = row[18] or 0
+
+    win_pct = _calculate_win_percentage(wins, losses)
+
+    # Calculate rankings
+    conference_rank = rankings.get_conference_rank(team.conference)
+    division_rank = rankings.get_division_rank(team.conference, team.division)
+
+    return StandingsEntry(
+        team=team,
+        wins=wins,
+        losses=losses,
+        win_pct=round(win_pct, 3),
+        home_record=_build_record_string(home_wins, home_losses),
+        away_record=_build_record_string(away_wins, away_losses),
+        division=team.division,
+        conference_rank=conference_rank,
+        division_rank=division_rank,
+    )
 
 
 @router.get("/standings", response_model=StandingsResponse)
@@ -301,122 +538,20 @@ async def get_standings(
     Raises:
         HTTPException: If conference is invalid (400) or database query fails (500).
     """
-    # Validate conference if provided
-    if conference and conference not in ("Eastern", "Western"):
-        raise HTTPException(
-            status_code=400, detail="Invalid conference. Must be 'Eastern' or 'Western'"
-        )
+    _validate_conference(conference)
 
     try:
-        # Base query for team standings
-        query = """
-            SELECT
-                t.team_id,
-                t.full_name,
-                t.abbreviation,
-                t.nickname,
-                t.city,
-                t.state,
-                t.year_founded,
-                t.arena,
-                t.owner,
-                t.general_manager,
-                t.head_coach,
-                t.conference,
-                t.division,
-                SUM(CASE
-                    WHEN (g.home_team_id = t.team_id AND g.home_score > g.away_score)
-                         OR (g.away_team_id = t.team_id AND g.away_score > g.home_score)
-                    THEN 1 ELSE 0
-                END) as wins,
-                SUM(CASE
-                    WHEN (g.home_team_id = t.team_id AND g.home_score < g.away_score)
-                         OR (g.away_team_id = t.team_id AND g.away_score < g.home_score)
-                    THEN 1 ELSE 0
-                END) as losses,
-                SUM(CASE WHEN g.home_team_id = t.team_id AND g.home_score > g.away_score THEN 1 ELSE 0 END) as home_wins,
-                SUM(CASE WHEN g.home_team_id = t.team_id AND g.home_score < g.away_score THEN 1 ELSE 0 END) as home_losses,
-                SUM(CASE WHEN g.away_team_id = t.team_id AND g.away_score > g.home_score THEN 1 ELSE 0 END) as away_wins,
-                SUM(CASE WHEN g.away_team_id = t.team_id AND g.away_score < g.home_score THEN 1 ELSE 0 END) as away_losses
-            FROM teams t
-            LEFT JOIN games g ON (t.team_id = g.home_team_id OR t.team_id = g.away_team_id)
-                AND g.season = ?
-                AND g.status = 'completed'
-            WHERE 1=1
-        """
-
-        params: list = [season]
-
-        if conference:
-            query += " AND t.conference = ?"
-            params.append(conference)
-
-        query += """
-            GROUP BY
-                t.team_id, t.full_name, t.abbreviation, t.nickname, t.city,
-                t.state, t.year_founded, t.arena, t.owner, t.general_manager,
-                t.head_coach, t.conference, t.division
-            ORDER BY
-                t.conference, wins DESC
-        """
-
+        query, params = _build_standings_query(season, conference)
         results = execute_query(query, params)
-
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to query standings: {str(e)}") from e
 
     # Build standings with rankings
-    standings = []
-    conference_rankings: dict[str, int] = {}
-    division_rankings: dict[str, int] = {}
-
-    for row in results:
-        team = Team(
-            team_id=row[0],
-            full_name=row[1],
-            abbreviation=row[2],
-            nickname=row[3],
-            city=row[4],
-            state=row[5],
-            year_founded=row[6],
-            arena=row[7],
-            owner=row[8],
-            general_manager=row[9],
-            head_coach=row[10],
-            conference=row[11],
-            division=row[12],
-        )
-
-        wins = row[13] or 0
-        losses = row[14] or 0
-        home_wins = row[15] or 0
-        home_losses = row[16] or 0
-        away_wins = row[17] or 0
-        away_losses = row[18] or 0
-
-        total_games = wins + losses
-        win_pct = wins / total_games if total_games > 0 else 0.0
-
-        # Calculate rankings
-        conf_key = team.conference
-        div_key = f"{team.conference}_{team.division}"
-
-        conference_rankings[conf_key] = conference_rankings.get(conf_key, 0) + 1
-        division_rankings[div_key] = division_rankings.get(div_key, 0) + 1
-
-        standings.append(
-            StandingsEntry(
-                team=team,
-                wins=wins,
-                losses=losses,
-                win_pct=round(win_pct, 3),
-                home_record=f"{home_wins}-{home_losses}",
-                away_record=f"{away_wins}-{away_losses}",
-                division=team.division,
-                conference_rank=conference_rankings[conf_key],
-                division_rank=division_rankings[div_key],
-            )
-        )
+    rankings = RankingTracker()
+    standings = [
+        _map_row_to_standings_entry(row, rankings)
+        for row in results
+    ]
 
     response_data = StandingsResponse(
         season=season,

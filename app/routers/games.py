@@ -5,13 +5,14 @@ and fetching detailed box score information.
 """
 
 from datetime import date
-from typing import Any
+from typing import Annotated, Any
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, HTTPException, Query, Request, Response
 from fastapi.responses import HTMLResponse
 
 from app.models import Game, PlayerGameStats, Team
 from app.services.database import execute_query
+from app.services.export_service import export_box_score
 from app.services.htmx_utils import is_htmx_request
 
 router = APIRouter(
@@ -215,16 +216,13 @@ async def list_games(
 
     where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
 
-    # Count total for pagination
-    count_query = f"SELECT COUNT(*) FROM games WHERE {where_sql}"
-    count_result = execute_query(count_query, params if params else None)
-    total_count = count_result[0][0] if count_result else 0
-
-    # Get games with pagination
+    # Get games with pagination using window function for count
     offset = (page - 1) * page_size
     query = f"""
-        SELECT game_id, season, season_type, game_date, home_team_id, away_team_id,
-               home_score, away_score, winner_team_id, status
+        SELECT
+            game_id, season, season_type, game_date, home_team_id, away_team_id,
+            home_score, away_score, winner_team_id, status,
+            COUNT(*) OVER() as total_count
         FROM games
         WHERE {where_sql}
         ORDER BY game_date DESC, game_id DESC
@@ -233,7 +231,8 @@ async def list_games(
     query_params = params + [page_size, offset]
     rows = execute_query(query, query_params)
 
-    games = [_row_to_game(row) for row in rows]
+    total_count = rows[0][-1] if rows else 0
+    games = [_row_to_game(row[:-1]) for row in rows]  # Exclude total_count
 
     # Calculate pagination metadata
     total_pages = (total_count + page_size - 1) // page_size
@@ -316,55 +315,116 @@ async def get_game_box_score(
     Raises:
         HTTPException: 404 if game not found
     """
-    # Get game details
-    game_query = """
-        SELECT game_id, season, season_type, game_date, home_team_id, away_team_id,
-               home_score, away_score, winner_team_id, status
-        FROM games
-        WHERE game_id = ?
+    # Single query combining game, teams, and player stats using LEFT JOINs
+    box_score_query = """
+        SELECT
+            g.game_id, g.season, g.season_type, g.game_date,
+            g.home_team_id, g.away_team_id, g.home_score, g.away_score,
+            g.winner_team_id, g.status,
+            ht.team_id as ht_id, ht.full_name as ht_name, ht.abbreviation as ht_abbrev,
+            ht.nickname as ht_nickname, ht.city as ht_city, ht.state as ht_state,
+            ht.year_founded as ht_year, ht.arena as ht_arena, ht.owner as ht_owner,
+            ht.general_manager as ht_gm, ht.head_coach as ht_coach,
+            ht.conference as ht_conf, ht.division as ht_div,
+            at.team_id as at_id, at.full_name as at_name, at.abbreviation as at_abbrev,
+            at.nickname as at_nickname, at.city as at_city, at.state as at_state,
+            at.year_founded as at_year, at.arena as at_arena, at.owner as at_owner,
+            at.general_manager as at_gm, at.head_coach as at_coach,
+            at.conference as at_conf, at.division as at_div,
+            pgs.stat_id, pgs.player_id, pgs.team_id as pgs_team_id,
+            pgs.minutes_played, pgs.points, pgs.rebounds_offensive,
+            pgs.rebounds_defensive, pgs.assists, pgs.steals, pgs.blocks,
+            pgs.turnovers, pgs.personal_fouls, pgs.fg_made, pgs.fg_attempted,
+            pgs.fg3_made, pgs.fg3_attempted, pgs.ft_made, pgs.ft_attempted
+        FROM games g
+        LEFT JOIN teams ht ON g.home_team_id = ht.team_id
+        LEFT JOIN teams at ON g.away_team_id = at.team_id
+        LEFT JOIN player_game_stats pgs ON g.game_id = pgs.game_id
+        WHERE g.game_id = ?
+        ORDER BY pgs.team_id, pgs.points DESC, pgs.minutes_played DESC
     """
-    game_rows = execute_query(game_query, [game_id])
+    rows = execute_query(box_score_query, [game_id])
 
-    if not game_rows:
+    if not rows:
         raise HTTPException(status_code=404, detail=f"Game {game_id} not found")
 
-    game = _row_to_game(game_rows[0])
+    # Extract game data from first row
+    first_row = rows[0]
+    game = Game(
+        game_id=first_row[0],
+        season=first_row[1],
+        season_type=first_row[2],
+        game_date=first_row[3],
+        home_team_id=first_row[4],
+        away_team_id=first_row[5],
+        home_score=first_row[6],
+        away_score=first_row[7],
+        winner_team_id=first_row[8],
+        status=first_row[9],
+    )
 
-    # Get team details
-    teams_query = """
-        SELECT team_id, full_name, abbreviation, nickname, city, state,
-               year_founded, arena, owner, general_manager, head_coach,
-               conference, division
-        FROM teams
-        WHERE team_id IN (?, ?)
-    """
-    team_rows = execute_query(teams_query, [game.home_team_id, game.away_team_id])
+    # Extract team data (same in all rows)
+    home_team = Team(
+        team_id=first_row[10],
+        full_name=first_row[11],
+        abbreviation=first_row[12],
+        nickname=first_row[13],
+        city=first_row[14],
+        state=first_row[15],
+        year_founded=first_row[16],
+        arena=first_row[17],
+        owner=first_row[18],
+        general_manager=first_row[19],
+        head_coach=first_row[20],
+        conference=first_row[21],
+        division=first_row[22],
+    ) if first_row[10] else None
 
-    teams_by_id: dict[int, Team] = {}
-    for row in team_rows:
-        team = _row_to_team(row)
-        teams_by_id[team.team_id] = team
+    away_team = Team(
+        team_id=first_row[23],
+        full_name=first_row[24],
+        abbreviation=first_row[25],
+        nickname=first_row[26],
+        city=first_row[27],
+        state=first_row[28],
+        year_founded=first_row[29],
+        arena=first_row[30],
+        owner=first_row[31],
+        general_manager=first_row[32],
+        head_coach=first_row[33],
+        conference=first_row[34],
+        division=first_row[35],
+    ) if first_row[23] else None
 
-    home_team = teams_by_id.get(game.home_team_id)
-    away_team = teams_by_id.get(game.away_team_id)
-
-    # Get player statistics for this game
-    stats_query = """
-        SELECT stat_id, game_id, player_id, team_id, minutes_played, points,
-               rebounds_offensive, rebounds_defensive, assists, steals, blocks,
-               turnovers, personal_fouls, fg_made, fg_attempted, fg3_made,
-               fg3_attempted, ft_made, ft_attempted
-        FROM player_game_stats
-        WHERE game_id = ?
-        ORDER BY team_id, points DESC, minutes_played DESC
-    """
-    stats_rows = execute_query(stats_query, [game_id])
-
+    # Extract player stats
     home_players: list[PlayerGameStats] = []
     away_players: list[PlayerGameStats] = []
 
-    for row in stats_rows:
-        stats = _row_to_player_stats(row)
+    for row in rows:
+        # Skip rows with no player stats (pgs.stat_id is NULL)
+        if row[36] is None:
+            continue
+        stats = PlayerGameStats(
+            stat_id=row[36],
+            game_id=game_id,
+            player_id=row[37],
+            team_id=row[38],
+            minutes_played=row[39],
+            points=row[40] or 0,
+            rebounds_offensive=row[41] or 0,
+            rebounds_defensive=row[42] or 0,
+            assists=row[43] or 0,
+            steals=row[44] or 0,
+            blocks=row[45] or 0,
+            turnovers=row[46] or 0,
+            personal_fouls=row[47] or 0,
+            fg_made=row[48] or 0,
+            fg_attempted=row[49] or 0,
+            fg3_made=row[50] or 0,
+            fg3_attempted=row[51] or 0,
+            ft_made=row[52] or 0,
+            ft_attempted=row[53] or 0,
+        )
         if stats.team_id == game.home_team_id:
             home_players.append(stats)
         elif stats.team_id == game.away_team_id:
@@ -389,3 +449,26 @@ async def get_game_box_score(
         return HTMLResponse(content=f"<!-- box_score.html partial would render game {game_id} -->")
 
     return response_data
+
+
+@router.get("/{game_id}/export")
+async def export_game_data(
+    game_id: str,
+    format: Annotated[str, Query(description="Export format (csv or json)")] = "csv",
+) -> Response:
+    """Export game box score to CSV or JSON.
+
+    Path Parameters:
+        - game_id: Unique identifier for the game
+
+    Query Parameters:
+        - format: Export format ('csv' or 'json')
+
+    Returns:
+        CSV or JSON file download response.
+    """
+    format_type = format.lower()
+    if format_type not in ["csv", "json"]:
+        format_type = "csv"
+
+    return export_box_score(game_id, format_type)

@@ -116,14 +116,14 @@
     </div>
 </div>
 
-{# Season Selector #}
+{# Season Selector and Export #}
 <div class="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
     <div class="flex items-center gap-3">
         <label for="season-select" class="text-sm font-medium text-gray-700 dark:text-gray-300">
             <i class="ph ph-calendar mr-1"></i>
             Season:
         </label>
-        <select id="season-select" 
+        <select id="season-select"
                 name="season"
                 class="px-3 py-2 bg-white dark:bg-bball-gray border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-nba-blue focus:border-transparent"
                 hx-get="/api/v1/players/{{ player.player_id }}/stats"
@@ -140,11 +140,18 @@
         </select>
     </div>
     
-    {# Loading Indicator #}
-    <span id="tab-loading" class="htmx-indicator flex items-center text-sm text-gray-500">
-        <div class="htmx-loading mr-2"></div>
-        Loading...
-    </span>
+    <div class="flex items-center gap-3">
+        {# Export Button #}
+        {% with export_url="/api/v1/players/" + player.player_id|string + "/export", export_type="stats", season=selected_season %}
+            {% include "partials/export_button.html" %}
+        {% endwith %}
+        
+        {# Loading Indicator #}
+        <span id="tab-loading" class="htmx-indicator flex items-center text-sm text-gray-500">
+            <div class="htmx-loading mr-2"></div>
+            Loading...
+        </span>
+    </div>
 </div>
 
 {# Tab Navigation #}

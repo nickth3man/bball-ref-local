@@ -43,14 +43,55 @@ def close_db_connection() -> None:
         _conn = None
 
 
-def init_db() -> None:
-    """Initialize database with all tables and indexes.
+# Index configuration for _create_indexes
+INDEX_CONFIG: list[tuple[str, str, str]] = [
+    # Team indexes
+    ("idx_teams_abbreviation", "teams", "abbreviation"),
+    ("idx_teams_conference", "teams", "conference"),
+    ("idx_teams_division", "teams", "division"),
+    # Player indexes
+    ("idx_players_team_id", "players", "team_id"),
+    ("idx_players_name", "players", "last_name, first_name"),
+    ("idx_players_full_name", "players", "full_name"),
+    ("idx_players_active", "players", "active"),
+    ("idx_players_hall_of_fame", "players", "hall_of_fame"),
+    # Game indexes
+    ("idx_games_date", "games", "game_date"),
+    ("idx_games_season", "games", "season"),
+    ("idx_games_season_id", "games", "season_id"),
+    ("idx_games_home_team", "games", "home_team_id"),
+    ("idx_games_away_team", "games", "away_team_id"),
+    ("idx_games_is_playoff", "games", "is_playoff"),
+    # Player game stats indexes
+    ("idx_stats_game_id", "player_game_stats", "game_id"),
+    ("idx_stats_player_id", "player_game_stats", "player_id"),
+    ("idx_stats_team_id", "player_game_stats", "team_id"),
+    ("idx_stats_player_game", "player_game_stats", "player_id, game_id"),
+    # Seasons indexes
+    ("idx_seasons_year_start", "seasons", "year_start"),
+    ("idx_seasons_year_end", "seasons", "year_end"),
+    # Player season stats indexes
+    ("idx_player_season_stats_player", "player_season_stats", "player_id"),
+    ("idx_player_season_stats_season", "player_season_stats", "season_id"),
+    # Player game logs indexes
+    ("idx_player_game_logs_player", "player_game_logs", "player_id"),
+    ("idx_player_game_logs_game", "player_game_logs", "game_id"),
+    # Team season stats indexes
+    ("idx_team_season_stats_team", "team_season_stats", "team_id"),
+    ("idx_team_season_stats_season", "team_season_stats", "season_id"),
+    # Awards indexes
+    ("idx_awards_season", "awards", "season_id"),
+    ("idx_awards_player", "awards", "player_id"),
+    ("idx_awards_type", "awards", "award_type"),
+    # Draft picks indexes
+    ("idx_draft_picks_season", "draft_picks", "season_id"),
+    ("idx_draft_picks_team", "draft_picks", "team_id"),
+    ("idx_draft_picks_player", "draft_picks", "player_id"),
+]
 
-    Creates tables matching Pydantic models if they don't exist.
-    """
-    conn = get_db_connection()
 
-    # Create teams table (VARCHAR IDs for NBA API compatibility)
+def _create_teams_table(conn: duckdb.DuckDBPyConnection) -> None:
+    """Create the teams table."""
     conn.execute("""
         CREATE TABLE IF NOT EXISTS teams (
             team_id VARCHAR PRIMARY KEY,
@@ -71,7 +112,9 @@ def init_db() -> None:
         )
     """)
 
-    # Create players table (VARCHAR IDs for NBA API compatibility)
+
+def _create_players_table(conn: duckdb.DuckDBPyConnection) -> None:
+    """Create the players table."""
     conn.execute("""
         CREATE TABLE IF NOT EXISTS players (
             player_id VARCHAR PRIMARY KEY,
@@ -103,7 +146,9 @@ def init_db() -> None:
         )
     """)
 
-    # Create games table
+
+def _create_games_table(conn: duckdb.DuckDBPyConnection) -> None:
+    """Create the games table."""
     conn.execute("""
         CREATE TABLE IF NOT EXISTS games (
             game_id VARCHAR PRIMARY KEY,
@@ -137,7 +182,9 @@ def init_db() -> None:
         )
     """)
 
-    # Create player_game_stats table
+
+def _create_player_game_stats_table(conn: duckdb.DuckDBPyConnection) -> None:
+    """Create the player_game_stats table."""
     conn.execute("""
         CREATE TABLE IF NOT EXISTS player_game_stats (
             stat_id INTEGER PRIMARY KEY,
@@ -164,7 +211,9 @@ def init_db() -> None:
         )
     """)
 
-    # Create seasons table
+
+def _create_seasons_table(conn: duckdb.DuckDBPyConnection) -> None:
+    """Create the seasons table."""
     conn.execute("""
         CREATE TABLE IF NOT EXISTS seasons (
             season_id VARCHAR PRIMARY KEY,
@@ -175,7 +224,9 @@ def init_db() -> None:
         )
     """)
 
-    # Create player_season_stats table
+
+def _create_player_season_stats_table(conn: duckdb.DuckDBPyConnection) -> None:
+    """Create the player_season_stats table."""
     conn.execute("""
         CREATE TABLE IF NOT EXISTS player_season_stats (
             stat_id BIGINT PRIMARY KEY,
@@ -223,7 +274,9 @@ def init_db() -> None:
         )
     """)
 
-    # Create player_game_logs table
+
+def _create_player_game_logs_table(conn: duckdb.DuckDBPyConnection) -> None:
+    """Create the player_game_logs table."""
     conn.execute("""
         CREATE TABLE IF NOT EXISTS player_game_logs (
             log_id BIGINT PRIMARY KEY,
@@ -262,7 +315,9 @@ def init_db() -> None:
         )
     """)
 
-    # Create team_season_stats table
+
+def _create_team_season_stats_table(conn: duckdb.DuckDBPyConnection) -> None:
+    """Create the team_season_stats table."""
     conn.execute("""
         CREATE TABLE IF NOT EXISTS team_season_stats (
             stat_id BIGINT PRIMARY KEY,
@@ -321,7 +376,9 @@ def init_db() -> None:
         )
     """)
 
-    # Create awards table
+
+def _create_awards_table(conn: duckdb.DuckDBPyConnection) -> None:
+    """Create the awards table."""
     conn.execute("""
         CREATE TABLE IF NOT EXISTS awards (
             award_id BIGINT PRIMARY KEY,
@@ -340,7 +397,9 @@ def init_db() -> None:
         )
     """)
 
-    # Create draft_picks table
+
+def _create_draft_picks_table(conn: duckdb.DuckDBPyConnection) -> None:
+    """Create the draft_picks table."""
     conn.execute("""
         CREATE TABLE IF NOT EXISTS draft_picks (
             draft_id BIGINT PRIMARY KEY,
@@ -357,10 +416,9 @@ def init_db() -> None:
         )
     """)
 
-    # Create indexes for common query patterns
-    _create_indexes(conn)
 
-    # Create app metadata table
+def _create_app_metadata_table(conn: duckdb.DuckDBPyConnection) -> None:
+    """Create the app_metadata table."""
     conn.execute("""
         CREATE TABLE IF NOT EXISTS app_metadata (
             key VARCHAR PRIMARY KEY,
@@ -376,153 +434,35 @@ def _create_indexes(conn: duckdb.DuckDBPyConnection) -> None:
     Args:
         conn: Active database connection.
     """
-    # Team indexes
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS idx_teams_abbreviation
-        ON teams(abbreviation)
-    """)
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS idx_teams_conference
-        ON teams(conference)
-    """)
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS idx_teams_division
-        ON teams(division)
-    """)
+    for index_name, table, columns in INDEX_CONFIG:
+        conn.execute(f"""
+            CREATE INDEX IF NOT EXISTS {index_name}
+            ON {table}({columns})
+        """)
 
-    # Player indexes
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS idx_players_team_id
-        ON players(team_id)
-    """)
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS idx_players_name
-        ON players(last_name, first_name)
-    """)
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS idx_players_full_name
-        ON players(full_name)
-    """)
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS idx_players_active
-        ON players(active)
-    """)
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS idx_players_hall_of_fame
-        ON players(hall_of_fame)
-    """)
 
-    # Game indexes
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS idx_games_date
-        ON games(game_date)
-    """)
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS idx_games_season
-        ON games(season)
-    """)
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS idx_games_season_id
-        ON games(season_id)
-    """)
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS idx_games_home_team
-        ON games(home_team_id)
-    """)
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS idx_games_away_team
-        ON games(away_team_id)
-    """)
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS idx_games_is_playoff
-        ON games(is_playoff)
-    """)
+def init_db() -> None:
+    """Initialize database with all tables and indexes.
 
-    # Player game stats indexes
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS idx_stats_game_id
-        ON player_game_stats(game_id)
-    """)
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS idx_stats_player_id
-        ON player_game_stats(player_id)
-    """)
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS idx_stats_team_id
-        ON player_game_stats(team_id)
-    """)
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS idx_stats_player_game
-        ON player_game_stats(player_id, game_id)
-    """)
+    Creates tables matching Pydantic models if they don't exist.
+    """
+    conn = get_db_connection()
 
-    # Seasons indexes
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS idx_seasons_year_start
-        ON seasons(year_start)
-    """)
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS idx_seasons_year_end
-        ON seasons(year_end)
-    """)
+    # Create tables in dependency order
+    _create_teams_table(conn)
+    _create_players_table(conn)
+    _create_seasons_table(conn)
+    _create_games_table(conn)
+    _create_player_game_stats_table(conn)
+    _create_player_season_stats_table(conn)
+    _create_player_game_logs_table(conn)
+    _create_team_season_stats_table(conn)
+    _create_awards_table(conn)
+    _create_draft_picks_table(conn)
+    _create_app_metadata_table(conn)
 
-    # Player season stats indexes
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS idx_player_season_stats_player
-        ON player_season_stats(player_id)
-    """)
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS idx_player_season_stats_season
-        ON player_season_stats(season_id)
-    """)
-
-    # Player game logs indexes
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS idx_player_game_logs_player
-        ON player_game_logs(player_id)
-    """)
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS idx_player_game_logs_game
-        ON player_game_logs(game_id)
-    """)
-
-    # Team season stats indexes
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS idx_team_season_stats_team
-        ON team_season_stats(team_id)
-    """)
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS idx_team_season_stats_season
-        ON team_season_stats(season_id)
-    """)
-
-    # Awards indexes
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS idx_awards_season
-        ON awards(season_id)
-    """)
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS idx_awards_player
-        ON awards(player_id)
-    """)
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS idx_awards_type
-        ON awards(award_type)
-    """)
-
-    # Draft picks indexes
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS idx_draft_picks_season
-        ON draft_picks(season_id)
-    """)
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS idx_draft_picks_team
-        ON draft_picks(team_id)
-    """)
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS idx_draft_picks_player
-        ON draft_picks(player_id)
-    """)
+    # Create indexes for common query patterns
+    _create_indexes(conn)
 
 
 def set_app_metadata(key: str, value: str) -> None:

@@ -232,12 +232,38 @@ def load_player_stats(df: pd.DataFrame, batch_size: int = BATCH_SIZE) -> int:
     rows_loaded = 0
     
     try:
-        # Process in batches for better performance
+        # Process in batches for better performance using executemany
         for i in range(0, len(df), batch_size):
             batch = df.iloc[i:i + batch_size]
             
-            for _, row in batch.iterrows():
-                conn.execute("""
+            # Use iterrows with dict access for reliability and prepare batch data
+            data = [
+                (
+                    int(row["stat_id"]),
+                    str(row["game_id"]),
+                    int(row["player_id"]),
+                    int(row["team_id"]),
+                    row["minutes_played"],
+                    int(row["points"]),
+                    int(row["rebounds_offensive"]),
+                    int(row["rebounds_defensive"]),
+                    int(row["assists"]),
+                    int(row["steals"]),
+                    int(row["blocks"]),
+                    int(row["turnovers"]),
+                    int(row["personal_fouls"]),
+                    int(row["fg_made"]),
+                    int(row["fg_attempted"]),
+                    int(row["fg3_made"]),
+                    int(row["fg3_attempted"]),
+                    int(row["ft_made"]),
+                    int(row["ft_attempted"]),
+                )
+                for _, row in batch.iterrows()
+            ]
+            
+            if data:
+                conn.executemany("""
                     INSERT OR REPLACE INTO player_game_stats (
                         stat_id, game_id, player_id, team_id, minutes_played,
                         points, rebounds_offensive, rebounds_defensive, assists,
@@ -245,28 +271,8 @@ def load_player_stats(df: pd.DataFrame, batch_size: int = BATCH_SIZE) -> int:
                         fg_made, fg_attempted, fg3_made, fg3_attempted,
                         ft_made, ft_attempted, updated_at
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-                """, [
-                    int(row.get("stat_id")),
-                    str(row.get("game_id")),
-                    int(row.get("player_id")),
-                    int(row.get("team_id")),
-                    row.get("minutes_played"),
-                    int(row.get("points", 0)),
-                    int(row.get("rebounds_offensive", 0)),
-                    int(row.get("rebounds_defensive", 0)),
-                    int(row.get("assists", 0)),
-                    int(row.get("steals", 0)),
-                    int(row.get("blocks", 0)),
-                    int(row.get("turnovers", 0)),
-                    int(row.get("personal_fouls", 0)),
-                    int(row.get("fg_made", 0)),
-                    int(row.get("fg_attempted", 0)),
-                    int(row.get("fg3_made", 0)),
-                    int(row.get("fg3_attempted", 0)),
-                    int(row.get("ft_made", 0)),
-                    int(row.get("ft_attempted", 0)),
-                ])
-                rows_loaded += 1
+                """, data)
+                rows_loaded += len(data)
             
             logger.info(f"Loaded batch {i // batch_size + 1}/{(len(df) - 1) // batch_size + 1}")
         

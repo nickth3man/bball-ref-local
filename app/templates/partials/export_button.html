@@ -1,0 +1,31 @@
+{# Export Button Component - Reusable export dropdown for data tables #}
+<div class="relative inline-block export-dropdown-container">
+    <button type="button"
+            class="export-toggle-btn inline-flex items-center px-3 py-2 bg-white dark:bg-bball-gray border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-nba-blue">
+        <i class="ph ph-download-simple mr-2 text-nba-blue"></i>
+        Export
+        <i class="ph ph-caret-down ml-2 text-gray-400"></i>
+    </button>
+    
+    <div class="export-dropdown-menu hidden absolute right-0 mt-2 w-48 bg-white dark:bg-bball-gray rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50">
+        <div class="py-1">
+            {% if export_url %}
+            <a href="{{ export_url }}?format=csv{% if export_type %}&type={{ export_type }}{% endif %}{% if season %}&season={{ season }}{% endif %}"
+               class="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                <i class="ph ph-file-csv mr-3 text-green-600"></i>
+                Export as CSV
+            </a>
+            <a href="{{ export_url }}?format=json{% if export_type %}&type={{ export_type }}{% endif %}{% if season %}&season={{ season }}{% endif %}"
+               class="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                <i class="ph ph-file-text mr-3 text-blue-600"></i>
+                Export as JSON
+            </a>
+            {% else %}
+            <span class="flex items-center px-4 py-2 text-sm text-gray-400 dark:text-gray-500">
+                <i class="ph ph-warning mr-3"></i>
+                Export not available
+            </span>
+            {% endif %}
+        </div>
+    </div>
+</div>

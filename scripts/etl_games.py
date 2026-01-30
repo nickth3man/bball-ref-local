@@ -226,7 +226,7 @@ def transform_games(df: pd.DataFrame, season: str, season_type: str) -> pd.DataF
 
 
 def load_games(df: pd.DataFrame) -> int:
-    """Load games into DuckDB using upsert.
+    """Load games into DuckDB using batch upsert.
 
     Args:
         df: Transformed game data.
@@ -237,33 +237,41 @@ def load_games(df: pd.DataFrame) -> int:
     logger.info("Loading games into database...")
 
     conn = get_db_connection()
-    rows_loaded = 0
 
     try:
-        for _, row in df.iterrows():
-            conn.execute(
-                """
-                INSERT OR REPLACE INTO games (
-                    game_id, season, season_type, game_date,
-                    home_team_id, away_team_id, home_score, away_score,
-                    winner_team_id, status, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-            """,
-                [
-                    str(row.get("game_id")),
-                    row.get("season"),
-                    row.get("season_type"),
-                    row.get("game_date"),
-                    row.get("home_team_id"),
-                    row.get("away_team_id"),
-                    row.get("home_score"),
-                    row.get("away_score"),
-                    row.get("winner_team_id"),
-                    row.get("status"),
-                ],
+        # Use iterrows with dict access for reliability and executemany for batch insert
+        data = [
+            (
+                str(row["game_id"]),
+                row["season"],
+                row["season_type"],
+                row["game_date"],
+                row["home_team_id"],
+                row["away_team_id"],
+                row["home_score"],
+                row["away_score"],
+                row["winner_team_id"],
+                row["status"],
             )
-            rows_loaded += 1
+            for _, row in df.iterrows()
+        ]
 
+        if not data:
+            logger.info("No games to load")
+            return 0
+
+        conn.executemany(
+            """
+            INSERT OR REPLACE INTO games (
+                game_id, season, season_type, game_date,
+                home_team_id, away_team_id, home_score, away_score,
+                winner_team_id, status, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            """,
+            data,
+        )
+
+        rows_loaded = len(data)
         logger.info(f"Successfully loaded {rows_loaded} games")
         return rows_loaded
 

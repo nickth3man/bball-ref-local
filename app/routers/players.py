@@ -6,7 +6,7 @@ Supports both JSON API responses and HTMX partial HTML responses.
 
 from typing import Annotated, Any
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, HTTPException, Query, Request, Response
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -14,6 +14,7 @@ from app.models.player import Player
 from app.models.responses import PlayerListResponse
 from app.models.stats import PlayerGameStats
 from app.services.database import execute_query
+from app.services.export_service import export_game_logs, export_player_stats
 from app.services.htmx_utils import get_templates, is_htmx_request
 
 router = APIRouter(prefix="/api/v1/players", tags=["players"])
@@ -393,15 +394,12 @@ async def list_players(
 
     where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
 
-    # Get total count
-    count_query = f"SELECT COUNT(*) FROM players WHERE {where_sql}"
-    count_result = execute_query(count_query, params if params else None)
-    total = count_result[0][0] if count_result else 0
-
-    # Get players
+    # Single query with window function for count
     query = f"""
-        SELECT player_id, first_name, last_name, team_id, position, jersey_number,
-               height, weight, birth_date, country, draft_year, draft_round, draft_number
+        SELECT
+            player_id, first_name, last_name, team_id, position, jersey_number,
+            height, weight, birth_date, country, draft_year, draft_round, draft_number,
+            COUNT(*) OVER() as total_count
         FROM players
         WHERE {where_sql}
         ORDER BY last_name, first_name
@@ -414,7 +412,8 @@ async def list_players(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch players: {e}") from e
 
-    players = [_build_player_from_row(row) for row in rows]
+    total = rows[0][-1] if rows else 0
+    players = [_build_player_from_row(row[:-1]) for row in rows]
 
     response_data = PlayerListResponse(
         items=players,
@@ -508,12 +507,8 @@ async def get_player_stats(
     Raises:
         HTTPException: 404 if player not found, 500 if query fails.
     """
-    # First verify player exists
-    player_check = execute_query("SELECT player_id FROM players WHERE player_id = ?", [player_id])
-    if not player_check:
-        raise HTTPException(status_code=404, detail=f"Player with ID {player_id} not found")
-
     # Fetch all stats components using helper functions
+    # Player existence is handled naturally - empty stats indicate player not found
     career_stats = _get_career_stats(player_id, season)
     season_stats = _get_season_stats(player_id) if not season else []
     recent_games = _get_recent_games(player_id, season, limit=10)
@@ -563,40 +558,22 @@ async def get_player_games(
         Returns HTML partial (game_log_table.html) if HTMX request.
 
     Raises:
-        HTTPException: 404 if player not found, 500 if query fails.
+        HTTPException: 500 if query fails.
     """
-    # First verify player exists
-    player_check = execute_query("SELECT player_id FROM players WHERE player_id = ?", [player_id])
-    if not player_check:
-        raise HTTPException(status_code=404, detail=f"Player with ID {player_id} not found")
-
     # Build season filter
     season_filter = "AND g.season = ?" if season else ""
     params: list[Any] = [player_id]
     if season:
         params.append(season)
 
-    # Get total count
-    count_query = f"""
-        SELECT COUNT(*)
-        FROM player_game_stats pgs
-        JOIN games g ON pgs.game_id = g.game_id
-        WHERE pgs.player_id = ? {season_filter}
-    """
-
-    try:
-        total_result = execute_query(count_query, params)
-        total_count = total_result[0][0] if total_result else 0
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to count games: {e}") from e
-
-    # Get games
+    # Single query with window function for count
     query = f"""
         SELECT
             stat_id, pgs.game_id, player_id, pgs.team_id, minutes_played, points,
             rebounds_offensive, rebounds_defensive, assists, steals, blocks,
             turnovers, personal_fouls, fg_made, fg_attempted, fg3_made, fg3_attempted,
-            ft_made, ft_attempted, g.game_date, g.season
+            ft_made, ft_attempted, g.game_date, g.season,
+            COUNT(*) OVER() as total_count
         FROM player_game_stats pgs
         JOIN games g ON pgs.game_id = g.game_id
         WHERE player_id = ? {season_filter}
@@ -609,6 +586,8 @@ async def get_player_games(
         rows = execute_query(query, query_params)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch games: {e}") from e
+
+    total_count = rows[0][-1] if rows else 0
 
     games = [
         PlayerGameStats(
@@ -657,3 +636,340 @@ async def get_player_games(
         )
 
     return response_data
+
+
+@router.get("/{player_id}/gamelog/{year}", response_model=None)
+async def get_player_gamelog_enhanced(
+    request: Request,
+    player_id: str,
+    year: int,
+    page: Annotated[int, Query(description="Page number", ge=1)] = 1,
+    page_size: Annotated[
+        int | str, Query(description="Items per page (50, 100, 200, or 'all')")
+    ] = 50,
+    sort_by: Annotated[
+        str, Query(description="Column to sort by")
+    ] = "game_date",
+    sort_order: Annotated[
+        str, Query(description="Sort order (asc or desc)")
+    ] = "desc",
+    home_away: Annotated[
+        str, Query(description="Filter by home/away (home, away, all)")
+    ] = "all",
+    result: Annotated[
+        str, Query(description="Filter by result (win, loss, all)")
+    ] = "all",
+) -> HTMLResponse:
+    """Get enhanced player game log with sorting, pagination, and filtering.
+
+    Path Parameters:
+        - player_id: Unique identifier for the player
+        - year: Season year for the game log
+
+    Query Parameters:
+        - page: Page number (default: 1)
+        - page_size: Items per page (50, 100, 200, or 'all')
+        - sort_by: Column to sort by (game_date, points, rebounds, assists, etc.)
+        - sort_order: Sort order (asc or desc)
+        - home_away: Filter by home/away (home, away, all)
+        - result: Filter by result (win, loss, all)
+
+    Returns:
+        HTML partial with game log table.
+    """
+    templates = get_templates()
+
+    # Validate and convert page_size
+    if isinstance(page_size, str) and page_size.lower() == "all":
+        limit_clause = ""
+        offset_clause = ""
+        params: list[Any] = [player_id, year]
+    else:
+        try:
+            page_size_int = int(page_size)
+            if page_size_int not in [50, 100, 200]:
+                page_size_int = 50
+        except (ValueError, TypeError):
+            page_size_int = 50
+
+        offset = (page - 1) * page_size_int
+        limit_clause = f"LIMIT {page_size_int}"
+        offset_clause = f"OFFSET {offset}"
+        params = [player_id, year]
+
+    # Validate sort_by column
+    valid_sort_columns = {
+        "game_date": "g.game_date",
+        "points": "pgs.points",
+        "rebounds": "(pgs.rebounds_offensive + pgs.rebounds_defensive)",
+        "assists": "pgs.assists",
+        "steals": "pgs.steals",
+        "blocks": "pgs.blocks",
+        "minutes": "pgs.minutes_played",
+        "fg_pct": "CASE WHEN pgs.fg_attempted > 0 THEN pgs.fg_made::FLOAT / pgs.fg_attempted ELSE 0 END",
+    }
+    sort_column = valid_sort_columns.get(sort_by, "g.game_date")
+
+    # Validate sort_order
+    sort_direction = "DESC" if sort_order.lower() == "desc" else "ASC"
+
+    # Build filter conditions
+    filter_conditions = []
+    if home_away.lower() == "home":
+        filter_conditions.append("AND pgs.team_id = g.home_team_id")
+    elif home_away.lower() == "away":
+        filter_conditions.append("AND pgs.team_id = g.away_team_id")
+
+    if result.lower() == "win":
+        filter_conditions.append("""
+            AND ((pgs.team_id = g.home_team_id AND g.home_score > g.away_score)
+                 OR (pgs.team_id = g.away_team_id AND g.away_score > g.home_score))
+        """)
+    elif result.lower() == "loss":
+        filter_conditions.append("""
+            AND ((pgs.team_id = g.home_team_id AND g.home_score < g.away_score)
+                 OR (pgs.team_id = g.away_team_id AND g.away_score < g.home_score))
+        """)
+
+    filter_sql = " ".join(filter_conditions)
+
+    # Get total count with filters
+    count_query = f"""
+        SELECT COUNT(*)
+        FROM player_game_stats pgs
+        JOIN games g ON pgs.game_id = g.game_id
+        WHERE pgs.player_id = ? AND g.season = ?
+        {filter_sql}
+    """
+
+    try:
+        count_result = execute_query(count_query, params)
+        total_count = count_result[0][0] if count_result else 0
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to count games: {e}") from e
+
+    # Main query with sorting and pagination
+    query = f"""
+        SELECT
+            g.game_date,
+            g.season,
+            ht.abbreviation as opponent_abbr,
+            ht.team_id as opponent_id,
+            CASE WHEN pgs.team_id = g.home_team_id THEN 1 ELSE 0 END as is_home,
+            CASE
+                WHEN (pgs.team_id = g.home_team_id AND g.home_score > g.away_score)
+                     OR (pgs.team_id = g.away_team_id AND g.away_score > g.home_score)
+                THEN 1 ELSE 0
+            END as is_win,
+            CASE WHEN pgs.team_id = g.home_team_id THEN g.home_score ELSE g.away_score END as team_score,
+            CASE WHEN pgs.team_id = g.home_team_id THEN g.away_score ELSE g.home_score END as opponent_score,
+            pgs.minutes_played,
+            pgs.points,
+            pgs.rebounds_offensive + pgs.rebounds_defensive as rebounds_total,
+            pgs.assists,
+            pgs.steals,
+            pgs.blocks,
+            pgs.fg_made,
+            pgs.fg_attempted,
+            pgs.fg3_made,
+            pgs.fg3_attempted,
+            pgs.ft_made,
+            pgs.ft_attempted,
+            pgs.turnovers,
+            pgs.personal_fouls
+        FROM player_game_stats pgs
+        JOIN games g ON pgs.game_id = g.game_id
+        LEFT JOIN teams ht ON CASE
+            WHEN pgs.team_id = g.home_team_id THEN g.away_team_id
+            ELSE g.home_team_id
+        END = ht.team_id
+        WHERE pgs.player_id = ? AND g.season = ?
+        {filter_sql}
+        ORDER BY {sort_column} {sort_direction}
+        {limit_clause}
+        {offset_clause}
+    """
+
+    try:
+        rows = execute_query(query, params)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch games: {e}") from e
+
+    # Calculate pagination
+    page_size_int = total_count if isinstance(page_size, str) and page_size.lower() == "all" else int(page_size) if isinstance(page_size, int) else 50
+    total_pages = (total_count + page_size_int - 1) // page_size_int if page_size_int > 0 else 1
+
+    games = []
+    for row in rows:
+        games.append({
+            "game_date": row[0],
+            "season": row[1],
+            "opponent_abbreviation": row[2],
+            "opponent_id": row[3],
+            "is_home": bool(row[4]),
+            "is_win": bool(row[5]),
+            "team_score": row[6],
+            "opponent_score": row[7],
+            "minutes_played": row[8],
+            "points": row[9],
+            "rebounds_total": row[10],
+            "assists": row[11],
+            "steals": row[12],
+            "blocks": row[13],
+            "fg_made": row[14],
+            "fg_attempted": row[15],
+            "fg3_made": row[16],
+            "fg3_attempted": row[17],
+            "ft_made": row[18],
+            "ft_attempted": row[19],
+            "turnovers": row[20],
+            "personal_fouls": row[21],
+        })
+
+    return templates.TemplateResponse(
+        "partials/player_game_log.html",
+        {
+            "request": request,
+            "player_id": player_id,
+            "games": games,
+            "season": year,
+            "total_count": total_count,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": total_pages,
+            "sort_by": sort_by,
+            "sort_order": sort_order,
+            "home_away": home_away,
+            "result": result,
+        },
+    )
+
+
+@router.get("/{player_id}/export")
+async def export_player_data(
+    player_id: str,
+    format: Annotated[str, Query(description="Export format (csv or json)")] = "csv",
+    type: Annotated[str, Query(description="Export type (stats, games, all)")] = "all",
+    season: Annotated[int | None, Query(description="Season filter for games")] = None,
+) -> Response:
+    """Export player data to CSV or JSON.
+
+    Path Parameters:
+        - player_id: Unique identifier for the player
+
+    Query Parameters:
+        - format: Export format ('csv' or 'json')
+        - type: Export type ('stats', 'games', or 'all')
+        - season: Optional season filter for games export
+
+    Returns:
+        CSV or JSON file download response.
+    """
+    format_type = format.lower()
+    if format_type not in ["csv", "json"]:
+        format_type = "csv"
+
+    export_type = type.lower()
+
+    if export_type == "stats":
+        return export_player_stats(player_id, format_type)
+    
+    if export_type == "games":
+        return export_game_logs(player_id, season, format_type)
+
+    # Default to stats for now (could combine both in future)
+    return export_player_stats(player_id, format_type)
+
+
+@router.get("/index", response_model=None)
+async def get_player_index(
+    request: Request,
+    letter: Annotated[str | None, Query(description="Filter by first letter of last name (A-Z)")] = None,
+) -> HTMLResponse:
+    """Get alphabetical player index with A-Z navigation.
+
+    Query Parameters:
+        - letter: Filter players by first letter of last name (A-Z)
+
+    Returns:
+        HTML partial with player index organized alphabetically.
+    """
+    templates = get_templates()
+
+    # Validate letter parameter
+    if letter:
+        letter = letter.upper()
+        if len(letter) != 1 or not letter.isalpha():
+            letter = None
+
+    # Build query
+    where_clause = ""
+    params: list[Any] = []
+    if letter:
+        where_clause = "WHERE UPPER(SUBSTRING(last_name, 1, 1)) = ?"
+        params.append(letter)
+
+    query = f"""
+        SELECT
+            player_id,
+            first_name,
+            last_name,
+            full_name,
+            team_id,
+            position,
+            draft_year,
+            active
+        FROM players
+        {where_clause}
+        ORDER BY last_name, first_name
+    """
+
+    try:
+        rows = execute_query(query, params)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch player index: {e}") from e
+
+    # Organize players by first letter of last name
+    players_by_letter: dict[str, list[dict[str, Any]]] = {}
+    for row in rows:
+        player = {
+            "player_id": row[0],
+            "first_name": row[1],
+            "last_name": row[2],
+            "full_name": row[3],
+            "team_id": row[4],
+            "position": row[5],
+            "draft_year": row[6],
+            "active": row[7],
+        }
+        first_letter = player["last_name"][0].upper() if player["last_name"] else "#"
+        if first_letter not in players_by_letter:
+            players_by_letter[first_letter] = []
+        players_by_letter[first_letter].append(player)
+
+    # Get count of players per letter
+    count_query = """
+        SELECT UPPER(SUBSTRING(last_name, 1, 1)) as letter, COUNT(*) as count
+        FROM players
+        GROUP BY UPPER(SUBSTRING(last_name, 1, 1))
+        ORDER BY letter
+    """
+    try:
+        count_rows = execute_query(count_query, [])
+        letter_counts = {row[0]: row[1] for row in count_rows}
+    except Exception:
+        letter_counts = {}
+
+    # Get all letters that have players
+    available_letters = sorted(letter_counts.keys())
+
+    return templates.TemplateResponse(
+        "players/index.html",
+        {
+            "request": request,
+            "players_by_letter": players_by_letter,
+            "letter_counts": letter_counts,
+            "available_letters": available_letters,
+            "selected_letter": letter,
+        },
+    )

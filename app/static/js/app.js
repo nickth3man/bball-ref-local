@@ -7,18 +7,41 @@
     'use strict';
 
     // ============================================
+    // Utility Functions
+    // ============================================
+
+    /**
+     * Debounce function to limit how often a function can fire
+     * @param {Function} func - The function to debounce
+     * @param {number} wait - The debounce delay in milliseconds
+     * @returns {Function} - The debounced function
+     */
+    function debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
+
+    // ============================================
     // Dark Mode Functionality
     // ============================================
-    
+
     const DarkModeManager = {
         storageKey: 'bball-ref-theme',
         toggleBtn: null,
         iconEl: null,
+        listeners: [],
 
         init() {
             this.toggleBtn = document.getElementById('darkModeToggle');
             this.iconEl = document.getElementById('darkModeIcon');
-            
+
             if (!this.toggleBtn || !this.iconEl) {
                 console.warn('Dark mode elements not found');
                 return;
@@ -27,17 +50,29 @@
             // Load saved preference or system preference
             this.loadTheme();
 
-            // Bind click event
-            this.toggleBtn.addEventListener('click', () => this.toggle());
+            // Bind click event and store reference for cleanup
+            const clickHandler = () => this.toggle();
+            this.toggleBtn.addEventListener('click', clickHandler);
+            this.listeners.push({ element: this.toggleBtn, event: 'click', handler: clickHandler });
+        },
+
+        cleanup() {
+            // Remove all stored event listeners
+            this.listeners.forEach(({ element, event, handler }) => {
+                element.removeEventListener(event, handler);
+            });
+            this.listeners = [];
+            this.toggleBtn = null;
+            this.iconEl = null;
         },
 
         loadTheme() {
             const savedTheme = localStorage.getItem(this.storageKey);
             const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            
+
             // Default to dark mode if no preference saved
             const isDark = savedTheme ? savedTheme === 'dark' : systemPrefersDark;
-            
+
             this.applyTheme(isDark);
         },
 
@@ -63,12 +98,14 @@
     // ============================================
     // Mobile Navigation
     // ============================================
-    
+
     const MobileNavManager = {
         menuBtn: null,
         menu: null,
         iconEl: null,
         isOpen: false,
+        listeners: [],
+        resizeHandler: null,
 
         init() {
             this.menuBtn = document.getElementById('mobileMenuBtn');
@@ -80,21 +117,46 @@
                 return;
             }
 
-            this.menuBtn.addEventListener('click', () => this.toggle());
+            // Store bound handlers for cleanup
+            const clickHandler = () => this.toggle();
+            this.menuBtn.addEventListener('click', clickHandler);
+            this.listeners.push({ element: this.menuBtn, event: 'click', handler: clickHandler });
 
             // Close menu when clicking outside
-            document.addEventListener('click', (e) => {
+            const outsideClickHandler = (e) => {
                 if (this.isOpen && !this.menu.contains(e.target) && !this.menuBtn.contains(e.target)) {
                     this.close();
                 }
-            });
+            };
+            document.addEventListener('click', outsideClickHandler);
+            this.listeners.push({ element: document, event: 'click', handler: outsideClickHandler });
 
-            // Close menu on window resize (if moving to desktop)
-            window.addEventListener('resize', () => {
+            // Close menu on window resize (if moving to desktop) - debounced
+            this.resizeHandler = debounce(() => {
                 if (window.innerWidth >= 768 && this.isOpen) {
                     this.close();
                 }
+            }, 250);
+            window.addEventListener('resize', this.resizeHandler);
+        },
+
+        cleanup() {
+            // Remove all stored event listeners
+            this.listeners.forEach(({ element, event, handler }) => {
+                element.removeEventListener(event, handler);
             });
+            this.listeners = [];
+
+            // Remove resize handler
+            if (this.resizeHandler) {
+                window.removeEventListener('resize', this.resizeHandler);
+                this.resizeHandler = null;
+            }
+
+            this.menuBtn = null;
+            this.menu = null;
+            this.iconEl = null;
+            this.isOpen = false;
         },
 
         toggle() {
@@ -123,7 +185,7 @@
     // ============================================
     // Tabulator Helper Functions
     // ============================================
-    
+
     window.TabulatorManager = {
         /**
          * Initialize a Tabulator table with default basketball theme settings
@@ -179,7 +241,7 @@
          * Sync table with dark mode changes
          */
         setupDarkModeSync(table) {
-            // Redraw table when dark mode toggles (for styling updates)
+            // Store observer reference on the table for cleanup
             const observer = new MutationObserver((mutations) => {
                 mutations.forEach((mutation) => {
                     if (mutation.attributeName === 'class') {
@@ -192,6 +254,20 @@
                 attributes: true,
                 attributeFilter: ['class']
             });
+
+            // Store observer reference for later cleanup
+            table.__darkModeObserver = observer;
+        },
+
+        /**
+         * Disconnect the dark mode observer for a table
+         * @param {Tabulator} table - The Tabulator instance
+         */
+        disconnectDarkModeSync(table) {
+            if (table && table.__darkModeObserver) {
+                table.__darkModeObserver.disconnect();
+                delete table.__darkModeObserver;
+            }
         },
 
         /**
@@ -226,7 +302,7 @@
             const value = cell.getValue();
             const data = cell.getRow().getData();
             const playerId = data.id || data.player_id;
-            
+
             if (playerId) {
                 return `<a href="/players/${playerId}" class="text-bball-orange hover:underline font-medium">${value}</a>`;
             }
@@ -242,44 +318,64 @@
     // ============================================
     // HTMX Event Listeners
     // ============================================
-    
+
     const HTMXManager = {
+        listeners: [],
+
         init() {
             // Show global loading indicator
-            document.body.addEventListener('htmx:beforeRequest', (e) => {
+            const beforeRequestHandler = (e) => {
                 const indicator = document.getElementById('global-loading');
                 if (indicator) {
                     indicator.classList.add('htmx-request');
                 }
-            });
+            };
+            document.body.addEventListener('htmx:beforeRequest', beforeRequestHandler);
+            this.listeners.push({ element: document.body, event: 'htmx:beforeRequest', handler: beforeRequestHandler });
 
             // Hide global loading indicator
-            document.body.addEventListener('htmx:afterRequest', (e) => {
+            const afterRequestHandler = (e) => {
                 const indicator = document.getElementById('global-loading');
                 if (indicator) {
                     indicator.classList.remove('htmx-request');
                 }
-            });
+            };
+            document.body.addEventListener('htmx:afterRequest', afterRequestHandler);
+            this.listeners.push({ element: document.body, event: 'htmx:afterRequest', handler: afterRequestHandler });
 
             // Handle errors
-            document.body.addEventListener('htmx:responseError', (e) => {
+            const responseErrorHandler = (e) => {
                 console.error('HTMX Response Error:', e.detail);
                 this.showNotification('Error loading content. Please try again.', 'error');
-            });
+            };
+            document.body.addEventListener('htmx:responseError', responseErrorHandler);
+            this.listeners.push({ element: document.body, event: 'htmx:responseError', handler: responseErrorHandler });
 
-            document.body.addEventListener('htmx:sendError', (e) => {
+            const sendErrorHandler = (e) => {
                 console.error('HTMX Send Error:', e.detail);
                 this.showNotification('Network error. Please check your connection.', 'error');
-            });
+            };
+            document.body.addEventListener('htmx:sendError', sendErrorHandler);
+            this.listeners.push({ element: document.body, event: 'htmx:sendError', handler: sendErrorHandler });
 
             // After swap - reinitialize any necessary components
-            document.body.addEventListener('htmx:afterSwap', (e) => {
+            const afterSwapHandler = (e) => {
                 // Add fade-in animation to swapped content
                 e.detail.target.classList.add('htmx-added');
                 setTimeout(() => {
                     e.detail.target.classList.remove('htmx-added');
                 }, 300);
+            };
+            document.body.addEventListener('htmx:afterSwap', afterSwapHandler);
+            this.listeners.push({ element: document.body, event: 'htmx:afterSwap', handler: afterSwapHandler });
+        },
+
+        cleanup() {
+            // Remove all stored HTMX event listeners
+            this.listeners.forEach(({ element, event, handler }) => {
+                element.removeEventListener(event, handler);
             });
+            this.listeners = [];
         },
 
         showNotification(message, type = 'info') {
@@ -313,11 +409,11 @@
     // ============================================
     // Active Navigation Link Highlighting
     // ============================================
-    
+
     const NavigationManager = {
         init() {
             const currentPath = window.location.pathname;
-            
+
             // Desktop nav links
             document.querySelectorAll('.nav-link').forEach(link => {
                 if (link.getAttribute('href') === currentPath) {
@@ -337,16 +433,150 @@
     };
 
     // ============================================
+    // Export Dropdown Manager
+    // ============================================
+
+    const ExportDropdownManager = {
+        containers: [],
+
+        init() {
+            this.setupDropdowns();
+            // Re-setup after HTMX swaps
+            document.body.addEventListener('htmx:afterSwap', () => {
+                this.setupDropdowns();
+            });
+        },
+
+        setupDropdowns() {
+            document.querySelectorAll('.export-dropdown-container').forEach(container => {
+                // Skip if already initialized
+                if (container.dataset.initialized) return;
+                container.dataset.initialized = 'true';
+                this.containers.push(container);
+
+                const toggleBtn = container.querySelector('.export-toggle-btn');
+                const dropdown = container.querySelector('.export-dropdown-menu');
+
+                if (!toggleBtn || !dropdown) return;
+
+                // Toggle on click
+                toggleBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    dropdown.classList.toggle('hidden');
+                });
+
+                // Close on outside click
+                document.addEventListener('click', (e) => {
+                    if (!container.contains(e.target)) {
+                        dropdown.classList.add('hidden');
+                    }
+                });
+
+                // Close on escape key
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape') {
+                        dropdown.classList.add('hidden');
+                    }
+                });
+            });
+        },
+
+        cleanup() {
+            this.containers.forEach(container => {
+                delete container.dataset.initialized;
+            });
+            this.containers = [];
+        }
+    };
+
+    // ============================================
+    // Game Log Manager (for sorting, pagination, filtering)
+    // ============================================
+
+    const GameLogManager = {
+        init() {
+            this.setupGameLogControls();
+            // Re-setup after HTMX swaps
+            document.body.addEventListener('htmx:afterSwap', () => {
+                this.setupGameLogControls();
+            });
+        },
+
+        setupGameLogControls() {
+            const container = document.getElementById('player-game-log');
+            if (!container) return;
+
+            // Handle sort clicks
+            container.querySelectorAll('.sortable-header').forEach(header => {
+                header.addEventListener('click', () => {
+                    const sortBy = header.dataset.sortBy;
+                    const currentOrder = header.dataset.sortOrder || 'desc';
+                    const newOrder = currentOrder === 'asc' ? 'desc' : 'asc';
+
+                    // Get current URL params
+                    const url = new URL(window.location.href);
+                    url.searchParams.set('sort_by', sortBy);
+                    url.searchParams.set('sort_order', newOrder);
+
+                    // Trigger HTMX request
+                    htmx.ajax('GET', url.toString(), {
+                        target: '#player-game-log-container',
+                        indicator: '#game-log-loading'
+                    });
+                });
+            });
+
+            // Handle page size changes
+            const pageSizeSelect = container.querySelector('#page-size-select');
+            if (pageSizeSelect) {
+                pageSizeSelect.addEventListener('change', () => {
+                    const url = new URL(window.location.href);
+                    url.searchParams.set('page_size', pageSizeSelect.value);
+                    url.searchParams.set('page', '1'); // Reset to page 1
+
+                    htmx.ajax('GET', url.toString(), {
+                        target: '#player-game-log-container',
+                        indicator: '#game-log-loading'
+                    });
+                });
+            }
+
+            // Handle filter changes
+            container.querySelectorAll('.game-log-filter').forEach(filter => {
+                filter.addEventListener('change', () => {
+                    const url = new URL(window.location.href);
+                    const filterName = filter.dataset.filterName;
+                    const filterValue = filter.value;
+
+                    if (filterValue && filterValue !== 'all') {
+                        url.searchParams.set(filterName, filterValue);
+                    } else {
+                        url.searchParams.delete(filterName);
+                    }
+                    url.searchParams.set('page', '1'); // Reset to page 1
+
+                    htmx.ajax('GET', url.toString(), {
+                        target: '#player-game-log-container',
+                        indicator: '#game-log-loading'
+                    });
+                });
+            });
+        }
+    };
+
+    // ============================================
     // Smooth Scroll
     // ============================================
-    
+
     const SmoothScroll = {
+        listeners: [],
+
         init() {
             document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-                anchor.addEventListener('click', function(e) {
+                const clickHandler = function(e) {
                     const targetId = this.getAttribute('href');
                     if (targetId === '#') return;
-                    
+
                     const targetEl = document.querySelector(targetId);
                     if (targetEl) {
                         e.preventDefault();
@@ -355,21 +585,55 @@
                             block: 'start'
                         });
                     }
-                });
+                };
+                anchor.addEventListener('click', clickHandler);
+                this.listeners.push({ element: anchor, event: 'click', handler: clickHandler });
             });
+        },
+
+        cleanup() {
+            this.listeners.forEach(({ element, event, handler }) => {
+                element.removeEventListener(event, handler);
+            });
+            this.listeners = [];
+        }
+    };
+
+    // ============================================
+    // Global Cleanup Function
+    // ============================================
+
+    window.BBallApp = {
+        cleanup() {
+            DarkModeManager.cleanup();
+            MobileNavManager.cleanup();
+            HTMXManager.cleanup();
+            SmoothScroll.cleanup();
+            ExportDropdownManager.cleanup();
+        },
+        managers: {
+            DarkModeManager,
+            MobileNavManager,
+            HTMXManager,
+            NavigationManager,
+            SmoothScroll,
+            ExportDropdownManager,
+            GameLogManager
         }
     };
 
     // ============================================
     // Initialize Everything on DOM Ready
     // ============================================
-    
+
     function init() {
         DarkModeManager.init();
         MobileNavManager.init();
         HTMXManager.init();
         NavigationManager.init();
         SmoothScroll.init();
+        ExportDropdownManager.init();
+        GameLogManager.init();
 
         console.log('🏀 BBall Ref Local initialized!');
     }

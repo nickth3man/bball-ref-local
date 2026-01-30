@@ -13,6 +13,21 @@ sys.path.insert(0, str(project_root))
 
 
 # =============================================================================
+# FastAPI Test Client
+# =============================================================================
+
+
+@pytest.fixture
+def client():
+    """Create a FastAPI test client."""
+    from fastapi.testclient import TestClient
+
+    from app.main import app
+
+    return TestClient(app)
+
+
+# =============================================================================
 # Mock time.sleep to speed up tests
 # =============================================================================
 

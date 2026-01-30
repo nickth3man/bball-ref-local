@@ -4,6 +4,8 @@ Provides a unified search endpoint that returns results grouped by type.
 Supports both JSON API responses and HTMX partial HTML responses.
 """
 
+import html
+import re
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, Request
@@ -12,6 +14,24 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.services.database import execute_query
 from app.services.htmx_utils import get_templates, is_htmx_request
+
+
+def _sanitize_query(query: str) -> str:
+    """Sanitize user search query to prevent XSS attacks.
+    
+    Strips HTML tags and escapes special characters.
+    
+    Args:
+        query: Raw user input query string.
+        
+    Returns:
+        Sanitized query string safe for HTML rendering.
+    """
+    # Remove HTML tags
+    query = re.sub(r'<[^>]+>', '', query)
+    # Escape special HTML characters
+    query = html.escape(query)
+    return query
 
 router = APIRouter(prefix="/api/v1", tags=["search"])
 
@@ -287,6 +307,9 @@ async def search(
     team_limit = max(1, min(limit // 3, 5))
     game_limit = max(1, limit - player_limit - team_limit)
 
+    # Sanitize query for safe HTML rendering (prevents XSS)
+    sanitized_query = _sanitize_query(q)
+
     try:
         # Search all types in parallel (well, sequentially but grouped)
         player_results = _search_players(q, player_limit)
@@ -296,7 +319,7 @@ async def search(
         # Combine results: players first, then teams, then games
         all_results = player_results + team_results + game_results
 
-        response_data = SearchResponse(query=q, results=all_results, total=len(all_results))
+        response_data = SearchResponse(query=sanitized_query, results=all_results, total=len(all_results))
 
         # Return HTML if HTMX request
         if is_htmx_request(request):
@@ -305,7 +328,7 @@ async def search(
                 "partials/search_results.html",
                 {
                     "request": request,
-                    "query": q,
+                    "query": sanitized_query,
                     "results": all_results,
                     "total": len(all_results),
                     "players": player_results,

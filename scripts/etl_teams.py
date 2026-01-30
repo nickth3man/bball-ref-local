@@ -166,7 +166,7 @@ def transform_teams(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def load_teams(df: pd.DataFrame) -> int:
-    """Load teams into DuckDB using upsert.
+    """Load teams into DuckDB using batch upsert.
     
     Args:
         df: Transformed team data.
@@ -177,33 +177,42 @@ def load_teams(df: pd.DataFrame) -> int:
     logger.info("Loading teams into database...")
     
     conn = get_db_connection()
-    rows_loaded = 0
     
     try:
-        for _, row in df.iterrows():
-            conn.execute("""
-                INSERT OR REPLACE INTO teams (
-                    team_id, full_name, abbreviation, nickname, city,
-                    state, year_founded, arena, owner, general_manager,
-                    head_coach, conference, division, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-            """, [
-                row.get("team_id"),
-                row.get("full_name"),
-                row.get("abbreviation"),
-                row.get("nickname"),
-                row.get("city"),
-                row.get("state"),
-                row.get("year_founded"),
+        # Use to_numpy() for better performance and executemany for batch insert
+        # This handles column names more reliably than itertuples
+        data = [
+            (
+                row["team_id"],
+                row["full_name"],
+                row["abbreviation"],
+                row["nickname"],
+                row["city"],
+                row["state"],
+                row["year_founded"],
                 row.get("arena"),
                 row.get("owner"),
                 row.get("general_manager"),
                 row.get("head_coach"),
-                row.get("conference"),
-                row.get("division"),
-            ])
-            rows_loaded += 1
+                row["conference"],
+                row["division"],
+            )
+            for _, row in df.iterrows()
+        ]
         
+        if not data:
+            logger.info("No teams to load")
+            return 0
+        
+        conn.executemany("""
+            INSERT OR REPLACE INTO teams (
+                team_id, full_name, abbreviation, nickname, city,
+                state, year_founded, arena, owner, general_manager,
+                head_coach, conference, division, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        """, data)
+        
+        rows_loaded = len(data)
         logger.info(f"Successfully loaded {rows_loaded} teams")
         return rows_loaded
         

@@ -48,14 +48,14 @@
     </div>
 </div>
 
-<!-- Season Selector -->
+<!-- Season Selector and Export -->
 <div class="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
     <div class="flex items-center space-x-3">
         <label for="season-select" class="text-sm font-medium text-gray-700 dark:text-gray-300">
             <i class="ph ph-calendar-blank mr-1"></i>Season:
         </label>
-        <select id="season-select" 
-                name="season" 
+        <select id="season-select"
+                name="season"
                 class="px-4 py-2 bg-white dark:bg-bball-gray border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-nba-blue"
                 hx-get="/teams/{{ team.team_id }}/tabs"
                 hx-target="#team-tab-content"
@@ -68,10 +68,17 @@
         </select>
     </div>
     
-    <!-- Loading Indicator -->
-    <div id="tab-loading" class="htmx-indicator flex items-center space-x-2 text-nba-blue">
-        <div class="htmx-loading"></div>
-        <span class="text-sm font-medium">Loading...</span>
+    <div class="flex items-center space-x-3">
+        <!-- Export Button -->
+        {% with export_url="/api/v1/teams/" + team.team_id|string + "/export", export_type="stats", season=current_season %}
+            {% include "partials/export_button.html" %}
+        {% endwith %}
+        
+        <!-- Loading Indicator -->
+        <div id="tab-loading" class="htmx-indicator flex items-center space-x-2 text-nba-blue">
+            <div class="htmx-loading"></div>
+            <span class="text-sm font-medium">Loading...</span>
+        </div>
     </div>
 </div>
 

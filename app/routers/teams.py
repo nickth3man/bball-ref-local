@@ -6,13 +6,14 @@ Supports both JSON API responses and HTMX partial template rendering.
 
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, HTTPException, Query, Request, Response
 from fastapi.responses import HTMLResponse
 
 from app.models import Player, Team
 from app.models.game import Game
 from app.models.responses import GameListResponse
 from app.services.database import execute_query
+from app.services.export_service import export_team_stats
 from app.services.htmx_utils import is_htmx_request
 
 router = APIRouter(prefix="/api/v1/teams", tags=["teams"])
@@ -196,16 +197,12 @@ async def get_team_roster(
 
     Returns:
         List of Player models on the team's current roster, or an HTML partial if HTMX request.
+        Returns empty list if team not found or has no players.
 
     Raises:
-        HTTPException: 404 if team not found, 500 if database query fails.
+        HTTPException: 500 if database query fails.
     """
     try:
-        # First verify team exists
-        team_check = execute_query("SELECT 1 FROM teams WHERE team_id = ?", [team_id])
-        if not team_check:
-            raise HTTPException(status_code=404, detail=f"Team with ID {team_id} not found")
-
         query = """
             SELECT
                 player_id,
@@ -258,8 +255,6 @@ async def get_team_roster(
             return HTMLResponse(content="")  # Placeholder for roster_table.html
 
         return players
-    except HTTPException:
-        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch roster: {e}") from e
 
@@ -284,14 +279,9 @@ async def get_team_stats(
         Team season statistics, or an HTML partial if HTMX request.
 
     Raises:
-        HTTPException: 404 if team not found, 500 if database query fails.
+        HTTPException: 500 if database query fails.
     """
     try:
-        # First verify team exists
-        team_check = execute_query("SELECT 1 FROM teams WHERE team_id = ?", [team_id])
-        if not team_check:
-            raise HTTPException(status_code=404, detail=f"Team with ID {team_id} not found")
-
         # Aggregate team stats from player_game_stats and games
         query = """
             SELECT
@@ -407,31 +397,17 @@ async def get_team_games(
         Paginated list of Game models, or an HTML partial if HTMX request.
 
     Raises:
-        HTTPException: 404 if team not found, 500 if database query fails.
+        HTTPException: 500 if database query fails.
     """
     try:
-        # First verify team exists
-        team_check = execute_query("SELECT 1 FROM teams WHERE team_id = ?", [team_id])
-        if not team_check:
-            raise HTTPException(status_code=404, detail=f"Team with ID {team_id} not found")
-
-        # Build count query for pagination
-        count_query = """
-            SELECT COUNT(*)
-            FROM games
-            WHERE (home_team_id = ? OR away_team_id = ?)
-        """
-        count_params: list = [team_id, team_id]
-
+        # Build WHERE clause for season filter
+        season_filter = "AND season = ?" if season else ""
+        params: list = [team_id, team_id]
         if season:
-            count_query += " AND season = ?"
-            count_params.append(season)
+            params.append(season)
 
-        total_result = execute_query(count_query, count_params)
-        total = total_result[0][0] if total_result else 0
-
-        # Build data query
-        query = """
+        # Single query with window function for pagination
+        query = f"""
             SELECT
                 game_id,
                 season,
@@ -442,21 +418,19 @@ async def get_team_games(
                 home_score,
                 away_score,
                 winner_team_id,
-                status
+                status,
+                COUNT(*) OVER() as total_count
             FROM games
             WHERE (home_team_id = ? OR away_team_id = ?)
+            {season_filter}
+            ORDER BY game_date DESC
+            LIMIT ? OFFSET ?
         """
-        params: list = [team_id, team_id]
-
-        if season:
-            query += " AND season = ?"
-            params.append(season)
-
-        query += " ORDER BY game_date DESC"
-        query += " LIMIT ? OFFSET ?"
         params.extend([page_size, (page - 1) * page_size])
 
         results = execute_query(query, params)
+
+        total = results[0][-1] if results else 0
 
         games = [
             Game(
@@ -474,7 +448,7 @@ async def get_team_games(
                             "winner_team_id",
                             "status",
                         ],
-                        row,
+                        row[:-1],  # Exclude total_count from row data
                         strict=True,
                     )
                 )
@@ -496,7 +470,28 @@ async def get_team_games(
             return HTMLResponse(content="")  # Placeholder for game_list.html
 
         return response
-    except HTTPException:
-        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch team games: {e}") from e
+
+
+@router.get("/{team_id}/export")
+async def export_team_data(
+    team_id: str,
+    format: Annotated[str, Query(description="Export format (csv or json)")] = "csv",
+) -> Response:
+    """Export team statistics to CSV or JSON.
+
+    Path Parameters:
+        - team_id: Unique identifier for the team
+
+    Query Parameters:
+        - format: Export format ('csv' or 'json')
+
+    Returns:
+        CSV or JSON file download response.
+    """
+    format_type = format.lower()
+    if format_type not in ["csv", "json"]:
+        format_type = "csv"
+
+    return export_team_stats(team_id, format_type)
