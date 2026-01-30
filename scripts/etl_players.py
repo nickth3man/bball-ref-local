@@ -134,9 +134,8 @@ def transform_players(df: pd.DataFrame) -> pd.DataFrame:
     
     # Extract first and last name from display name or separate fields
     if "display_first_last" in df.columns:
-        name_parts = df["display_first_last"].str.split(" ", n=1, expand=True)
-        df["first_name"] = name_parts[0].fillna("")
-        df["last_name"] = name_parts[1].fillna("")
+        df["first_name"] = df["display_first_last"].str.split(" ", n=1).str[0].fillna("")
+        df["last_name"] = df["display_first_last"].str.split(" ", n=1).str[1].fillna("")
     elif "first_name" in df.columns and "last_name" in df.columns:
         df["first_name"] = df["first_name"].fillna("")
         df["last_name"] = df["last_name"].fillna("")
@@ -230,11 +229,12 @@ def transform_players(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def load_players(df: pd.DataFrame) -> int:
-    """Load players into DuckDB using upsert.
+def load_players(df: pd.DataFrame, batch_size: int = 500) -> int:
+    """Load players into DuckDB using upsert with batching.
     
     Args:
         df: Transformed player data.
+        batch_size: Number of records to insert per batch.
         
     Returns:
         Number of rows loaded.
@@ -245,14 +245,9 @@ def load_players(df: pd.DataFrame) -> int:
     rows_loaded = 0
     
     try:
-        for _, row in df.iterrows():
-            conn.execute("""
-                INSERT OR REPLACE INTO players (
-                    player_id, first_name, last_name, team_id, position,
-                    jersey_number, height, weight, birth_date, country,
-                    draft_year, draft_round, draft_number, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-            """, [
+        # Prepare data as list of tuples for batch insert
+        records = [
+            (
                 row.get("player_id"),
                 row.get("first_name"),
                 row.get("last_name"),
@@ -266,22 +261,37 @@ def load_players(df: pd.DataFrame) -> int:
                 row.get("draft_year"),
                 row.get("draft_round"),
                 row.get("draft_number"),
-            ])
-            rows_loaded += 1
+            )
+            for _, row in df.iterrows()
+        ]
+        
+        # Process in batches for better performance
+        for i in range(0, len(records), batch_size):
+            batch = records[i:i + batch_size]
+            conn.executemany("""
+                INSERT OR REPLACE INTO players (
+                    player_id, first_name, last_name, team_id, position,
+                    jersey_number, height, weight, birth_date, country,
+                    draft_year, draft_round, draft_number, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            """, batch)
+            rows_loaded += len(batch)
+            logger.info(f"Loaded batch {i // batch_size + 1}/{(len(records) - 1) // batch_size + 1}")
         
         logger.info(f"Successfully loaded {rows_loaded} players")
         return rows_loaded
         
-    except Exception as e:
-        logger.error(f"Failed to load players: {e}")
+    except Exception:
+        logger.exception("Failed to load players")
         raise
 
 
-def run_etl(active_only: bool = True) -> dict:
+def run_etl(active_only: bool = True, batch_size: int = 500) -> dict:
     """Run the complete players ETL pipeline.
     
     Args:
         active_only: If True, process only active players.
+        batch_size: Number of records to insert per batch.
         
     Returns:
         Dictionary with ETL results.
@@ -297,12 +307,12 @@ def run_etl(active_only: bool = True) -> dict:
         df = transform_players(df)
         
         # Load
-        result["loaded"] = load_players(df)
+        result["loaded"] = load_players(df, batch_size)
         
     except Exception as e:
         result["status"] = "failed"
         result["error"] = str(e)
-        logger.error(f"ETL failed: {e}")
+        logger.exception("ETL failed")
         
     finally:
         close_db_connection()
@@ -318,15 +328,15 @@ def main() -> int:
     """
     parser = argparse.ArgumentParser(description="ETL for NBA player data")
     parser.add_argument(
-        "--active-only", "-a",
-        action="store_true",
-        default=True,
-        help="Fetch only active players (default: True)"
-    )
-    parser.add_argument(
         "--all-players",
         action="store_true",
-        help="Fetch all players (including inactive)"
+        help="Fetch all players including inactive (default: active players only)"
+    )
+    parser.add_argument(
+        "--batch-size", "-b",
+        type=int,
+        default=500,
+        help="Batch size for inserts (default: 500)"
     )
     parser.add_argument(
         "--verbose", "-v",
@@ -341,8 +351,8 @@ def main() -> int:
     
     active_only = not args.all_players
     
-    logger.info(f"Starting players ETL (active_only={active_only})...")
-    result = run_etl(active_only=active_only)
+    logger.info("Starting players ETL...")
+    result = run_etl(active_only=active_only, batch_size=args.batch_size)
     
     if result["status"] == "success":
         logger.info(

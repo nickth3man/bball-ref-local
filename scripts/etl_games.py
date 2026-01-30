@@ -24,6 +24,7 @@ sys.path.insert(0, str(project_root))
 from nba_api.stats.endpoints import LeagueGameFinder
 
 from app.services.database import close_db_connection, get_db_connection
+from scripts.etl_utils import get_current_season, parse_season_to_year
 
 # Configure logging
 logging.basicConfig(
@@ -35,39 +36,6 @@ logger = logging.getLogger(__name__)
 
 # Rate limiting delay (seconds)
 RATE_LIMIT_DELAY = 0.6
-
-
-def get_current_season() -> str:
-    """Determine the current NBA season based on current date.
-    
-    Returns:
-        Season string in format 'YYYY-YY' (e.g., '2024-25').
-    """
-    today = date.today()
-    year = today.year
-    month = today.month
-    
-    # NBA season runs from October to June
-    # If we're before July, we're in the season that started the previous year
-    if month < 7:
-        start_year = year - 1
-    else:
-        start_year = year
-    
-    end_year = (start_year + 1) % 100
-    return f"{start_year}-{end_year:02d}"
-
-
-def parse_season_to_year(season: str) -> int:
-    """Parse season string to season year.
-    
-    Args:
-        season: Season string in format 'YYYY-YY' (e.g., '2024-25').
-        
-    Returns:
-        Season year (the year the season started).
-    """
-    return int(season.split("-")[0])
 
 
 def parse_game_date(date_str: str | None) -> date | None:
@@ -150,6 +118,12 @@ def transform_games(df: pd.DataFrame, season: str, season_type: str) -> pd.DataF
     away_df = df[~df["is_home"]].copy()
     
     # Merge home and away on game_id
+    home_game_ids = set(home_df["game_id"])
+    away_game_ids = set(away_df["game_id"])
+    unmatched = (home_game_ids ^ away_game_ids)
+    if unmatched:
+        logger.warning(f"Dropping {len(unmatched)} games with missing home/away records")
+    
     games = home_df.merge(
         away_df,
         on="game_id",
@@ -166,13 +140,17 @@ def transform_games(df: pd.DataFrame, season: str, season_type: str) -> pd.DataF
     games["home_score"] = pd.to_numeric(games["pts_home"], errors="coerce").astype("Int64")
     games["away_score"] = pd.to_numeric(games["pts_away"], errors="coerce").astype("Int64")
     
-    # Determine winner
-    games["winner_team_id"] = games.apply(
-        lambda row: row["home_team_id"] if row["home_score"] > row["away_score"]
-        else row["away_team_id"] if row["away_score"] > row["home_score"]
-        else None,
-        axis=1
-    )
+    # Determine winner (only if scores are available)
+    def determine_winner(row):
+        if pd.isna(row["home_score"]) or pd.isna(row["away_score"]):
+            return None
+        if row["home_score"] > row["away_score"]:
+            return row["home_team_id"]
+        if row["away_score"] > row["home_score"]:
+            return row["away_team_id"]
+        return None
+    
+    games["winner_team_id"] = games.apply(determine_winner, axis=1)
     
     # Determine game status
     # If game_date is in the future -> scheduled
@@ -180,7 +158,7 @@ def transform_games(df: pd.DataFrame, season: str, season_type: str) -> pd.DataF
     # Otherwise -> live or scheduled
     today = date.today()
     
-    def determine_status(row):
+    def determine_status(row) -> str:
         game_date = row["game_date"]
         has_score = pd.notna(row["home_score"]) and pd.notna(row["away_score"])
         

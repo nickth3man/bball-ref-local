@@ -9,10 +9,10 @@ Fetches player game logs from nba_api and inserts into DuckDB player_game_stats 
 """
 
 import argparse
+import hashlib
 import logging
 import sys
 import time
-from datetime import date
 from pathlib import Path
 
 import pandas as pd
@@ -24,6 +24,7 @@ sys.path.insert(0, str(project_root))
 from nba_api.stats.endpoints import PlayerGameLogs
 
 from app.services.database import close_db_connection, get_db_connection
+from scripts.etl_utils import get_current_season, parse_season_to_year
 
 # Configure logging
 logging.basicConfig(
@@ -39,36 +40,21 @@ RATE_LIMIT_DELAY = 0.6
 BATCH_SIZE = 1000
 
 
-def get_current_season() -> str:
-    """Determine the current NBA season based on current date.
+def generate_stat_id(player_id: int, game_id: str) -> int:
+    """Generate deterministic stat_id from player_id and game_id.
     
-    Returns:
-        Season string in format 'YYYY-YY' (e.g., '2024-25').
-    """
-    today = date.today()
-    year = today.year
-    month = today.month
-    
-    # NBA season runs from October to June
-    if month < 7:
-        start_year = year - 1
-    else:
-        start_year = year
-    
-    end_year = (start_year + 1) % 100
-    return f"{start_year}-{end_year:02d}"
-
-
-def parse_season_to_year(season: str) -> int:
-    """Parse season string to season year.
+    Uses SHA256 hash to ensure the same ID is generated across runs.
     
     Args:
-        season: Season string in format 'YYYY-YY' (e.g., '2024-25').
+        player_id: The player's ID.
+        game_id: The game's ID.
         
     Returns:
-        Season year (the year the season started).
+        A deterministic integer stat_id.
     """
-    return int(season.split("-")[0])
+    key = f"{player_id}_{game_id}"
+    hash_bytes = hashlib.sha256(key.encode()).digest()
+    return int.from_bytes(hash_bytes[:4], "big") % (2**31)
 
 
 def parse_minutes_played(min_str: str | float | None) -> float | None:
@@ -111,41 +97,24 @@ def extract_player_stats(season: str, season_type: str = "Regular Season") -> pd
     """
     logger.info(f"Extracting player game stats for season {season} ({season_type})...")
     
-    all_stats = []
-    page = 0
-    
-    while True:
-        try:
-            endpoint = PlayerGameLogs(
-                season_nullable=season,
-                season_type_nullable=season_type,
-            )
-            df = endpoint.get_data_frames()[0]
-            
-            if len(df) == 0:
-                break
-                
-            all_stats.append(df)
-            logger.info(f"Fetched page {page + 1} with {len(df)} records")
-            
-            # Check if we've got all data (no pagination in PlayerGameLogs, it's one call)
-            break
-            
-        except Exception as e:
-            logger.error(f"Error fetching stats: {e}")
-            break
+    try:
+        endpoint = PlayerGameLogs(
+            season_nullable=season,
+            season_type_nullable=season_type,
+        )
+        df = endpoint.get_data_frames()[0]
+        
+        if len(df) == 0:
+            logger.info("No player game stats returned for given season/season_type")
+        else:
+            logger.info(f"Fetched {len(df)} records from PlayerGameLogs")
         
         time.sleep(RATE_LIMIT_DELAY)
-        page += 1
-    
-    if not all_stats:
+        return df
+        
+    except Exception as e:
+        logger.error(f"Error fetching stats: {e}")
         return pd.DataFrame()
-    
-    combined_df = pd.concat(all_stats, ignore_index=True)
-    logger.info(f"Extracted {len(combined_df)} total player game stats")
-    time.sleep(RATE_LIMIT_DELAY)
-    
-    return combined_df
 
 
 def transform_player_stats(df: pd.DataFrame) -> pd.DataFrame:
@@ -193,9 +162,11 @@ def transform_player_stats(df: pd.DataFrame) -> pd.DataFrame:
     existing_mapping = {k: v for k, v in column_mapping.items() if k in df.columns}
     df = df.rename(columns=existing_mapping)
     
-    # Generate stat_id (using a hash of player_id + game_id for uniqueness)
-    df["stat_id"] = (df["player_id"].astype(str) + "_" + df["game_id"]).apply(hash)
-    df["stat_id"] = df["stat_id"].abs() % (2**31)  # Ensure positive int within range
+    # Generate stat_id using deterministic hash
+    df["stat_id"] = df.apply(
+        lambda row: generate_stat_id(row["player_id"], row["game_id"]),
+        axis=1
+    )
     
     # Parse minutes played
     if "minutes_played" in df.columns:

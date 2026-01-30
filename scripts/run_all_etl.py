@@ -12,7 +12,7 @@ Provides error handling and summary report.
 import argparse
 import logging
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -62,7 +62,7 @@ def run_etl_pipeline(
     Returns:
         Dictionary with ETL results for each step.
     """
-    start_time = datetime.now()
+    start_time = datetime.now(timezone.utc)
     results = {
         "start_time": start_time.isoformat(),
         "season": season,
@@ -86,11 +86,11 @@ def run_etl_pipeline(
             if teams_result["status"] != "success":
                 results["errors"].append(f"Teams ETL failed: {teams_result.get('error')}")
                 logger.error("Teams ETL failed, continuing with next steps...")
-        except Exception as e:
-            error_msg = f"Teams ETL error: {e}"
+        except Exception:
+            error_msg = "Teams ETL error"
             results["errors"].append(error_msg)
-            results["steps"]["teams"] = {"status": "failed", "error": str(e)}
-            logger.error(error_msg)
+            results["steps"]["teams"] = {"status": "failed", "error": error_msg}
+            logger.exception(error_msg)
     else:
         logger.info("Skipping teams ETL")
         results["steps"]["teams"] = {"status": "skipped"}
@@ -108,11 +108,11 @@ def run_etl_pipeline(
             if players_result["status"] != "success":
                 results["errors"].append(f"Players ETL failed: {players_result.get('error')}")
                 logger.error("Players ETL failed, continuing with next steps...")
-        except Exception as e:
-            error_msg = f"Players ETL error: {e}"
+        except Exception:
+            error_msg = "Players ETL error"
             results["errors"].append(error_msg)
-            results["steps"]["players"] = {"status": "failed", "error": str(e)}
-            logger.error(error_msg)
+            results["steps"]["players"] = {"status": "failed", "error": error_msg}
+            logger.exception(error_msg)
     else:
         logger.info("Skipping players ETL")
         results["steps"]["players"] = {"status": "skipped"}
@@ -130,11 +130,11 @@ def run_etl_pipeline(
             if games_result["status"] != "success":
                 results["errors"].append(f"Games ETL failed: {games_result.get('error')}")
                 logger.error("Games ETL failed, continuing with next steps...")
-        except Exception as e:
-            error_msg = f"Games ETL error: {e}"
+        except Exception:
+            error_msg = "Games ETL error"
             results["errors"].append(error_msg)
-            results["steps"]["games"] = {"status": "failed", "error": str(e)}
-            logger.error(error_msg)
+            results["steps"]["games"] = {"status": "failed", "error": error_msg}
+            logger.exception(error_msg)
     else:
         logger.info("Skipping games ETL")
         results["steps"]["games"] = {"status": "skipped"}
@@ -156,11 +156,11 @@ def run_etl_pipeline(
             if stats_result["status"] != "success":
                 results["errors"].append(f"Stats ETL failed: {stats_result.get('error')}")
                 logger.error("Stats ETL failed")
-        except Exception as e:
-            error_msg = f"Stats ETL error: {e}"
+        except Exception:
+            error_msg = "Stats ETL error"
             results["errors"].append(error_msg)
-            results["steps"]["stats"] = {"status": "failed", "error": str(e)}
-            logger.error(error_msg)
+            results["steps"]["stats"] = {"status": "failed", "error": error_msg}
+            logger.exception(error_msg)
     else:
         logger.info("Skipping stats ETL")
         results["steps"]["stats"] = {"status": "skipped"}
@@ -304,7 +304,6 @@ Examples:
         return 1
     
     logger.info("Starting NBA data ETL pipeline...")
-    logger.info(f"Database: {project_root / 'data' / 'bball_ref.db'}")
     
     # Run the pipeline
     results = run_etl_pipeline(

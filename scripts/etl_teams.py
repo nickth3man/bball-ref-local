@@ -87,8 +87,6 @@ def transform_teams(df: pd.DataFrame) -> pd.DataFrame:
             df[col] = None
     
     # Set default values for fields not provided by static API
-    df["conference"] = df.get("conference", "Eastern")  # Will be updated by team details
-    df["division"] = df.get("division", "Atlantic")     # Will be updated by team details
     df["arena"] = df.get("arena", None)
     df["owner"] = df.get("owner", None)
     df["general_manager"] = df.get("general_manager", None)
@@ -117,7 +115,7 @@ def transform_teams(df: pd.DataFrame) -> pd.DataFrame:
         1610612750: "Western",  # Timberwolves
         1610612760: "Western",  # Thunder
         1610612757: "Western",  # Trail Blazers
-        1610616834: "Western",  # Jazz
+        1610612762: "Western",  # Jazz
         1610612744: "Western",  # Warriors
         1610612746: "Western",  # Clippers
         1610612747: "Western",  # Lakers
@@ -142,7 +140,7 @@ def transform_teams(df: pd.DataFrame) -> pd.DataFrame:
         1610612753: "Southeast", 1610612764: "Southeast",
         # Northwest
         1610612743: "Northwest", 1610612750: "Northwest", 1610612760: "Northwest",
-        1610612757: "Northwest", 1610616834: "Northwest",
+        1610612757: "Northwest", 1610612762: "Northwest",
         # Pacific
         1610612744: "Pacific", 1610612746: "Pacific", 1610612747: "Pacific",
         1610612756: "Pacific", 1610612758: "Pacific",
