@@ -21,81 +21,71 @@ uv run pytest
 # Run specific test file
 uv run pytest tests/test_api_games.py
 
-# Run single test function
-uv run pytest tests/test_api_games.py::test_get_games -v
+# Run single test function (standalone)
+uv run pytest tests/test_api_games.py::test_list_games -v
 
-# Run with coverage (if configured)
+# Run single test method (in a class)
+uv run pytest tests/test_api_games.py::TestGamesAPI::test_list_games -v
+
+# Run with coverage
 uv run pytest --cov=app --cov-report=term-missing
 
-# Lint code
+# Lint and format
 uv run ruff check .
-
-# Lint with auto-fix
 uv run ruff check . --fix
-
-# Format code
 uv run ruff format .
 
-# Type check (using ty - optional but recommended)
+# Type check (relaxed rules for scripts/)
 uv run ty
-
-# Run ETL scripts
-uv run python scripts/run_all_etl.py
-uv run python scripts/etl_games.py
-uv run python scripts/etl_players.py
-uv run python scripts/etl_teams.py
-uv run python scripts/etl_stats.py
 ```
 
 ## Code Style Guidelines
 
 ### Imports (ruff-enforced)
 
+Order: stdlib (alphabetical) → third-party (alphabetical) → first-party (alphabetical)
+
 ```python
-# 1. Standard library (alphabetical)
 from collections.abc import AsyncGenerator
 from datetime import date
 from pathlib import Path
 
-# 2. Third-party (alphabetical)
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
-# 3. First-party app imports (alphabetical)
 from app.models import Game, Player
 from app.services.database import execute_query
 ```
 
-### Formatting (ruff-enforced)
+### Formatting
 
-- Target Python version: 3.12+
-- Line length: 100 characters
-- Quote style: double quotes
-- Indent: 4 spaces
-- Use trailing commas in multi-line structures
+- Target: Python 3.12+
+- Line length: 100
+- Double quotes
+- 4 spaces indent
+- Trailing commas in multi-line structures
 
-### Naming Conventions
+### Naming
 
-- **Modules**: snake_case (e.g., `game_service.py`)
-- **Classes**: PascalCase (e.g., `Game`, `PlayerStats`)
-- **Functions/Methods**: snake_case (e.g., `get_games`, `calculate_stats`)
-- **Constants**: UPPER_CASE (e.g., `MAX_RESULTS`, `DEFAULT_SEASON`)
-- **Private**: leading underscore (e.g., `_internal_helper`)
+- Modules: snake_case (`game_service.py`)
+- Classes: PascalCase (`Game`, `PlayerStats`)
+- Functions/Methods: snake_case (`get_games`, `calculate_stats`)
+- Constants: UPPER_CASE (`MAX_RESULTS`)
+- Private: leading underscore (`_internal_helper`)
 
 ### Type Annotations
 
-- Use type hints for all function parameters and return types
-- Use `from __future__ import annotations` when needed for forward references
-- Use `Annotated` for FastAPI dependency injection: `param: Annotated[str, Query(...)]`
-- Complex return types: `-> list[Game]` or `-> dict[str, Any]`
+- Use type hints for all parameters and return types
+- Use `from __future__ import annotations` for forward references
+- FastAPI injection: `param: Annotated[str, Query(...)]`
+- Return types: `-> list[Game]`, `-> dict[str, Any]`
 
 ### Error Handling
 
 ```python
-# Prefer specific exceptions over generic ones
 from fastapi import HTTPException
 
-# Guard clause pattern (preferred)
+# Guard clause pattern
 if not game_id:
     raise HTTPException(status_code=400, detail="Game ID is required")
 
@@ -114,55 +104,75 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class Game(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-    
+
     game_id: str = Field(description="Unique identifier")
     season: int = Field(description="NBA season year", ge=1946)
 ```
 
-## Development General Guidelines
+## Development Guidelines
 
 - Avoid nested if statements - use guard clauses
-- Follow single responsibility principle
-- Keep functions small and focused (ideally under 30 lines)
+- Single responsibility principle
+- Functions under 30 lines
 - Document complex logic with docstrings
-- Use f-strings for string formatting
+- Use f-strings
 - Prefer `pathlib.Path` over `os.path`
-- Use available MCP tools (context7, gh_grep) for library docs
+- Use context7/gh_grep MCP tools for library docs
 
 ## Project Structure
 
 ```
 bball-ref-local/
-├── app/                    # FastAPI application
-│   ├── main.py            # App entry point
-│   ├── routers/           # API routes (games, players, teams, etc.)
-│   ├── models/            # Pydantic models
-│   ├── services/          # Business logic (database, export, htmx)
-│   ├── templates/         # Jinja2 HTML templates
-│   └── static/            # CSS/JS assets
-├── scripts/               # ETL and utility scripts
-├── tests/                 # pytest test files
-├── data/                  # DuckDB database files
-└── docs/                  # Documentation
+├── app/                        # FastAPI application
+│   ├── main.py                # App entry point
+│   ├── config.py              # App configuration
+│   ├── routers/               # API routes (games, players, teams, stats, search)
+│   ├── models/                # Pydantic models (game, player, team, stats, responses)
+│   ├── services/              # Business logic (database, export, htmx_utils)
+│   ├── utils/                 # Utility functions (db_utils)
+│   ├── templates/             # Jinja2 HTML templates
+│   └── static/                # CSS/JS assets
+├── scripts/                   # ETL and ingestion scripts
+│   ├── etl_*.py              # ETL pipeline scripts (games, players, stats, teams)
+│   ├── run_all_etl.py        # Orchestrate all ETLs
+│   ├── init_db.py            # Database initialization
+│   ├── ingestion/            # Data ingestion framework
+│   │   ├── base_loader.py    # Abstract base loader
+│   │   ├── orchestrator.py   # Ingestion orchestrator
+│   │   ├── loaders/          # Specific loaders (games, stats, awards, parquet, reference)
+│   │   ├── mapping/          # ID mapping and fuzzy matching
+│   │   ├── validation/       # Data validation and consistency checks
+│   │   └── schema/           # SQL schema definitions
+│   └── *.py                  # Utility scripts (retry_utils, logging_utils, etc.)
+├── tests/                     # pytest test files
+│   ├── conftest.py           # Shared fixtures
+│   ├── test_api_*.py         # API endpoint tests
+│   ├── test_etl_*.py         # ETL pipeline tests
+│   ├── test_*_service.py     # Service layer tests
+│   └── scripts/              # Tests for scripts/ingestion
+├── data/                      # DuckDB database files
+└── docs/                      # Documentation
 ```
 
 ## Testing Guidelines
 
-- Test files: `test_*.py` naming convention
-- Use fixtures in `conftest.py` for shared setup
-- Mock external calls (NBA API, database where appropriate)
-- Test both success and error cases
-- Use descriptive test names: `test_get_games_returns_list`
+- Test files: `test_*.py`
+- Test classes: `Test*` (optional, for grouping)
+- Test functions: `test_*`
+- Fixtures in `conftest.py` for shared setup
+- Mock external calls (NBA API, database)
+- Test success and error cases
+- Descriptive names: `test_list_games_returns_empty_list`
 
 ## Dependencies
 
-- **Core**: FastAPI, DuckDB, Pydantic, pandas, nba-api
-- **Dev**: pytest, ruff, httpx, ty (type checker)
+- **Core**: FastAPI, DuckDB, Pydantic, pandas, nba-api, uvicorn, jinja2
+- **Dev**: pytest, pytest-cov, ruff, httpx, ty, pandas-stubs, pyarrow-stubs
 - **Add dependency**: `uv add <package>`
 - **Add dev dependency**: `uv add --dev <package>`
 
 ## Environment
 
 - Python 3.12+ required
-- Use `.env` file for configuration (copy from `.env.example`)
+- Use `.env` file (copy from `.env.example`)
 - Virtual environment managed by `uv`
