@@ -19,6 +19,7 @@ dev = [
     "httpx>=0.28.1",
     "pytest>=9.0.2",
     "ruff>=0.14.14",
+    "ty>=0.0.0",
 ]
 
 [tool.ruff]
@@ -55,3 +56,66 @@ python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = "-v --tb=short"
 asyncio_mode = "auto"
+
+[tool.ty.environment]
+python-version = "3.12"
+
+[tool.ty.src]
+include = ["app/**/*.py", "scripts/**/*.py"]
+exclude = [
+    "**/test_*.py",
+    "**/*_test.py",
+    "tests/**",
+    ".venv/**",
+    ".git/**",
+    "**/__pycache__/**",
+    "**/.mypy_cache/**",
+    "data/**",
+]
+respect-ignore-files = true
+
+[tool.ty.rules]
+# Critical safety rules - always error
+unresolved-reference = "error"
+unresolved-import = "error"
+call-non-callable = "error"
+missing-argument = "error"
+invalid-return-type = "error"
+
+# Assignment and argument rules - error for app/, warn for scripts
+invalid-assignment = "error"
+invalid-argument-type = "error"
+
+# Attribute access - warn for gradual typing compatibility
+unresolved-attribute = "warn"
+possibly-unresolved-reference = "warn"
+possibly-missing-attribute = "warn"
+
+# Division and math operations - ignore (often false positives)
+division-by-zero = "ignore"
+
+# Code quality - warn
+redundant-cast = "warn"
+deprecated = "warn"
+
+[tool.ty.terminal]
+output-format = "full"
+error-on-warning = false
+
+# Relaxed rules for ETL scripts (pandas-heavy, dynamic typing)
+[[tool.ty.overrides]]
+include = ["scripts/**"]
+[tool.ty.overrides.rules]
+invalid-assignment = "warn"
+invalid-argument-type = "warn"
+unresolved-attribute = "ignore"
+possibly-missing-attribute = "ignore"
+
+# Relaxed rules for tests (flexible typing acceptable)
+[[tool.ty.overrides]]
+include = ["tests/**"]
+[tool.ty.overrides.rules]
+unresolved-reference = "ignore"
+invalid-assignment = "ignore"
+invalid-argument-type = "ignore"
+possibly-missing-attribute = "ignore"

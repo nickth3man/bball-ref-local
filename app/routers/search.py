@@ -11,6 +11,7 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.services.database import execute_query
+from app.services.htmx_utils import get_templates, is_htmx_request
 
 router = APIRouter(prefix="/api/v1", tags=["search"])
 
@@ -51,26 +52,6 @@ class SearchResponse(BaseModel):
     total: int = Field(description="Total number of results", ge=0)
 
 
-def _is_htmx_request(request: Request) -> bool:
-    """Check if request is from HTMX.
-
-    Args:
-        request: FastAPI request object.
-
-    Returns:
-        True if request has HX-Request header.
-    """
-    return request.headers.get("HX-Request") == "true"
-
-
-def _get_templates():
-    """Get Jinja2 templates instance from main app."""
-    from fastapi.templating import Jinja2Templates
-    from pathlib import Path
-
-    return Jinja2Templates(directory=str(Path(__file__).parent.parent / "templates"))
-
-
 def _search_players(query: str, limit: int) -> list[SearchResult]:
     """Search players by first name, last name, or full name.
 
@@ -86,23 +67,23 @@ def _search_players(query: str, limit: int) -> list[SearchResult]:
 
     # Search with relevance ordering - exact matches first
     sql = """
-        SELECT 
+        SELECT
             p.player_id,
             p.first_name,
             p.last_name,
             p.position,
             t.full_name as team_name,
             t.abbreviation as team_abbr,
-            CASE 
-                WHEN LOWER(p.first_name) = ? OR LOWER(p.last_name) = ? 
-                     OR LOWER(p.first_name || ' ' || p.last_name) = ? 
-                THEN 0 
-                ELSE 1 
+            CASE
+                WHEN LOWER(p.first_name) = ? OR LOWER(p.last_name) = ?
+                     OR LOWER(p.first_name || ' ' || p.last_name) = ?
+                THEN 0
+                ELSE 1
             END as relevance
         FROM players p
         LEFT JOIN teams t ON p.team_id = t.team_id
-        WHERE p.first_name ILIKE ? 
-           OR p.last_name ILIKE ? 
+        WHERE p.first_name ILIKE ?
+           OR p.last_name ILIKE ?
            OR (p.first_name || ' ' || p.last_name) ILIKE ?
         ORDER BY relevance, p.last_name, p.first_name
         LIMIT ?
@@ -154,7 +135,7 @@ def _search_teams(query: str, limit: int) -> list[SearchResult]:
     exact_pattern = query.lower()
 
     sql = """
-        SELECT 
+        SELECT
             team_id,
             full_name,
             abbreviation,
@@ -162,16 +143,16 @@ def _search_teams(query: str, limit: int) -> list[SearchResult]:
             city,
             conference,
             division,
-            CASE 
-                WHEN LOWER(abbreviation) = ? OR LOWER(nickname) = ? 
-                     OR LOWER(city) = ? OR LOWER(full_name) = ? 
-                THEN 0 
-                ELSE 1 
+            CASE
+                WHEN LOWER(abbreviation) = ? OR LOWER(nickname) = ?
+                     OR LOWER(city) = ? OR LOWER(full_name) = ?
+                THEN 0
+                ELSE 1
             END as relevance
         FROM teams
-        WHERE full_name ILIKE ? 
-           OR abbreviation ILIKE ? 
-           OR nickname ILIKE ? 
+        WHERE full_name ILIKE ?
+           OR abbreviation ILIKE ?
+           OR nickname ILIKE ?
            OR city ILIKE ?
         ORDER BY relevance, full_name
         LIMIT ?
@@ -219,7 +200,7 @@ def _search_games(query: str, limit: int) -> list[SearchResult]:
     search_pattern = f"%{query}%"
 
     sql = """
-        SELECT 
+        SELECT
             g.game_id,
             g.game_date,
             g.home_score,
@@ -232,11 +213,11 @@ def _search_games(query: str, limit: int) -> list[SearchResult]:
         FROM games g
         JOIN teams ht ON g.home_team_id = ht.team_id
         JOIN teams at ON g.away_team_id = at.team_id
-        WHERE ht.full_name ILIKE ? 
-           OR ht.nickname ILIKE ? 
+        WHERE ht.full_name ILIKE ?
+           OR ht.nickname ILIKE ?
            OR ht.abbreviation ILIKE ?
-           OR at.full_name ILIKE ? 
-           OR at.nickname ILIKE ? 
+           OR at.full_name ILIKE ?
+           OR at.nickname ILIKE ?
            OR at.abbreviation ILIKE ?
         ORDER BY g.game_date DESC
         LIMIT ?
@@ -318,8 +299,8 @@ async def search(
         response_data = SearchResponse(query=q, results=all_results, total=len(all_results))
 
         # Return HTML if HTMX request
-        if _is_htmx_request(request):
-            templates = _get_templates()
+        if is_htmx_request(request):
+            templates = get_templates()
             return templates.TemplateResponse(
                 "partials/search_results.html",
                 {
@@ -336,4 +317,4 @@ async def search(
         return response_data
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Search failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Search failed: {e}") from e

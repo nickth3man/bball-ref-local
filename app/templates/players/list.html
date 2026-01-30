@@ -9,7 +9,7 @@
     <!-- Header -->
     <div class="mb-6">
       <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-        <i class="ph ph-users mr-2 text-bball-orange"></i>
+        <i class="ph ph-users mr-2 text-nba-blue"></i>
         Players
       </h1>
       <p class="text-sm text-gray-500 dark:text-gray-400">Browse and search players</p>
@@ -24,7 +24,7 @@
                name="search" 
                id="player-search"
                placeholder="Search players..." 
-               class="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-bball-gray text-gray-900 dark:text-white focus:ring-2 focus:ring-bball-orange focus:border-transparent transition-all"
+               class="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-bball-gray text-gray-900 dark:text-white focus:ring-2 focus:ring-nba-blue focus:border-transparent transition-all"
                hx-get="/api/v1/players" 
                hx-target="#player-list"
                hx-trigger="keyup changed delay:300ms, search"
@@ -41,7 +41,7 @@
         <div class="flex-1">
           <select name="position" 
                   id="position-filter"
-                  class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-bball-gray text-gray-900 dark:text-white focus:ring-2 focus:ring-bball-orange focus:border-transparent transition-all"
+                  class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-bball-gray text-gray-900 dark:text-white focus:ring-2 focus:ring-nba-blue focus:border-transparent transition-all"
                   hx-get="/api/v1/players"
                   hx-target="#player-list"
                   hx-trigger="change"
@@ -59,7 +59,7 @@
         <div class="flex-1">
           <select name="team_id" 
                   id="team-filter"
-                  class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-bball-gray text-gray-900 dark:text-white focus:ring-2 focus:ring-bball-orange focus:border-transparent transition-all"
+                  class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-bball-gray text-gray-900 dark:text-white focus:ring-2 focus:ring-nba-blue focus:border-transparent transition-all"
                   hx-get="/api/v1/players"
                   hx-target="#player-list"
                   hx-trigger="change"

@@ -2,11 +2,11 @@
 <div id="player-game-log" class="bg-white dark:bg-bball-gray rounded-xl shadow-lg overflow-hidden">
     <div class="px-6 py-4 border-b dark:border-gray-700 flex items-center justify-between">
         <div class="flex items-center space-x-3">
-            <i class="ph-fill ph-calendar text-bball-orange text-xl"></i>
+            <i class="ph-fill ph-calendar text-nba-blue text-xl"></i>
             <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Game Log</h3>
         </div>
         {% if season %}
-        <span class="px-3 py-1 bg-orange-100 dark:bg-orange-900/30 rounded-full text-sm font-medium text-bball-orange">
+        <span class="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 rounded-full text-sm font-medium text-nba-blue">
             {{ season }} Season
         </span>
         {% endif %}
@@ -20,7 +20,7 @@
                     <th class="px-4 py-3 font-semibold text-gray-700 dark:text-gray-300">Opponent</th>
                     <th class="px-4 py-3 font-semibold text-gray-700 dark:text-gray-300">Result</th>
                     <th class="px-4 py-3 font-semibold text-gray-700 dark:text-gray-300 text-center">MIN</th>
-                    <th class="px-4 py-3 font-semibold text-bball-orange text-center">PTS</th>
+                    <th class="px-4 py-3 font-semibold text-nba-blue text-center">PTS</th>
                     <th class="px-4 py-3 font-semibold text-gray-700 dark:text-gray-300 text-center">REB</th>
                     <th class="px-4 py-3 font-semibold text-gray-700 dark:text-gray-300 text-center">AST</th>
                     <th class="px-4 py-3 font-semibold text-gray-700 dark:text-gray-300 text-center">STL</th>
@@ -35,7 +35,7 @@
                         {{ game.game_date.strftime('%m/%d/%Y') }}
                     </td>
                     <td class="px-4 py-3">
-                        <a href="/teams/{{ game.opponent_team_id }}" class="font-medium text-gray-900 dark:text-white hover:text-bball-orange transition-colors">
+                        <a href="/teams/{{ game.opponent_team_id }}" class="font-medium text-gray-900 dark:text-white hover:text-nba-blue transition-colors">
                             {{ game.opponent_abbreviation }}
                         </a>
                         {% if game.is_home %}
@@ -56,7 +56,7 @@
                         {% endif %}
                     </td>
                     <td class="px-4 py-3 text-center text-gray-700 dark:text-gray-300">{{ game.minutes_played }}</td>
-                    <td class="px-4 py-3 text-center font-bold text-bball-orange">{{ game.points }}</td>
+                    <td class="px-4 py-3 text-center font-bold text-nba-blue">{{ game.points }}</td>
                     <td class="px-4 py-3 text-center text-gray-700 dark:text-gray-300">{{ game.rebounds_total }}</td>
                     <td class="px-4 py-3 text-center text-gray-700 dark:text-gray-300">{{ game.assists }}</td>
                     <td class="px-4 py-3 text-center text-gray-700 dark:text-gray-300">{{ game.steals }}</td>

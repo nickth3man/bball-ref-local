@@ -12,6 +12,7 @@ from fastapi.responses import HTMLResponse
 
 from app.models import Game, PlayerGameStats, Team
 from app.services.database import execute_query
+from app.services.htmx_utils import is_htmx_request
 
 router = APIRouter(
     prefix="/api/v1/games",
@@ -252,7 +253,7 @@ async def list_games(
     }
 
     # Check for HTMX request
-    if request.headers.get("HX-Request"):
+    if is_htmx_request(request):
         return HTMLResponse(
             content=f"<!-- game_list.html partial would render {len(games)} games -->"
         )
@@ -290,7 +291,7 @@ async def get_todays_games(request: Request) -> dict[str, Any] | HTMLResponse:
     }
 
     # Check for HTMX request
-    if request.headers.get("HX-Request"):
+    if is_htmx_request(request):
         return HTMLResponse(
             content=f"<!-- game_list.html partial would render {len(games)} games for today -->"
         )
@@ -384,7 +385,7 @@ async def get_game_box_score(
     }
 
     # Check for HTMX request
-    if request.headers.get("HX-Request"):
+    if is_htmx_request(request):
         return HTMLResponse(content=f"<!-- box_score.html partial would render game {game_id} -->")
 
     return response_data

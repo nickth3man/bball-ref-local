@@ -10,13 +10,8 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.models.player import Player
 from app.models.team import Team
-from pathlib import Path
-
-from fastapi.templating import Jinja2Templates
-
 from app.services.database import execute_query
-
-templates = Jinja2Templates(directory=str(Path(__file__).parent.parent / "templates"))
+from app.services.htmx_utils import get_templates, is_htmx_request
 
 router = APIRouter(prefix="/api/v1/stats", tags=["stats"])
 
@@ -164,7 +159,7 @@ async def get_league_leaders(
 
     try:
         query = f"""
-            SELECT 
+            SELECT
                 p.player_id,
                 p.first_name,
                 p.last_name,
@@ -198,7 +193,7 @@ async def get_league_leaders(
             JOIN teams t ON pgs.team_id = t.team_id
             JOIN games g ON pgs.game_id = g.game_id
             WHERE g.season = ?
-            GROUP BY 
+            GROUP BY
                 p.player_id, p.first_name, p.last_name, p.team_id, p.position,
                 p.jersey_number, p.height, p.weight, p.birth_date, p.country,
                 p.draft_year, p.draft_round, p.draft_number,
@@ -213,7 +208,9 @@ async def get_league_leaders(
         results = execute_query(query, [season, limit])
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to query league leaders: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to query league leaders: {str(e)}"
+        ) from e
 
     # Build response
     leaders = []
@@ -267,7 +264,8 @@ async def get_league_leaders(
     )
 
     # Check for HTMX request
-    if request.headers.get("HX-Request"):
+    if is_htmx_request(request):
+        templates = get_templates()
         return templates.TemplateResponse(
             "partials/leaders_table.html",
             {
@@ -312,7 +310,7 @@ async def get_standings(
     try:
         # Base query for team standings
         query = """
-            SELECT 
+            SELECT
                 t.team_id,
                 t.full_name,
                 t.abbreviation,
@@ -326,15 +324,15 @@ async def get_standings(
                 t.head_coach,
                 t.conference,
                 t.division,
-                SUM(CASE 
-                    WHEN (g.home_team_id = t.team_id AND g.home_score > g.away_score) 
-                         OR (g.away_team_id = t.team_id AND g.away_score > g.home_score) 
-                    THEN 1 ELSE 0 
+                SUM(CASE
+                    WHEN (g.home_team_id = t.team_id AND g.home_score > g.away_score)
+                         OR (g.away_team_id = t.team_id AND g.away_score > g.home_score)
+                    THEN 1 ELSE 0
                 END) as wins,
-                SUM(CASE 
-                    WHEN (g.home_team_id = t.team_id AND g.home_score < g.away_score) 
-                         OR (g.away_team_id = t.team_id AND g.away_score < g.home_score) 
-                    THEN 1 ELSE 0 
+                SUM(CASE
+                    WHEN (g.home_team_id = t.team_id AND g.home_score < g.away_score)
+                         OR (g.away_team_id = t.team_id AND g.away_score < g.home_score)
+                    THEN 1 ELSE 0
                 END) as losses,
                 SUM(CASE WHEN g.home_team_id = t.team_id AND g.home_score > g.away_score THEN 1 ELSE 0 END) as home_wins,
                 SUM(CASE WHEN g.home_team_id = t.team_id AND g.home_score < g.away_score THEN 1 ELSE 0 END) as home_losses,
@@ -354,18 +352,18 @@ async def get_standings(
             params.append(conference)
 
         query += """
-            GROUP BY 
+            GROUP BY
                 t.team_id, t.full_name, t.abbreviation, t.nickname, t.city,
                 t.state, t.year_founded, t.arena, t.owner, t.general_manager,
                 t.head_coach, t.conference, t.division
-            ORDER BY 
+            ORDER BY
                 t.conference, wins DESC
         """
 
         results = execute_query(query, params)
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to query standings: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to query standings: {str(e)}") from e
 
     # Build standings with rankings
     standings = []
@@ -427,7 +425,8 @@ async def get_standings(
     )
 
     # Check for HTMX request
-    if request.headers.get("HX-Request"):
+    if is_htmx_request(request):
+        templates = get_templates()
         return templates.TemplateResponse(
             "partials/standings_table.html",
             {

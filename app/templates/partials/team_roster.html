@@ -2,7 +2,7 @@
 <div id="team-roster" class="bg-white dark:bg-bball-gray rounded-xl shadow-lg overflow-hidden">
     <div class="px-6 py-4 border-b dark:border-gray-700 flex items-center justify-between">
         <div class="flex items-center space-x-3">
-            <i class="ph-fill ph-users text-bball-orange text-xl"></i>
+            <i class="ph-fill ph-users text-nba-blue text-xl"></i>
             <div>
                 <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Team Roster</h3>
                 {% if team %}
@@ -34,7 +34,7 @@
                 <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
                     <td class="px-4 py-3 text-center">
                         {% if player.jersey_number %}
-                        <span class="inline-flex items-center justify-center w-8 h-8 bg-bball-orange/10 dark:bg-bball-orange/20 rounded-full text-bball-orange font-bold text-sm">
+                        <span class="inline-flex items-center justify-center w-8 h-8 bg-nba-blue/10 dark:bg-nba-blue/20 rounded-full text-nba-blue font-bold text-sm">
                             {{ player.jersey_number }}
                         </span>
                         {% else %}
@@ -47,7 +47,7 @@
                             <div class="w-8 h-8 bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-600 rounded-full flex items-center justify-center text-xs font-bold text-gray-600 dark:text-gray-400">
                                 {{ player.first_name[0] }}{{ player.last_name[0] }}
                             </div>
-                            <span class="font-medium text-gray-900 dark:text-white group-hover:text-bball-orange transition-colors">
+                            <span class="font-medium text-gray-900 dark:text-white group-hover:text-nba-blue transition-colors">
                                 {{ player.full_name }}
                             </span>
                         </a>

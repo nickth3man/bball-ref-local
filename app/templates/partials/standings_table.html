@@ -2,7 +2,7 @@
 <div id="standings-table" class="bg-white dark:bg-bball-gray rounded-xl shadow-lg overflow-hidden">
     <div class="px-6 py-4 border-b dark:border-gray-700 flex items-center justify-between">
         <div class="flex items-center space-x-3">
-            <i class="ph-fill ph-list-numbers text-bball-orange text-xl"></i>
+            <i class="ph-fill ph-list-numbers text-nba-blue text-xl"></i>
             <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
                 {% if conference %}{{ conference }} Conference{% else %}League{% endif %} Standings
             </h3>
@@ -21,7 +21,7 @@
             <span class="text-gray-600 dark:text-gray-400">Play-In</span>
         </div>
         <div class="flex items-center space-x-1">
-            <span class="w-3 h-3 border-l-2 border-bball-orange"></span>
+            <span class="w-3 h-3 border-l-2 border-nba-blue"></span>
             <span class="text-gray-600 dark:text-gray-400">Division Leader</span>
         </div>
     </div>
@@ -34,7 +34,7 @@
                     <th class="px-3 py-3 font-semibold text-gray-700 dark:text-gray-300">Team</th>
                     <th class="px-3 py-3 font-semibold text-gray-700 dark:text-gray-300 text-center">W</th>
                     <th class="px-3 py-3 font-semibold text-gray-700 dark:text-gray-300 text-center">L</th>
-                    <th class="px-3 py-3 font-semibold text-bball-orange text-center">Win%</th>
+                    <th class="px-3 py-3 font-semibold text-nba-blue text-center">Win%</th>
                     <th class="px-3 py-3 font-semibold text-gray-700 dark:text-gray-300 text-center">GB</th>
                     <th class="px-3 py-3 font-semibold text-gray-700 dark:text-gray-300 text-center">Home</th>
                     <th class="px-3 py-3 font-semibold text-gray-700 dark:text-gray-300 text-center">Away</th>
@@ -47,7 +47,7 @@
                 {% for team in standings %}
                 <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors 
                            {% if loop.index <= 6 %}bg-green-50/50 dark:bg-green-900/10{% elif loop.index <= 10 %}bg-yellow-50/50 dark:bg-yellow-900/10{% endif %}
-                           {% if team.is_division_leader %}border-l-2 border-bball-orange{% endif %}">
+                           {% if team.is_division_leader %}border-l-2 border-nba-blue{% endif %}">
                     <td class="px-3 py-3 text-center">
                         {% if loop.index <= 6 %}
                         <span class="inline-flex items-center justify-center w-6 h-6 bg-green-500 text-white rounded-full text-xs font-bold">
@@ -67,11 +67,11 @@
                                 <span class="text-xs font-bold text-gray-700 dark:text-gray-300">{{ team.abbreviation }}</span>
                             </div>
                             <div>
-                                <p class="font-medium text-gray-900 dark:text-white group-hover:text-bball-orange transition-colors">
+                                <p class="font-medium text-gray-900 dark:text-white group-hover:text-nba-blue transition-colors">
                                     {{ team.city }} {{ team.nickname }}
                                 </p>
                                 {% if team.is_division_leader %}
-                                <span class="text-xs text-bball-orange font-medium">
+                                <span class="text-xs text-nba-red font-medium">
                                     <i class="ph ph-crown mr-1"></i>{{ team.division }}
                                 </span>
                                 {% else %}
@@ -82,7 +82,7 @@
                     </td>
                     <td class="px-3 py-3 text-center font-semibold text-gray-900 dark:text-white">{{ team.wins }}</td>
                     <td class="px-3 py-3 text-center text-gray-700 dark:text-gray-300">{{ team.losses }}</td>
-                    <td class="px-3 py-3 text-center font-bold text-bball-orange">{{ "%.3f"|format(team.win_pct) }}</td>
+                    <td class="px-3 py-3 text-center font-bold text-nba-blue">{{ "%.3f"|format(team.win_pct) }}</td>
                     <td class="px-3 py-3 text-center text-gray-700 dark:text-gray-300">
                         {% if team.games_back > 0 %}{{ team.games_back }}{% else %}-{% endif %}
                     </td>
@@ -144,7 +144,7 @@
                     hx-target="#standings-table-container"
                     class="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors
                            {% if not conference %}
-                               bg-bball-orange text-white
+                                bg-nba-blue text-white
                            {% else %}
                                bg-white dark:bg-bball-gray text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 border dark:border-gray-600
                            {% endif %}">

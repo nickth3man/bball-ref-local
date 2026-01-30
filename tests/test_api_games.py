@@ -36,11 +36,11 @@ def sample_game_row():
         2024,  # season
         "Regular Season",  # season_type
         date(2024, 10, 22),  # game_date
-        1610612738,  # home_team_id
-        1610612752,  # away_team_id
+        "1610612738",  # home_team_id
+        "1610612752",  # away_team_id
         132,  # home_score
         109,  # away_score
-        1610612738,  # winner_team_id
+        "1610612738",  # winner_team_id
         "final",  # status
     )
 
@@ -54,11 +54,11 @@ def sample_game_rows():
             2024,
             "Regular Season",
             date(2024, 10, 22),
-            1610612738,
-            1610612752,
+            "1610612738",
+            "1610612752",
             132,
             109,
-            1610612738,
+            "1610612738",
             "final",
         ),
         (
@@ -66,11 +66,11 @@ def sample_game_rows():
             2024,
             "Regular Season",
             date(2024, 10, 22),
-            1610612755,
-            1610612749,
+            "1610612755",
+            "1610612749",
             117,
             118,
-            1610612749,
+            "1610612749",
             "final",
         ),
         (
@@ -78,11 +78,11 @@ def sample_game_rows():
             2024,
             "Regular Season",
             date(2024, 10, 23),
-            1610612761,
-            1610612766,
+            "1610612761",
+            "1610612766",
             110,
             105,
-            1610612761,
+            "1610612761",
             "final",
         ),
     ]
@@ -92,7 +92,7 @@ def sample_game_rows():
 def sample_team_row():
     """Sample team database row."""
     return (
-        1610612738,  # team_id
+        "1610612738",  # team_id
         "Boston Celtics",  # full_name
         "BOS",  # abbreviation
         "Celtics",  # nickname
@@ -114,8 +114,8 @@ def sample_player_stats_row():
     return (
         12345,  # stat_id
         "0022400001",  # game_id
-        2544,  # player_id
-        1610612738,  # team_id
+        "2544",  # player_id
+        "1610612738",  # team_id
         34.5,  # minutes_played
         25,  # points
         1,  # rebounds_offensive
@@ -243,7 +243,7 @@ class TestListGamesWithTeamFilter:
         assert response.status_code == 200
         data = response.json()
         assert len(data["games"]) == 1
-        assert data["games"][0]["home_team_id"] == 1610612738
+        assert data["games"][0]["home_team_id"] == "1610612738"
 
     def test_list_games_with_team_as_away(self, client, mock_execute_query, sample_game_rows):
         """Test team filter includes games where team is away."""
@@ -256,7 +256,7 @@ class TestListGamesWithTeamFilter:
 
         assert response.status_code == 200
         data = response.json()
-        assert data["games"][0]["away_team_id"] == 1610612752
+        assert data["games"][0]["away_team_id"] == "1610612752"
 
 
 class TestGetTodaysGames:

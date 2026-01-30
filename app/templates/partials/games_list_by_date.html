@@ -2,9 +2,9 @@
 {% for date_group in date_groups %}
 <!-- Date Header -->
 <div class="date-group" data-date="{{ date_group.date }}">
-    <div class="sticky top-0 z-10 bg-gray-50 dark:bg-bball-black py-2 mb-4 border-b-2 border-bball-orange">
+    <div class="sticky top-0 z-10 bg-gray-50 dark:bg-bball-black py-2 mb-4 border-b-2 border-nba-blue">
         <div class="flex items-center space-x-2">
-            <i class="ph ph-calendar text-bball-orange"></i>
+            <i class="ph ph-calendar text-nba-blue"></i>
             <h2 class="text-lg font-bold text-gray-900 dark:text-white">
                 {% if date_group.is_today %}
                     Today
@@ -120,7 +120,7 @@
                 </span>
                 {% if game.leading_scorer %}
                 <span class="text-gray-600 dark:text-gray-400">
-                    <i class="ph ph-trophy text-bball-orange mr-1"></i>
+                    <i class="ph ph-trophy text-nba-red mr-1"></i>
                     Top scorer: {{ game.leading_scorer.name }} ({{ game.leading_scorer.points }} pts)
                 </span>
                 {% endif %}
@@ -141,7 +141,7 @@
     <button hx-get="/api/v1/games"
             hx-target="#games-container"
             hx-indicator="#games-loading"
-            class="px-4 py-2 bg-bball-orange text-white rounded-lg hover:bg-bball-orange-dark transition-colors text-sm font-medium">
+            class="px-4 py-2 bg-nba-blue text-white rounded-lg hover:bg-nba-blue-dark transition-colors text-sm font-medium">
         <i class="ph ph-arrow-counter-clockwise mr-1"></i>
         Reset Filters
     </button>

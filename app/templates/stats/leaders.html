@@ -6,8 +6,8 @@
 <!-- Page Header -->
 <div class="mb-8">
     <div class="flex items-center space-x-3 mb-2">
-        <div class="p-2 bg-bball-orange/10 dark:bg-bball-orange/20 rounded-lg">
-            <i class="ph-fill ph-chart-bar text-2xl text-bball-orange"></i>
+        <div class="p-2 bg-nba-blue/10 dark:bg-nba-blue/20 rounded-lg">
+            <i class="ph-fill ph-chart-bar text-2xl text-nba-blue"></i>
         </div>
         <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Statistics</h1>
     </div>
@@ -22,7 +22,7 @@
             hx-push-url="true"
             class="px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center space-x-2
                    {% if view == 'leaders' or not view %}
-                       bg-white dark:bg-bball-gray text-bball-orange shadow-sm
+                       bg-white dark:bg-bball-gray text-nba-blue shadow-sm
                    {% else %}
                        text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white
                    {% endif %}">
@@ -35,7 +35,7 @@
             hx-push-url="true"
             class="px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center space-x-2
                    {% if view == 'standings' %}
-                       bg-white dark:bg-bball-gray text-bball-orange shadow-sm
+                       bg-white dark:bg-bball-gray text-nba-blue shadow-sm
                    {% else %}
                        text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white
                    {% endif %}">
@@ -53,14 +53,14 @@
             hx-target="#stats-content"
             hx-include="[name='season']"
             hx-vals='{"category": "{{ category|default('points') }}"}'
-            class="px-4 py-2 bg-white dark:bg-bball-gray border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-bball-orange focus:border-transparent cursor-pointer">
+            class="px-4 py-2 bg-white dark:bg-bball-gray border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-nba-blue focus:border-transparent cursor-pointer">
         {% for yr in range(2024, 1945, -1) %}
         <option value="{{ yr }}" {% if yr == season|default(2024) %}selected{% endif %}>{{ yr }}-{{ (yr + 1) % 100 }}</option>
         {% endfor %}
     </select>
     
     <!-- Loading Indicator -->
-    <span class="htmx-indicator flex items-center text-sm text-bball-orange">
+    <span class="htmx-indicator flex items-center text-sm text-nba-blue">
         <div class="htmx-loading mr-2"></div>
         Loading...
     </span>
@@ -86,7 +86,7 @@
                 hx-push-url="true"
                 class="category-tab px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex items-center space-x-2
                        {% if category == cat_key or (not category and cat_key == 'points') %}
-                           border-bball-orange text-bball-orange
+                           border-nba-blue text-nba-blue
                        {% else %}
                            border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600
                        {% endif %}">
@@ -105,7 +105,7 @@
                 hx-push-url="true"
                 class="conference-tab px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex items-center space-x-2
                        {% if not conference %}
-                           border-bball-orange text-bball-orange
+                           border-nba-blue text-nba-blue
                        {% else %}
                            border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600
                        {% endif %}">
@@ -169,9 +169,9 @@
                 conferenceTabs.classList.remove('hidden');
                 
                 // Update toggle button styles
-                standingsToggle.classList.add('bg-white', 'dark:bg-bball-gray', 'text-bball-orange', 'shadow-sm');
+                standingsToggle.classList.add('bg-white', 'dark:bg-bball-gray', 'text-nba-blue', 'shadow-sm');
                 standingsToggle.classList.remove('text-gray-600', 'dark:text-gray-400');
-                leadersToggle.classList.remove('bg-white', 'dark:bg-bball-gray', 'text-bball-orange', 'shadow-sm');
+                leadersToggle.classList.remove('bg-white', 'dark:bg-bball-gray', 'text-nba-blue', 'shadow-sm');
                 leadersToggle.classList.add('text-gray-600', 'dark:text-gray-400');
                 
                 // Update season selector hx-get
@@ -181,9 +181,9 @@
                 conferenceTabs.classList.add('hidden');
                 
                 // Update toggle button styles
-                leadersToggle.classList.add('bg-white', 'dark:bg-bball-gray', 'text-bball-orange', 'shadow-sm');
+                leadersToggle.classList.add('bg-white', 'dark:bg-bball-gray', 'text-nba-blue', 'shadow-sm');
                 leadersToggle.classList.remove('text-gray-600', 'dark:text-gray-400');
-                standingsToggle.classList.remove('bg-white', 'dark:bg-bball-gray', 'text-bball-orange', 'shadow-sm');
+                standingsToggle.classList.remove('bg-white', 'dark:bg-bball-gray', 'text-nba-blue', 'shadow-sm');
                 standingsToggle.classList.add('text-gray-600', 'dark:text-gray-400');
                 
                 // Update season selector hx-get and extract category from URL
@@ -197,10 +197,10 @@
                     const tabUrl = new URL(tab.getAttribute('hx-get'), window.location.origin);
                     const tabCategory = tabUrl.searchParams.get('category');
                     if (tabCategory === category) {
-                        tab.classList.add('border-bball-orange', 'text-bball-orange');
+                        tab.classList.add('border-nba-blue', 'text-nba-blue');
                         tab.classList.remove('border-transparent', 'text-gray-500', 'dark:text-gray-400');
                     } else {
-                        tab.classList.remove('border-bball-orange', 'text-bball-orange');
+                        tab.classList.remove('border-nba-blue', 'text-nba-blue');
                         tab.classList.add('border-transparent', 'text-gray-500', 'dark:text-gray-400');
                     }
                 });

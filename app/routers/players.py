@@ -14,6 +14,7 @@ from app.models.player import Player
 from app.models.responses import PlayerListResponse
 from app.models.stats import PlayerGameStats
 from app.services.database import execute_query
+from app.services.htmx_utils import get_templates, is_htmx_request
 
 router = APIRouter(prefix="/api/v1/players", tags=["players"])
 
@@ -102,24 +103,247 @@ class PlayerGameLogResponse(BaseModel):
     total_count: int = Field(description="Total number of games")
 
 
-def _is_htmx_request(request: Request) -> bool:
-    """Check if request is from HTMX.
+def _build_player_from_row(row: tuple) -> Player:
+    """Build a Player model from a database row.
 
     Args:
-        request: FastAPI request object.
+        row: Database row tuple with player data.
 
     Returns:
-        True if request has HX-Request header.
+        Populated Player instance.
     """
-    return request.headers.get("HX-Request") == "true"
+    return Player(
+        player_id=row[0],
+        first_name=row[1],
+        last_name=row[2],
+        team_id=row[3],
+        position=row[4],
+        jersey_number=row[5],
+        height=row[6],
+        weight=row[7],
+        birth_date=row[8],
+        country=row[9],
+        draft_year=row[10],
+        draft_round=row[11],
+        draft_number=row[12],
+    )
 
 
-def _get_templates():
-    """Get Jinja2 templates instance from main app."""
-    from fastapi.templating import Jinja2Templates
-    from pathlib import Path
+def _build_stats_from_row(row: tuple) -> PlayerSeasonStats:
+    """Build PlayerSeasonStats from a database row with percentage calculations.
 
-    return Jinja2Templates(directory=str(Path(__file__).parent.parent / "templates"))
+    Args:
+        row: Database row with season statistics.
+
+    Returns:
+        Populated PlayerSeasonStats instance.
+    """
+    fg_attempted = row[9] or 0
+    fg3_attempted = row[11] or 0
+    ft_attempted = row[13] or 0
+
+    return PlayerSeasonStats(
+        season=row[0],
+        games_played=row[1] or 0,
+        minutes_played=row[2] or 0,
+        points=row[3] or 0,
+        rebounds_total=row[4] or 0,
+        assists=row[5] or 0,
+        steals=row[6] or 0,
+        blocks=row[7] or 0,
+        fg_made=row[8] or 0,
+        fg_attempted=fg_attempted,
+        fg_pct=round(row[8] / fg_attempted, 3) if fg_attempted > 0 else None,
+        fg3_made=row[10] or 0,
+        fg3_attempted=fg3_attempted,
+        fg3_pct=round(row[10] / fg3_attempted, 3) if fg3_attempted > 0 else None,
+        ft_made=row[12] or 0,
+        ft_attempted=ft_attempted,
+        ft_pct=round(row[12] / ft_attempted, 3) if ft_attempted > 0 else None,
+        turnovers=row[14] or 0,
+        personal_fouls=row[15] or 0,
+    )
+
+
+def _get_career_stats(player_id: int, season: int | None) -> PlayerSeasonStats:
+    """Fetch and calculate career statistics for a player.
+
+    Args:
+        player_id: The player's unique identifier.
+        season: Optional season filter.
+
+    Returns:
+        PlayerSeasonStats with career aggregates.
+
+    Raises:
+        HTTPException: If database query fails.
+    """
+    season_filter = "AND g.season = ?" if season else ""
+    params: list[Any] = [player_id]
+    if season:
+        params.append(season)
+
+    career_query = f"""
+        SELECT
+            COUNT(*) as games_played,
+            COALESCE(SUM(minutes_played), 0) as minutes,
+            SUM(points) as points,
+            SUM(rebounds_offensive + rebounds_defensive) as rebounds,
+            SUM(assists) as assists,
+            SUM(steals) as steals,
+            SUM(blocks) as blocks,
+            SUM(fg_made) as fg_made,
+            SUM(fg_attempted) as fg_attempted,
+            SUM(fg3_made) as fg3_made,
+            SUM(fg3_attempted) as fg3_attempted,
+            SUM(ft_made) as ft_made,
+            SUM(ft_attempted) as ft_attempted,
+            SUM(turnovers) as turnovers,
+            SUM(personal_fouls) as fouls
+        FROM player_game_stats pgs
+        JOIN games g ON pgs.game_id = g.game_id
+        WHERE pgs.player_id = ? {season_filter}
+    """
+
+    try:
+        career_row = execute_query(career_query, params)[0]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch career stats: {e}") from e
+
+    fg_attempted = career_row[8] or 0
+    fg3_attempted = career_row[10] or 0
+    ft_attempted = career_row[12] or 0
+
+    return PlayerSeasonStats(
+        season=season or 0,
+        games_played=career_row[0] or 0,
+        minutes_played=career_row[1] or 0,
+        points=career_row[2] or 0,
+        rebounds_total=career_row[3] or 0,
+        assists=career_row[4] or 0,
+        steals=career_row[5] or 0,
+        blocks=career_row[6] or 0,
+        fg_made=career_row[7] or 0,
+        fg_attempted=fg_attempted,
+        fg_pct=round(career_row[7] / fg_attempted, 3) if fg_attempted > 0 else None,
+        fg3_made=career_row[9] or 0,
+        fg3_attempted=fg3_attempted,
+        fg3_pct=round(career_row[9] / fg3_attempted, 3) if fg3_attempted > 0 else None,
+        ft_made=career_row[11] or 0,
+        ft_attempted=ft_attempted,
+        ft_pct=round(career_row[11] / ft_attempted, 3) if ft_attempted > 0 else None,
+        turnovers=career_row[13] or 0,
+        personal_fouls=career_row[14] or 0,
+    )
+
+
+def _get_season_stats(player_id: int) -> list[PlayerSeasonStats]:
+    """Fetch season-by-season statistics for a player.
+
+    Args:
+        player_id: The player's unique identifier.
+
+    Returns:
+        List of PlayerSeasonStats for each season.
+
+    Raises:
+        HTTPException: If database query fails.
+    """
+    season_query = """
+        SELECT
+            g.season,
+            COUNT(*) as games_played,
+            COALESCE(SUM(minutes_played), 0) as minutes,
+            SUM(points) as points,
+            SUM(rebounds_offensive + rebounds_defensive) as rebounds,
+            SUM(assists) as assists,
+            SUM(steals) as steals,
+            SUM(blocks) as blocks,
+            SUM(fg_made) as fg_made,
+            SUM(fg_attempted) as fg_attempted,
+            SUM(fg3_made) as fg3_made,
+            SUM(fg3_attempted) as fg3_attempted,
+            SUM(ft_made) as ft_made,
+            SUM(ft_attempted) as ft_attempted,
+            SUM(turnovers) as turnovers,
+            SUM(personal_fouls) as fouls
+        FROM player_game_stats pgs
+        JOIN games g ON pgs.game_id = g.game_id
+        WHERE pgs.player_id = ?
+        GROUP BY g.season
+        ORDER BY g.season DESC
+    """
+
+    try:
+        season_rows = execute_query(season_query, [player_id])
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch season stats: {e}") from e
+
+    return [_build_stats_from_row(row) for row in season_rows]
+
+
+def _get_recent_games(player_id: int, season: int | None, limit: int = 10) -> list[PlayerGameStats]:
+    """Fetch recent games for a player.
+
+    Args:
+        player_id: The player's unique identifier.
+        season: Optional season filter.
+        limit: Maximum number of games to return.
+
+    Returns:
+        List of PlayerGameStats for recent games.
+
+    Raises:
+        HTTPException: If database query fails.
+    """
+    season_filter = "AND g.season = ?" if season else ""
+    params: list[Any] = [player_id]
+    if season:
+        params.append(season)
+
+    recent_query = f"""
+        SELECT
+            stat_id, pgs.game_id, player_id, pgs.team_id, minutes_played, points,
+            rebounds_offensive, rebounds_defensive, assists, steals, blocks,
+            turnovers, personal_fouls, fg_made, fg_attempted, fg3_made, fg3_attempted,
+            ft_made, ft_attempted
+        FROM player_game_stats pgs
+        JOIN games g ON pgs.game_id = g.game_id
+        WHERE player_id = ? {season_filter}
+        ORDER BY g.game_date DESC
+        LIMIT ?
+    """
+    query_params = params + [limit]
+
+    try:
+        recent_rows = execute_query(recent_query, query_params)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch recent games: {e}") from e
+
+    return [
+        PlayerGameStats(
+            stat_id=row[0],
+            game_id=row[1],
+            player_id=row[2],
+            team_id=row[3],
+            minutes_played=row[4],
+            points=row[5],
+            rebounds_offensive=row[6],
+            rebounds_defensive=row[7],
+            assists=row[8],
+            steals=row[9],
+            blocks=row[10],
+            turnovers=row[11],
+            personal_fouls=row[12],
+            fg_made=row[13],
+            fg_attempted=row[14],
+            fg3_made=row[15],
+            fg3_attempted=row[16],
+            ft_made=row[17],
+            ft_attempted=row[18],
+        )
+        for row in recent_rows
+    ]
 
 
 @router.get("/", response_model=PlayerListResponse)
@@ -188,26 +412,9 @@ async def list_players(
     try:
         rows = execute_query(query, query_params)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch players: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch players: {e}") from e
 
-    players = [
-        Player(
-            player_id=row[0],
-            first_name=row[1],
-            last_name=row[2],
-            team_id=row[3],
-            position=row[4],
-            jersey_number=row[5],
-            height=row[6],
-            weight=row[7],
-            birth_date=row[8],
-            country=row[9],
-            draft_year=row[10],
-            draft_round=row[11],
-            draft_number=row[12],
-        )
-        for row in rows
-    ]
+    players = [_build_player_from_row(row) for row in rows]
 
     response_data = PlayerListResponse(
         items=players,
@@ -218,8 +425,8 @@ async def list_players(
     )
 
     # Return HTML if HTMX request
-    if _is_htmx_request(request):
-        templates = _get_templates()
+    if is_htmx_request(request):
+        templates = get_templates()
         return templates.TemplateResponse(
             "partials/player_list.html",
             {
@@ -262,31 +469,17 @@ async def get_player(
     try:
         rows = execute_query(query, [player_id])
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch player: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch player: {e}") from e
 
     if not rows:
         raise HTTPException(status_code=404, detail=f"Player with ID {player_id} not found")
 
     row = rows[0]
-    player = Player(
-        player_id=row[0],
-        first_name=row[1],
-        last_name=row[2],
-        team_id=row[3],
-        position=row[4],
-        jersey_number=row[5],
-        height=row[6],
-        weight=row[7],
-        birth_date=row[8],
-        country=row[9],
-        draft_year=row[10],
-        draft_round=row[11],
-        draft_number=row[12],
-    )
+    player = _build_player_from_row(row)
 
     # Return HTML if HTMX request
-    if _is_htmx_request(request):
-        templates = _get_templates()
+    if is_htmx_request(request):
+        templates = get_templates()
         return templates.TemplateResponse(
             "partials/player_card.html", {"request": request, "player": player}
         )
@@ -320,172 +513,10 @@ async def get_player_stats(
     if not player_check:
         raise HTTPException(status_code=404, detail=f"Player with ID {player_id} not found")
 
-    # Build season filter
-    season_filter = "AND g.season = ?" if season else ""
-    params: list[Any] = [player_id]
-    if season:
-        params.append(season)
-
-    # Get career aggregate stats from game logs
-    career_query = f"""
-        SELECT 
-            COUNT(*) as games_played,
-            COALESCE(SUM(minutes_played), 0) as minutes,
-            SUM(points) as points,
-            SUM(rebounds_offensive + rebounds_defensive) as rebounds,
-            SUM(assists) as assists,
-            SUM(steals) as steals,
-            SUM(blocks) as blocks,
-            SUM(fg_made) as fg_made,
-            SUM(fg_attempted) as fg_attempted,
-            SUM(fg3_made) as fg3_made,
-            SUM(fg3_attempted) as fg3_attempted,
-            SUM(ft_made) as ft_made,
-            SUM(ft_attempted) as ft_attempted,
-            SUM(turnovers) as turnovers,
-            SUM(personal_fouls) as fouls
-        FROM player_game_stats pgs
-        JOIN games g ON pgs.game_id = g.game_id
-        WHERE pgs.player_id = ? {season_filter}
-    """
-
-    try:
-        career_row = execute_query(career_query, params)[0]
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch career stats: {e}")
-
-    # Calculate percentages
-    fg_attempted = career_row[8] or 0
-    fg3_attempted = career_row[10] or 0
-    ft_attempted = career_row[12] or 0
-
-    career_stats = PlayerSeasonStats(
-        season=season or 0,
-        games_played=career_row[0] or 0,
-        minutes_played=career_row[1] or 0,
-        points=career_row[2] or 0,
-        rebounds_total=career_row[3] or 0,
-        assists=career_row[4] or 0,
-        steals=career_row[5] or 0,
-        blocks=career_row[6] or 0,
-        fg_made=career_row[7] or 0,
-        fg_attempted=fg_attempted,
-        fg_pct=round(career_row[7] / fg_attempted, 3) if fg_attempted > 0 else None,
-        fg3_made=career_row[9] or 0,
-        fg3_attempted=fg3_attempted,
-        fg3_pct=round(career_row[9] / fg3_attempted, 3) if fg3_attempted > 0 else None,
-        ft_made=career_row[11] or 0,
-        ft_attempted=ft_attempted,
-        ft_pct=round(career_row[11] / ft_attempted, 3) if ft_attempted > 0 else None,
-        turnovers=career_row[13] or 0,
-        personal_fouls=career_row[14] or 0,
-    )
-
-    # Get season-by-season stats (if no season filter)
-    season_stats = []
-    if not season:
-        season_query = """
-            SELECT 
-                g.season,
-                COUNT(*) as games_played,
-                COALESCE(SUM(minutes_played), 0) as minutes,
-                SUM(points) as points,
-                SUM(rebounds_offensive + rebounds_defensive) as rebounds,
-                SUM(assists) as assists,
-                SUM(steals) as steals,
-                SUM(blocks) as blocks,
-                SUM(fg_made) as fg_made,
-                SUM(fg_attempted) as fg_attempted,
-                SUM(fg3_made) as fg3_made,
-                SUM(fg3_attempted) as fg3_attempted,
-                SUM(ft_made) as ft_made,
-                SUM(ft_attempted) as ft_attempted,
-                SUM(turnovers) as turnovers,
-                SUM(personal_fouls) as fouls
-            FROM player_game_stats pgs
-            JOIN games g ON pgs.game_id = g.game_id
-            WHERE pgs.player_id = ?
-            GROUP BY g.season
-            ORDER BY g.season DESC
-        """
-
-        try:
-            season_rows = execute_query(season_query, [player_id])
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Failed to fetch season stats: {e}")
-
-        for row in season_rows:
-            fg_att = row[9] or 0
-            fg3_att = row[11] or 0
-            ft_att = row[13] or 0
-
-            season_stats.append(
-                PlayerSeasonStats(
-                    season=row[0],
-                    games_played=row[1] or 0,
-                    minutes_played=row[2] or 0,
-                    points=row[3] or 0,
-                    rebounds_total=row[4] or 0,
-                    assists=row[5] or 0,
-                    steals=row[6] or 0,
-                    blocks=row[7] or 0,
-                    fg_made=row[8] or 0,
-                    fg_attempted=fg_att,
-                    fg_pct=round(row[8] / fg_att, 3) if fg_att > 0 else None,
-                    fg3_made=row[10] or 0,
-                    fg3_attempted=fg3_att,
-                    fg3_pct=round(row[10] / fg3_att, 3) if fg3_att > 0 else None,
-                    ft_made=row[12] or 0,
-                    ft_attempted=ft_att,
-                    ft_pct=round(row[12] / ft_att, 3) if ft_att > 0 else None,
-                    turnovers=row[14] or 0,
-                    personal_fouls=row[15] or 0,
-                )
-            )
-
-    # Get recent games
-    recent_query = f"""
-        SELECT 
-            stat_id, pgs.game_id, player_id, pgs.team_id, minutes_played, points,
-            rebounds_offensive, rebounds_defensive, assists, steals, blocks,
-            turnovers, personal_fouls, fg_made, fg_attempted, fg3_made, fg3_attempted,
-            ft_made, ft_attempted
-        FROM player_game_stats pgs
-        JOIN games g ON pgs.game_id = g.game_id
-        WHERE player_id = ? {season_filter}
-        ORDER BY g.game_date DESC
-        LIMIT 10
-    """
-
-    try:
-        recent_rows = execute_query(recent_query, params)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch recent games: {e}")
-
-    recent_games = [
-        PlayerGameStats(
-            stat_id=row[0],
-            game_id=row[1],
-            player_id=row[2],
-            team_id=row[3],
-            minutes_played=row[4],
-            points=row[5],
-            rebounds_offensive=row[6],
-            rebounds_defensive=row[7],
-            assists=row[8],
-            steals=row[9],
-            blocks=row[10],
-            turnovers=row[11],
-            personal_fouls=row[12],
-            fg_made=row[13],
-            fg_attempted=row[14],
-            fg3_made=row[15],
-            fg3_attempted=row[16],
-            ft_made=row[17],
-            ft_attempted=row[18],
-        )
-        for row in recent_rows
-    ]
+    # Fetch all stats components using helper functions
+    career_stats = _get_career_stats(player_id, season)
+    season_stats = _get_season_stats(player_id) if not season else []
+    recent_games = _get_recent_games(player_id, season, limit=10)
 
     response_data = PlayerStatsResponse(
         player_id=player_id,
@@ -495,8 +526,8 @@ async def get_player_stats(
     )
 
     # Return HTML if HTMX request
-    if _is_htmx_request(request):
-        templates = _get_templates()
+    if is_htmx_request(request):
+        templates = get_templates()
         return templates.TemplateResponse(
             "partials/stats_table.html",
             {
@@ -547,7 +578,7 @@ async def get_player_games(
 
     # Get total count
     count_query = f"""
-        SELECT COUNT(*) 
+        SELECT COUNT(*)
         FROM player_game_stats pgs
         JOIN games g ON pgs.game_id = g.game_id
         WHERE pgs.player_id = ? {season_filter}
@@ -557,11 +588,11 @@ async def get_player_games(
         total_result = execute_query(count_query, params)
         total_count = total_result[0][0] if total_result else 0
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to count games: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to count games: {e}") from e
 
     # Get games
     query = f"""
-        SELECT 
+        SELECT
             stat_id, pgs.game_id, player_id, pgs.team_id, minutes_played, points,
             rebounds_offensive, rebounds_defensive, assists, steals, blocks,
             turnovers, personal_fouls, fg_made, fg_attempted, fg3_made, fg3_attempted,
@@ -577,7 +608,7 @@ async def get_player_games(
     try:
         rows = execute_query(query, query_params)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch games: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch games: {e}") from e
 
     games = [
         PlayerGameStats(
@@ -612,8 +643,8 @@ async def get_player_games(
     )
 
     # Return HTML if HTMX request
-    if _is_htmx_request(request):
-        templates = _get_templates()
+    if is_htmx_request(request):
+        templates = get_templates()
         return templates.TemplateResponse(
             "partials/game_log_table.html",
             {

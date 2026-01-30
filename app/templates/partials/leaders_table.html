@@ -2,7 +2,7 @@
 <div id="leaders-table" class="bg-white dark:bg-bball-gray rounded-xl shadow-lg overflow-hidden">
     <div class="px-6 py-4 border-b dark:border-gray-700 flex items-center justify-between">
         <div class="flex items-center space-x-3">
-            <i class="ph-fill ph-trophy text-bball-orange text-xl"></i>
+            <i class="ph-fill ph-trophy text-nba-blue text-xl"></i>
             <h3 class="text-lg font-semibold text-gray-900 dark:text-white">{{ stat_category }} Leaders</h3>
         </div>
         <span class="text-sm text-gray-500 dark:text-gray-400">{{ season }} Season</span>
@@ -15,7 +15,7 @@
                     <th class="px-4 py-3 font-semibold text-gray-700 dark:text-gray-300 text-center w-16">Rank</th>
                     <th class="px-4 py-3 font-semibold text-gray-700 dark:text-gray-300">Player</th>
                     <th class="px-4 py-3 font-semibold text-gray-700 dark:text-gray-300">Team</th>
-                    <th class="px-4 py-3 font-semibold text-bball-orange text-right">{{ stat_category }}</th>
+                    <th class="px-4 py-3 font-semibold text-nba-blue text-right">{{ stat_category }}</th>
                 </tr>
             </thead>
             <tbody class="divide-y dark:divide-gray-700">
@@ -42,11 +42,11 @@
                     </td>
                     <td class="px-4 py-3">
                         <a href="/players/{{ leader.player_id }}" class="flex items-center space-x-3 group">
-                            <div class="w-10 h-10 bg-gradient-to-br from-bball-orange to-bball-orange-dark rounded-full flex items-center justify-center text-white font-bold">
+                            <div class="w-10 h-10 bg-gradient-to-br from-nba-blue to-nba-blue-dark rounded-full flex items-center justify-center text-white font-bold">
                                 {{ leader.player.first_name[0] }}{{ leader.player.last_name[0] }}
                             </div>
                             <div>
-                                <p class="font-semibold text-gray-900 dark:text-white group-hover:text-bball-orange transition-colors">
+                                <p class="font-semibold text-gray-900 dark:text-white group-hover:text-nba-blue transition-colors">
                                     {{ leader.player.full_name }}
                                 </p>
                                 <p class="text-xs text-gray-500 dark:text-gray-400">{{ leader.player.position }}</p>
@@ -61,7 +61,7 @@
                         </a>
                     </td>
                     <td class="px-4 py-3 text-right">
-                        <span class="text-2xl font-bold {% if loop.index <= 3 %}text-bball-orange{% else %}text-gray-700 dark:text-gray-300{% endif %}">
+                        <span class="text-2xl font-bold {% if loop.index <= 3 %}text-nba-blue{% else %}text-gray-700 dark:text-gray-300{% endif %}">
                             {{ leader.stat_value }}
                         </span>
                         {% if leader.per_game %}
@@ -89,7 +89,7 @@
                     hx-target="#leaders-table-container"
                     class="px-3 py-1.5 rounded-full text-sm font-medium transition-colors
                            {% if category.key == stat_category_key %}
-                               bg-bball-orange text-white
+                                bg-nba-blue text-white
                            {% else %}
                                bg-white dark:bg-bball-gray text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 border dark:border-gray-600
                            {% endif %}">

@@ -12,7 +12,7 @@
                     hx-target="#team-list-container" 
                     hx-swap="innerHTML"
                     hx-indicator="#team-list-indicator"
-                    class="flex-1 px-4 py-3 text-sm font-medium border-b-2 transition-colors text-bball-orange border-bball-orange hover:bg-gray-50 dark:hover:bg-gray-800">
+                    class="flex-1 px-4 py-3 text-sm font-medium border-b-2 transition-colors text-nba-blue border-nba-blue hover:bg-gray-50 dark:hover:bg-gray-800">
                 <i class="ph ph-shield mr-1.5"></i>All Teams
             </button>
             <button hx-get="/api/v1/teams?conference=Eastern" 
@@ -90,18 +90,18 @@
             if (evt.detail.requestConfig.path === btn.getAttribute('hx-get')) {
                 // Active state
                 btn.classList.remove('border-transparent', 'text-gray-600', 'dark:text-gray-400');
-                btn.classList.add('text-bball-orange', 'border-bball-orange');
+                btn.classList.add('text-nba-blue', 'border-nba-blue');
                 if (isEastern) {
                     btn.classList.add('text-blue-600');
-                    btn.classList.remove('text-bball-orange');
+                    btn.classList.remove('text-nba-blue');
                 } else if (isWestern) {
                     btn.classList.add('text-red-600');
-                    btn.classList.remove('text-bball-orange');
+                    btn.classList.remove('text-nba-blue');
                 }
             } else {
                 // Inactive state
                 btn.classList.add('border-transparent', 'text-gray-600', 'dark:text-gray-400');
-                btn.classList.remove('text-bball-orange', 'text-blue-600', 'text-red-600', 'border-bball-orange');
+                btn.classList.remove('text-nba-blue', 'text-blue-600', 'text-red-600', 'border-nba-blue');
             }
         });
     });

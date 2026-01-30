@@ -12,8 +12,10 @@
             theme: {
                 extend: {
                     colors: {
-                        'bball-orange': '#FF6B00',
-                        'bball-orange-dark': '#E55A00',
+                        'nba-blue': '#17408B',
+                        'nba-blue-dark': '#1e4fad',
+                        'nba-red': '#C9082A',
+                        'nba-red-dark': '#a30622',
                         'bball-black': '#1A1A1A',
                         'bball-gray': '#2D2D2D',
                     }
@@ -59,9 +61,9 @@
             display: inline-block;
             width: 20px;
             height: 20px;
-            border: 3px solid rgba(255, 107, 0, 0.3);
+            border: 3px solid rgba(23, 64, 139, 0.3);
             border-radius: 50%;
-            border-top-color: #FF6B00;
+            border-top-color: #17408B;
             animation: htmx-spin 1s ease-in-out infinite;
         }
         
@@ -84,7 +86,7 @@
         }
         
         #search-results .search-result-item:hover {
-            background-color: rgba(255, 107, 0, 0.1);
+            background-color: rgba(23, 64, 139, 0.1);
         }
         
         #search-results .search-result-item:last-child {
@@ -103,7 +105,7 @@
         }
         
         #search-results .search-icon.player {
-            background: linear-gradient(135deg, #FF6B00 0%, #E55A00 100%);
+            background: linear-gradient(135deg, #17408B 0%, #1e4fad 100%);
             color: white;
         }
         
@@ -147,7 +149,7 @@
         }
         
         .dark #search-results .search-result-item:hover {
-            background-color: rgba(255, 107, 0, 0.15);
+            background-color: rgba(23, 64, 139, 0.15);
         }
         
         .dark #search-results .search-name {
@@ -172,35 +174,35 @@
 </head>
 <body class="bg-gray-50 dark:bg-bball-black text-gray-900 dark:text-gray-100 min-h-screen flex flex-col transition-colors duration-200">
     <!-- Navigation Bar -->
-    <nav class="bg-white dark:bg-bball-gray shadow-lg border-b-4 border-bball-orange">
+    <nav class="bg-white dark:bg-bball-gray shadow-lg border-b-4 border-nba-blue">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-16">
                 <!-- Logo and Desktop Navigation -->
                 <div class="flex items-center">
                     <a href="/" class="flex items-center space-x-2 group">
-                        <i class="ph-fill ph-basketball text-3xl text-bball-orange group-hover:animate-bounce"></i>
+                        <i class="ph-fill ph-basketball text-3xl text-nba-blue group-hover:animate-bounce"></i>
                         <span class="font-bold text-xl hidden sm:block dark:text-white">BBall Ref</span>
                     </a>
                     
                     <!-- Desktop Menu -->
                     <div class="hidden md:flex ml-8 space-x-1">
-                        <a href="/" class="nav-link flex items-center px-3 py-2 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-bball-orange hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <a href="/" class="nav-link flex items-center px-3 py-2 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-nba-blue hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
                             <i class="ph ph-house mr-1.5"></i>
                             Home
                         </a>
-                        <a href="/players" class="nav-link flex items-center px-3 py-2 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-bball-orange hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <a href="/players" class="nav-link flex items-center px-3 py-2 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-nba-blue hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
                             <i class="ph ph-users mr-1.5"></i>
                             Players
                         </a>
-                        <a href="/teams" class="nav-link flex items-center px-3 py-2 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-bball-orange hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <a href="/teams" class="nav-link flex items-center px-3 py-2 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-nba-blue hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
                             <i class="ph ph-shield mr-1.5"></i>
                             Teams
                         </a>
-                        <a href="/games" class="nav-link flex items-center px-3 py-2 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-bball-orange hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <a href="/games" class="nav-link flex items-center px-3 py-2 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-nba-blue hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
                             <i class="ph ph-trophy mr-1.5"></i>
                             Games
                         </a>
-                        <a href="/stats" class="nav-link flex items-center px-3 py-2 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-bball-orange hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <a href="/stats" class="nav-link flex items-center px-3 py-2 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-nba-blue hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
                             <i class="ph ph-chart-bar mr-1.5"></i>
                             Stats
                         </a>
@@ -222,7 +224,7 @@
                                hx-target="#search-results"
                                hx-indicator="#search-loading"
                                autocomplete="off"
-                               class="w-64 pl-10 pr-4 py-2 bg-gray-100 dark:bg-gray-700 border border-transparent rounded-lg text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-bball-orange focus:bg-white dark:focus:bg-bball-gray focus:border-transparent transition-all">
+                               class="w-64 pl-10 pr-4 py-2 bg-gray-100 dark:bg-gray-700 border border-transparent rounded-lg text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-nba-blue focus:bg-white dark:focus:bg-bball-gray focus:border-transparent transition-all">
                         <div id="search-loading" class="htmx-indicator absolute inset-y-0 right-0 pr-3 flex items-center">
                             <div class="htmx-loading w-4 h-4 border-2"></div>
                         </div>
@@ -235,12 +237,12 @@
                 <!-- Right side: Dark mode toggle and Mobile menu button -->
                 <div class="flex items-center space-x-2">
                     <!-- Dark Mode Toggle -->
-                    <button id="darkModeToggle" class="p-2 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-bball-orange transition-colors" aria-label="Toggle dark mode">
+                    <button id="darkModeToggle" class="p-2 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-nba-blue transition-colors" aria-label="Toggle dark mode">
                         <i id="darkModeIcon" class="ph-fill ph-moon text-xl"></i>
                     </button>
                     
                     <!-- Mobile menu button -->
-                    <button id="mobileMenuBtn" class="md:hidden p-2 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-bball-orange transition-colors" aria-label="Open menu">
+                    <button id="mobileMenuBtn" class="md:hidden p-2 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-nba-blue transition-colors" aria-label="Open menu">
                         <i id="mobileMenuIcon" class="ph ph-list text-2xl"></i>
                     </button>
                 </div>
@@ -250,23 +252,23 @@
         <!-- Mobile Navigation Menu -->
         <div id="mobileMenu" class="hidden md:hidden bg-white dark:bg-bball-gray border-t dark:border-gray-700">
             <div class="px-2 pt-2 pb-3 space-y-1">
-                <a href="/" class="mobile-nav-link flex items-center px-3 py-2 rounded-md text-base font-medium text-gray-700 dark:text-gray-300 hover:text-bball-orange hover:bg-gray-100 dark:hover:bg-gray-700">
+                <a href="/" class="mobile-nav-link flex items-center px-3 py-2 rounded-md text-base font-medium text-gray-700 dark:text-gray-300 hover:text-nba-blue hover:bg-gray-100 dark:hover:bg-gray-700">
                     <i class="ph ph-house mr-3 text-lg"></i>
                     Home
                 </a>
-                <a href="/players" class="mobile-nav-link flex items-center px-3 py-2 rounded-md text-base font-medium text-gray-700 dark:text-gray-300 hover:text-bball-orange hover:bg-gray-100 dark:hover:bg-gray-700">
+                <a href="/players" class="mobile-nav-link flex items-center px-3 py-2 rounded-md text-base font-medium text-gray-700 dark:text-gray-300 hover:text-nba-blue hover:bg-gray-100 dark:hover:bg-gray-700">
                     <i class="ph ph-users mr-3 text-lg"></i>
                     Players
                 </a>
-                <a href="/teams" class="mobile-nav-link flex items-center px-3 py-2 rounded-md text-base font-medium text-gray-700 dark:text-gray-300 hover:text-bball-orange hover:bg-gray-100 dark:hover:bg-gray-700">
+                <a href="/teams" class="mobile-nav-link flex items-center px-3 py-2 rounded-md text-base font-medium text-gray-700 dark:text-gray-300 hover:text-nba-blue hover:bg-gray-100 dark:hover:bg-gray-700">
                     <i class="ph ph-shield mr-3 text-lg"></i>
                     Teams
                 </a>
-                <a href="/games" class="mobile-nav-link flex items-center px-3 py-2 rounded-md text-base font-medium text-gray-700 dark:text-gray-300 hover:text-bball-orange hover:bg-gray-100 dark:hover:bg-gray-700">
+                <a href="/games" class="mobile-nav-link flex items-center px-3 py-2 rounded-md text-base font-medium text-gray-700 dark:text-gray-300 hover:text-nba-blue hover:bg-gray-100 dark:hover:bg-gray-700">
                     <i class="ph ph-trophy mr-3 text-lg"></i>
                     Games
                 </a>
-                <a href="/stats" class="mobile-nav-link flex items-center px-3 py-2 rounded-md text-base font-medium text-gray-700 dark:text-gray-300 hover:text-bball-orange hover:bg-gray-100 dark:hover:bg-gray-700">
+                <a href="/stats" class="mobile-nav-link flex items-center px-3 py-2 rounded-md text-base font-medium text-gray-700 dark:text-gray-300 hover:text-nba-blue hover:bg-gray-100 dark:hover:bg-gray-700">
                     <i class="ph ph-chart-bar mr-3 text-lg"></i>
                     Stats
                 </a>
@@ -276,7 +278,7 @@
     
     <!-- HTMX Loading Indicator (Global) -->
     <div id="global-loading" class="htmx-indicator fixed top-0 left-0 right-0 z-50">
-        <div class="h-1 bg-gradient-to-r from-bball-orange via-bball-orange-dark to-bball-orange animate-pulse"></div>
+        <div class="h-1 bg-gradient-to-r from-nba-blue via-nba-blue-dark to-nba-blue animate-pulse"></div>
     </div>
     
     <!-- Main Content -->
@@ -289,12 +291,12 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
             <div class="flex flex-col md:flex-row justify-between items-center">
                 <div class="flex items-center space-x-2 mb-4 md:mb-0">
-                    <i class="ph-fill ph-basketball text-bball-orange"></i>
+                    <i class="ph-fill ph-basketball text-nba-blue"></i>
                     <span class="text-sm text-gray-600 dark:text-gray-400">BBall Ref Local © 2026</span>
                 </div>
                 <div class="flex space-x-6 text-sm text-gray-500 dark:text-gray-400">
-                    <a href="/docs" class="hover:text-bball-orange transition-colors">API Docs</a>
-                    <a href="/health" class="hover:text-bball-orange transition-colors">Health</a>
+                    <a href="/docs" class="hover:text-nba-blue transition-colors">API Docs</a>
+                    <a href="/health" class="hover:text-nba-blue transition-colors">Health</a>
                 </div>
             </div>
         </div>

@@ -56,7 +56,7 @@
         </label>
         <select id="season-select" 
                 name="season" 
-                class="px-4 py-2 bg-white dark:bg-bball-gray border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-bball-orange"
+                class="px-4 py-2 bg-white dark:bg-bball-gray border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-nba-blue"
                 hx-get="/teams/{{ team.team_id }}/tabs"
                 hx-target="#team-tab-content"
                 hx-indicator="#tab-loading">
@@ -69,7 +69,7 @@
     </div>
     
     <!-- Loading Indicator -->
-    <div id="tab-loading" class="htmx-indicator flex items-center space-x-2 text-bball-orange">
+    <div id="tab-loading" class="htmx-indicator flex items-center space-x-2 text-nba-blue">
         <div class="htmx-loading"></div>
         <span class="text-sm font-medium">Loading...</span>
     </div>
@@ -81,7 +81,7 @@
         <button hx-get="/teams/{{ team.team_id }}/roster?season={{ current_season }}"
                 hx-target="#team-tab-content"
                 hx-indicator="#tab-loading"
-                class="tab-btn group flex items-center space-x-2 px-4 py-3 border-b-2 border-transparent hover:border-bball-orange hover:text-bball-orange text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors"
+                class="tab-btn group flex items-center space-x-2 px-4 py-3 border-b-2 border-transparent hover:border-nba-blue hover:text-nba-blue text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors"
                 data-tab="roster">
             <i class="ph ph-users"></i>
             <span>Roster</span>
@@ -90,7 +90,7 @@
         <button hx-get="/teams/{{ team.team_id }}/schedule?season={{ current_season }}"
                 hx-target="#team-tab-content"
                 hx-indicator="#tab-loading"
-                class="tab-btn group flex items-center space-x-2 px-4 py-3 border-b-2 border-transparent hover:border-bball-orange hover:text-bball-orange text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors"
+                class="tab-btn group flex items-center space-x-2 px-4 py-3 border-b-2 border-transparent hover:border-nba-blue hover:text-nba-blue text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors"
                 data-tab="schedule">
             <i class="ph ph-calendar-check"></i>
             <span>Schedule</span>
@@ -99,7 +99,7 @@
         <button hx-get="/teams/{{ team.team_id }}/statistics?season={{ current_season }}"
                 hx-target="#team-tab-content"
                 hx-indicator="#tab-loading"
-                class="tab-btn group flex items-center space-x-2 px-4 py-3 border-b-2 border-transparent hover:border-bball-orange hover:text-bball-orange text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors"
+                class="tab-btn group flex items-center space-x-2 px-4 py-3 border-b-2 border-transparent hover:border-nba-blue hover:text-nba-blue text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors"
                 data-tab="statistics">
             <i class="ph ph-chart-bar"></i>
             <span>Statistics</span>
@@ -108,7 +108,7 @@
         <button hx-get="/teams/{{ team.team_id }}/standings?season={{ current_season }}"
                 hx-target="#team-tab-content"
                 hx-indicator="#tab-loading"
-                class="tab-btn group flex items-center space-x-2 px-4 py-3 border-b-2 border-transparent hover:border-bball-orange hover:text-bball-orange text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors"
+                class="tab-btn group flex items-center space-x-2 px-4 py-3 border-b-2 border-transparent hover:border-nba-blue hover:text-nba-blue text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors"
                 data-tab="standings">
             <i class="ph ph-list-numbers"></i>
             <span>Standings</span>
@@ -138,13 +138,13 @@
             button.addEventListener('click', function() {
                 // Remove active state from all tabs
                 tabButtons.forEach(btn => {
-                    btn.classList.remove('border-bball-orange', 'text-bball-orange', 'border-b-2');
+                    btn.classList.remove('border-nba-blue', 'text-nba-blue', 'border-b-2');
                     btn.classList.add('border-transparent', 'text-gray-700', 'dark:text-gray-300');
                 });
                 
                 // Add active state to clicked tab
                 this.classList.remove('border-transparent', 'text-gray-700', 'dark:text-gray-300');
-                this.classList.add('border-bball-orange', 'text-bball-orange', 'border-b-2');
+                this.classList.add('border-nba-blue', 'text-nba-blue', 'border-b-2');
             });
         });
         
@@ -152,7 +152,7 @@
         const rosterTab = document.querySelector('[data-tab="roster"]');
         if (rosterTab) {
             rosterTab.classList.remove('border-transparent', 'text-gray-700', 'dark:text-gray-300');
-            rosterTab.classList.add('border-bball-orange', 'text-bball-orange', 'border-b-2');
+            rosterTab.classList.add('border-nba-blue', 'text-nba-blue', 'border-b-2');
             
             // Trigger HTMX request for roster
             htmx.trigger(rosterTab, 'click');
@@ -161,7 +161,7 @@
     
     // Handle season change - reload current active tab
     document.getElementById('season-select').addEventListener('change', function() {
-        const activeTab = document.querySelector('.tab-btn.border-bball-orange');
+        const activeTab = document.querySelector('.tab-btn.border-nba-blue');
         if (activeTab) {
             const season = this.value;
             const url = activeTab.getAttribute('hx-get').replace(/season=\d{4}/, `season=${season}`);

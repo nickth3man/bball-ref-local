@@ -1,9 +1,9 @@
 {# Player Card Partial - Detailed player view #}
 <div id="player-card-{{ player.player_id }}" class="bg-white dark:bg-bball-gray rounded-xl shadow-lg overflow-hidden">
-    <div class="bg-gradient-to-r from-bball-orange to-bball-orange-dark px-6 py-4">
+    <div class="bg-gradient-to-r from-nba-blue to-nba-blue-dark px-6 py-4">
         <div class="flex items-center justify-between">
             <div class="flex items-center space-x-4">
-                <div class="w-16 h-16 bg-white rounded-full flex items-center justify-center text-bball-orange font-bold text-2xl shadow-lg">
+                <div class="w-16 h-16 bg-white rounded-full flex items-center justify-center text-nba-blue font-bold text-2xl shadow-lg">
                     {{ player.first_name[0] }}{{ player.last_name[0] }}
                 </div>
                 <div>
@@ -28,31 +28,31 @@
     <div class="p-6">
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 text-center">
-                <i class="ph ph-ruler text-bball-orange text-xl mb-1"></i>
+                <i class="ph ph-ruler text-nba-blue text-xl mb-1"></i>
                 <p class="text-xs text-gray-500 dark:text-gray-400 uppercase">Height</p>
                 <p class="font-semibold text-gray-900 dark:text-white">{{ player.height_display or 'N/A' }}</p>
             </div>
             <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 text-center">
-                <i class="ph ph-scales text-bball-orange text-xl mb-1"></i>
+                <i class="ph ph-scales text-nba-blue text-xl mb-1"></i>
                 <p class="text-xs text-gray-500 dark:text-gray-400 uppercase">Weight</p>
                 <p class="font-semibold text-gray-900 dark:text-white">{{ player.weight or 'N/A' }} lbs</p>
             </div>
             <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 text-center">
-                <i class="ph ph-cake text-bball-orange text-xl mb-1"></i>
+                <i class="ph ph-cake text-nba-blue text-xl mb-1"></i>
                 <p class="text-xs text-gray-500 dark:text-gray-400 uppercase">Birth Date</p>
                 <p class="font-semibold text-gray-900 dark:text-white">{{ player.birth_date.strftime('%m/%d/%Y') if player.birth_date else 'N/A' }}</p>
             </div>
             <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 text-center">
-                <i class="ph ph-globe text-bball-orange text-xl mb-1"></i>
+                <i class="ph ph-globe text-nba-blue text-xl mb-1"></i>
                 <p class="text-xs text-gray-500 dark:text-gray-400 uppercase">Country</p>
                 <p class="font-semibold text-gray-900 dark:text-white">{{ player.country or 'N/A' }}</p>
             </div>
         </div>
         
         {% if player.draft_year %}
-        <div class="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-4 mb-6">
+        <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 mb-6">
             <div class="flex items-center space-x-2 mb-2">
-                <i class="ph ph-trophy text-bball-orange"></i>
+                <i class="ph ph-trophy text-nba-blue"></i>
                 <h3 class="font-semibold text-gray-900 dark:text-white">Draft Information</h3>
             </div>
             <p class="text-sm text-gray-700 dark:text-gray-300">
@@ -63,7 +63,7 @@
         
         <div class="flex items-center justify-between pt-4 border-t dark:border-gray-700">
             <a href="/players/{{ player.player_id }}/profile" 
-               class="inline-flex items-center px-4 py-2 bg-bball-orange text-white rounded-lg hover:bg-bball-orange-dark transition-colors font-medium">
+               class="inline-flex items-center px-4 py-2 bg-nba-blue text-white rounded-lg hover:bg-nba-blue-dark transition-colors font-medium">
                 <i class="ph ph-user mr-2"></i>
                 Full Profile
             </a>

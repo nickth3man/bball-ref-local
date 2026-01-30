@@ -5,11 +5,11 @@
 {% block content %}
 <!-- Hero Section -->
 <div class="text-center mb-12">
-    <div class="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-bball-orange to-bball-orange-dark rounded-full shadow-lg mb-6 animate-pulse">
+    <div class="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-nba-blue to-nba-blue-dark rounded-full shadow-lg mb-6 animate-pulse">
         <i class="ph-fill ph-basketball text-4xl text-white"></i>
     </div>
     <h1 class="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-4">
-        Welcome to <span class="text-bball-orange">BBall Ref</span> Local
+        Welcome to <span class="text-nba-blue">BBall Ref</span> Local
     </h1>
     <p class="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
         Your local basketball reference data API. Access player stats, team information, game data, and more with lightning-fast DuckDB queries.
@@ -19,16 +19,16 @@
 <!-- Stats Cards Grid -->
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
     <!-- Players Card -->
-    <div class="bg-white dark:bg-bball-gray rounded-xl shadow-md hover:shadow-xl transition-shadow p-6 border-l-4 border-bball-orange group">
+    <div class="bg-white dark:bg-bball-gray rounded-xl shadow-md hover:shadow-xl transition-shadow p-6 border-l-4 border-nba-blue group">
         <div class="flex items-center justify-between mb-4">
-            <div class="p-3 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
-                <i class="ph-fill ph-users text-2xl text-bball-orange"></i>
+            <div class="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                <i class="ph-fill ph-users text-2xl text-nba-blue"></i>
             </div>
             <span class="text-sm text-gray-500 dark:text-gray-400">Database</span>
         </div>
         <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-1">Players</h3>
         <p class="text-sm text-gray-600 dark:text-gray-400">Browse player profiles and career statistics</p>
-        <a href="/players" class="mt-4 inline-flex items-center text-sm font-medium text-bball-orange hover:text-bball-orange-dark transition-colors group-hover:translate-x-1 duration-200">
+        <a href="/players" class="mt-4 inline-flex items-center text-sm font-medium text-nba-blue hover:text-nba-blue-dark transition-colors group-hover:translate-x-1 duration-200">
             Explore <i class="ph ph-arrow-right ml-1"></i>
         </a>
     </div>
@@ -83,8 +83,8 @@
 <div class="bg-white dark:bg-bball-gray rounded-xl shadow-lg p-6">
     <div class="flex items-center justify-between mb-6">
         <div class="flex items-center space-x-3">
-            <div class="p-2 bg-bball-orange/10 dark:bg-bball-orange/20 rounded-lg">
-                <i class="ph-fill ph-table text-xl text-bball-orange"></i>
+            <div class="p-2 bg-nba-blue/10 dark:bg-nba-blue/20 rounded-lg">
+                <i class="ph-fill ph-table text-xl text-nba-blue"></i>
             </div>
             <div>
                 <h2 class="text-xl font-bold text-gray-900 dark:text-white">Sample Data Table</h2>
@@ -92,7 +92,7 @@
             </div>
         </div>
         <div class="flex items-center space-x-2">
-            <span class="htmx-indicator flex items-center text-sm text-bball-orange">
+            <span class="htmx-indicator flex items-center text-sm text-nba-blue">
                 <div class="htmx-loading mr-2"></div>
                 Loading...
             </span>
@@ -106,7 +106,7 @@
     
     <div class="mt-4 flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
         <p><i class="ph ph-info mr-1"></i> This is a placeholder for future data display</p>
-        <button hx-get="/api/v1/status" hx-target="#api-status" class="px-3 py-1 bg-bball-orange text-white rounded-md hover:bg-bball-orange-dark transition-colors text-xs font-medium">
+        <button hx-get="/api/v1/status" hx-target="#api-status" class="px-3 py-1 bg-nba-blue text-white rounded-md hover:bg-nba-blue-dark transition-colors text-xs font-medium">
             <i class="ph ph-refresh mr-1"></i> Test API
         </button>
     </div>

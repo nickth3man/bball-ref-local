@@ -13,7 +13,6 @@ from app.models.player import Player
 from app.models.stats import PlayerGameStats
 from app.models.team import Team
 
-
 T = TypeVar("T")
 
 

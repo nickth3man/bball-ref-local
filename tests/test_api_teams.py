@@ -31,7 +31,7 @@ def mock_execute_query():
 def sample_team_row():
     """Sample team database row."""
     return (
-        1610612738,  # team_id
+        "1610612738",  # team_id
         "Boston Celtics",  # full_name
         "BOS",  # abbreviation
         "Celtics",  # nickname
@@ -52,7 +52,7 @@ def sample_team_rows():
     """Sample list of team database rows."""
     return [
         (
-            1610612738,
+            "1610612738",
             "Boston Celtics",
             "BOS",
             "Celtics",
@@ -67,7 +67,7 @@ def sample_team_rows():
             "Atlantic",
         ),
         (
-            1610612747,
+            "1610612747",
             "Los Angeles Lakers",
             "LAL",
             "Lakers",
@@ -82,7 +82,7 @@ def sample_team_rows():
             "Pacific",
         ),
         (
-            1610612741,
+            "1610612741",
             "Chicago Bulls",
             "CHI",
             "Bulls",
@@ -103,13 +103,13 @@ def sample_team_rows():
 def sample_roster_row():
     """Sample roster player database row."""
     return (
-        2544,  # player_id
+        "2544",  # player_id
         "LeBron",  # first_name
         "James",  # last_name
-        1610612747,  # team_id
+        "1610612747",  # team_id
         "SF",  # position
         23,  # jersey_number
-        80,  # height
+        "6'8",  # height
         250,  # weight
         "1984-12-30",  # birth_date
         "USA",  # country
@@ -140,11 +140,11 @@ def sample_game_row():
         2024,  # season
         "Regular Season",  # season_type
         "2024-10-22",  # game_date
-        1610612738,  # home_team_id
-        1610612747,  # away_team_id
+        "1610612738",  # home_team_id
+        "1610612747",  # away_team_id
         132,  # home_score
         109,  # away_score
-        1610612738,  # winner_team_id
+        "1610612738",  # winner_team_id
         "final",  # status
     )
 
@@ -162,7 +162,7 @@ class TestListTeams:
         data = response.json()
         assert isinstance(data, list)
         assert len(data) == 3
-        assert data[0]["team_id"] == 1610612738
+        assert data[0]["team_id"] == "1610612738"
         assert data[0]["full_name"] == "Boston Celtics"
         assert data[0]["abbreviation"] == "BOS"
 
@@ -241,7 +241,7 @@ class TestGetTeamById:
 
         assert response.status_code == 200
         data = response.json()
-        assert data["team_id"] == 1610612738
+        assert data["team_id"] == "1610612738"
         assert data["full_name"] == "Boston Celtics"
         assert data["abbreviation"] == "BOS"
         assert data["conference"] == "Eastern"
@@ -273,7 +273,7 @@ class TestGetTeamRoster:
         data = response.json()
         assert "team" in data
         assert "roster" in data
-        assert data["team"]["team_id"] == 1610612738
+        assert data["team"]["team_id"] == "1610612738"
         assert len(data["roster"]) == 1
         assert data["roster"][0]["first_name"] == "LeBron"
 
@@ -317,7 +317,7 @@ class TestGetTeamStats:
         data = response.json()
         assert "team" in data
         assert "stats" in data
-        assert data["team"]["team_id"] == 1610612738
+        assert data["team"]["team_id"] == "1610612738"
         assert data["stats"]["wins"] == 50
         assert data["stats"]["losses"] == 20
         assert data["stats"]["win_pct"] == 0.714
@@ -349,9 +349,9 @@ class TestGetTeamGames:
         assert "team" in data
         assert "games" in data
         assert "pagination" in data
-        assert data["team"]["team_id"] == 1610612738
+        assert data["team"]["team_id"] == "1610612738"
         assert len(data["games"]) == 1
-        assert data["games"][0]["home_team_id"] == 1610612738
+        assert data["games"][0]["home_team_id"] == "1610612738"
 
     def test_get_team_games_not_found(self, client, mock_execute_query):
         """Test 404 when team doesn't exist."""

@@ -1,11 +1,8 @@
 """Tests for ETL orchestrator (run_all_etl)."""
 
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
-from unittest.mock import MagicMock, patch
-
-import pytest
+from unittest.mock import patch
 
 # Add project root to Python path
 project_root = Path(__file__).parent.parent

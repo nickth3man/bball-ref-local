@@ -24,42 +24,30 @@ class Game(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     game_id: str = Field(description="Unique identifier for the game")
-    season: int = Field(
-        description="NBA season year (e.g., 2024 for 2023-24 season)",
-        ge=1946
-    )
+    season: int = Field(description="NBA season year (e.g., 2024 for 2023-24 season)", ge=1946)
     season_type: str = Field(
         description="Type of season (Regular Season or Playoffs)",
-        pattern=r"^(Regular Season|Playoffs)$"
+        pattern=r"^(Regular Season|Playoffs)$",
     )
     game_date: date = Field(description="Date when the game is/was played")
-    home_team_id: int = Field(description="ID of the home team")
-    away_team_id: int = Field(description="ID of the away team")
-    home_score: int | None = Field(
-        default=None,
-        description="Final score for the home team",
-        ge=0
-    )
-    away_score: int | None = Field(
-        default=None,
-        description="Final score for the away team",
-        ge=0
-    )
-    winner_team_id: int | None = Field(
-        default=None,
-        description="ID of the winning team (None if game not completed)"
+    home_team_id: str = Field(description="ID of the home team")
+    away_team_id: str = Field(description="ID of the away team")
+    home_score: int | None = Field(default=None, description="Final score for the home team", ge=0)
+    away_score: int | None = Field(default=None, description="Final score for the away team", ge=0)
+    winner_team_id: str | None = Field(
+        default=None, description="ID of the winning team (None if game not completed)"
     )
     status: str = Field(
         default="scheduled",
         description="Current status of the game",
-        pattern=r"^(scheduled|live|final)$"
+        pattern=r"^(scheduled|live|final)$",
     )
 
     @property
     def is_completed(self) -> bool:
         """
         Determine whether the game is completed.
-        
+
         Returns:
             `true` if the game's status equals "final", `false` otherwise.
         """
@@ -69,7 +57,7 @@ class Game(BaseModel):
     def is_live(self) -> bool:
         """
         Indicates whether the game's status is live.
-        
+
         Returns:
             `true` if the game status is "live", `false` otherwise.
         """
@@ -79,7 +67,7 @@ class Game(BaseModel):
     def point_differential(self) -> int | None:
         """
         Point difference between the home and away teams.
-        
+
         Returns:
             int: Absolute difference between `home_score` and `away_score`, or `None` if either score is missing.
         """
@@ -91,7 +79,7 @@ class Game(BaseModel):
     def winning_team_name(self) -> str | None:
         """
         Return which side won the game ("home" or "away").
-        
+
         Returns:
             str | None: "home" if the home team won, "away" if the away team won, or None if the game is not completed or the winner is unknown.
         """

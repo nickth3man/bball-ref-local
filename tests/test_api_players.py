@@ -2,7 +2,7 @@
 
 import sys
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -12,8 +12,6 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 from app.main import app
-from app.models.player import Player
-from app.models.stats import PlayerGameStats
 
 
 @pytest.fixture
@@ -33,13 +31,13 @@ def mock_execute_query():
 def sample_player_row():
     """Sample player database row."""
     return (
-        2544,  # player_id
+        "2544",  # player_id
         "LeBron",  # first_name
         "James",  # last_name
-        1610612747,  # team_id
+        "1610612747",  # team_id
         "SF",  # position
         23,  # jersey_number
-        80,  # height (inches)
+        "6'8",  # height
         250,  # weight
         "1984-12-30",  # birth_date
         "USA",  # country
@@ -53,15 +51,29 @@ def sample_player_row():
 def sample_player_rows():
     """Sample list of player database rows."""
     return [
-        (2544, "LeBron", "James", 1610612747, "SF", 23, 80, 250, "1984-12-30", "USA", 2003, 1, 1),
         (
-            201939,
+            "2544",
+            "LeBron",
+            "James",
+            "1610612747",
+            "SF",
+            23,
+            "6'8",
+            250,
+            "1984-12-30",
+            "USA",
+            2003,
+            1,
+            1,
+        ),
+        (
+            "201939",
             "Stephen",
             "Curry",
-            1610612744,
+            "1610612744",
             "PG",
             30,
-            75,
+            "6'3",
             185,
             "1988-03-14",
             "USA",
@@ -70,13 +82,13 @@ def sample_player_rows():
             7,
         ),
         (
-            1628983,
+            "1628983",
             "Shai",
             "Gilgeous-Alexander",
-            1610612760,
+            "1610612760",
             "SG",
             2,
-            78,
+            "6'6",
             195,
             "1998-07-12",
             "Canada",
@@ -93,8 +105,8 @@ def sample_player_stats_row():
     return (
         12345,  # stat_id
         "0022400001",  # game_id
-        2544,  # player_id
-        1610612747,  # team_id
+        "2544",  # player_id
+        "1610612747",  # team_id
         34.5,  # minutes_played
         25,  # points
         1,  # rebounds_offensive
@@ -201,7 +213,7 @@ class TestListPlayers:
 
         assert response.status_code == 200
         data = response.json()
-        assert all(player["team_id"] == 1610612747 for player in data["items"])
+        assert all(player["team_id"] == "1610612747" for player in data["items"])
 
     def test_list_players_database_error(self, client, mock_execute_query):
         """Test handling of database errors."""
@@ -224,11 +236,11 @@ class TestGetPlayerById:
 
         assert response.status_code == 200
         data = response.json()
-        assert data["player_id"] == 2544
+        assert data["player_id"] == "2544"
         assert data["first_name"] == "LeBron"
         assert data["last_name"] == "James"
         assert data["position"] == "SF"
-        assert data["team_id"] == 1610612747
+        assert data["team_id"] == "1610612747"
 
     def test_get_player_not_found(self, client, mock_execute_query):
         """Test 404 response for non-existent player."""
@@ -258,7 +270,7 @@ class TestGetPlayerStats:
         # Mock season stats query
         # Mock recent games query
         mock_execute_query.side_effect = [
-            [(2544,)],  # Player exists check
+            [("2544",)],  # Player exists check
             [(10, 345.0, 250, 80, 60, 15, 5, 100, 200, 30, 80, 40, 50, 25, 40)],  # Career stats
             [],  # Season stats (empty for this test)
             [sample_player_stats_row],  # Recent games
@@ -268,7 +280,7 @@ class TestGetPlayerStats:
 
         assert response.status_code == 200
         data = response.json()
-        assert data["player_id"] == 2544
+        assert data["player_id"] == "2544"
         assert "career_stats" in data
         assert "season_stats" in data
         assert "recent_games" in data
@@ -288,7 +300,7 @@ class TestGetPlayerStats:
     ):
         """Test stats endpoint with season filter."""
         mock_execute_query.side_effect = [
-            [(2544,)],  # Player exists check
+            [("2544",)],  # Player exists check
             [(5, 172.5, 125, 40, 30, 8, 3, 50, 100, 15, 40, 20, 25, 12, 20)],  # Season stats
             [],  # No season-by-season when filter applied
             [sample_player_stats_row],  # Recent games
@@ -298,7 +310,7 @@ class TestGetPlayerStats:
 
         assert response.status_code == 200
         data = response.json()
-        assert data["player_id"] == 2544
+        assert data["player_id"] == "2544"
         assert data["career_stats"]["season"] == 2024
 
 
@@ -308,7 +320,7 @@ class TestGetPlayerGames:
     def test_get_player_games(self, client, mock_execute_query, sample_player_stats_row):
         """Test GET /api/v1/players/{id}/games returns player game log."""
         mock_execute_query.side_effect = [
-            [(2544,)],  # Player exists check
+            [("2544",)],  # Player exists check
             [(50,)],  # Total count
             [sample_player_stats_row],  # Game data
         ]
@@ -317,7 +329,7 @@ class TestGetPlayerGames:
 
         assert response.status_code == 200
         data = response.json()
-        assert data["player_id"] == 2544
+        assert data["player_id"] == "2544"
         assert "games" in data
         assert "total_count" in data
         assert data["total_count"] == 50
@@ -337,7 +349,7 @@ class TestGetPlayerGames:
     ):
         """Test games endpoint with season filter."""
         mock_execute_query.side_effect = [
-            [(2544,)],  # Player exists check
+            [("2544",)],  # Player exists check
             [(20,)],  # Count for season
             [sample_player_stats_row],  # Game data
         ]
@@ -377,7 +389,7 @@ class TestListPlayersHtmx:
     def test_get_player_stats_htmx(self, client, mock_execute_query, sample_player_stats_row):
         """Test HTMX request for player stats returns HTML."""
         mock_execute_query.side_effect = [
-            [(2544,)],
+            [("2544",)],
             [(10, 345.0, 250, 80, 60, 15, 5, 100, 200, 30, 80, 40, 50, 25, 40)],
             [],
             [sample_player_stats_row],

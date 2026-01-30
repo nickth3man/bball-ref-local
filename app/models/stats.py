@@ -1,6 +1,5 @@
 """Statistics Pydantic models for basketball player game stats."""
 
-
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 
@@ -33,24 +32,14 @@ class PlayerGameStats(BaseModel):
 
     stat_id: int = Field(description="Unique identifier for the stat record")
     game_id: str = Field(description="ID of the game")
-    player_id: int = Field(description="ID of the player")
-    team_id: int = Field(description="ID of the team the player was on for this game")
+    player_id: str = Field(description="ID of the player")
+    team_id: str = Field(description="ID of the team the player was on for this game")
     minutes_played: float | None = Field(
-        default=None,
-        description="Minutes played in the game",
-        ge=0
+        default=None, description="Minutes played in the game", ge=0
     )
     points: int = Field(default=0, description="Total points scored", ge=0)
-    rebounds_offensive: int = Field(
-        default=0,
-        description="Offensive rebounds",
-        ge=0
-    )
-    rebounds_defensive: int = Field(
-        default=0,
-        description="Defensive rebounds",
-        ge=0
-    )
+    rebounds_offensive: int = Field(default=0, description="Offensive rebounds", ge=0)
+    rebounds_defensive: int = Field(default=0, description="Defensive rebounds", ge=0)
     assists: int = Field(default=0, description="Total assists", ge=0)
     steals: int = Field(default=0, description="Total steals", ge=0)
     blocks: int = Field(default=0, description="Total blocks", ge=0)
@@ -68,7 +57,7 @@ class PlayerGameStats(BaseModel):
     def rebounds_total(self) -> int:
         """
         Total rebounds for the game.
-        
+
         Returns:
             total_rebounds (int): Sum of offensive and defensive rebounds.
         """
@@ -79,7 +68,7 @@ class PlayerGameStats(BaseModel):
     def fg_pct(self) -> float | None:
         """
         Compute the player's field goal percentage on a 0–1 scale.
-        
+
         Returns:
             float | None: Field goal percentage rounded to three decimals, or `None` if `fg_attempted` is 0.
         """
@@ -92,7 +81,7 @@ class PlayerGameStats(BaseModel):
     def fg3_pct(self) -> float | None:
         """
         Three-point field goal percentage on a 0-1 scale, rounded to three decimals.
-        
+
         Returns:
             fg3_pct (float | None): The three-point field goal percentage (0.0–1.0) rounded to three decimals, or `None` if `fg3_attempted` is 0.
         """
@@ -105,7 +94,7 @@ class PlayerGameStats(BaseModel):
     def ft_pct(self) -> float | None:
         """
         Return the free throw shooting percentage on a 0-1 scale.
-        
+
         Returns:
             float | None: Free throw percentage rounded to three decimal places if free throws were attempted; `None` if `ft_attempted` is 0.
         """
@@ -118,7 +107,7 @@ class PlayerGameStats(BaseModel):
     def effective_fg_pct(self) -> float | None:
         """
         Calculate the effective field goal percentage, weighting three-pointers as 1.5 field goals.
-        
+
         Returns:
             float | None: Effective field goal percentage rounded to 3 decimals, or `None` if `fg_attempted` is 0.
         """
@@ -131,7 +120,7 @@ class PlayerGameStats(BaseModel):
     def true_shooting_pct(self) -> float | None:
         """
         Calculate the player's true shooting percentage.
-        
+
         Returns:
             float | None: True shooting percentage rounded to three decimals, or `None` if both field-goal attempts and free-throw attempts are zero (calculation not feasible).
         """
@@ -149,7 +138,7 @@ class PlayerGameStats(BaseModel):
     def plus_minus(self) -> int | None:
         """
         Represents the player's plus/minus for the game, if available.
-        
+
         Returns:
             int | None: The player's plus/minus value for the game, or `None` when the statistic is not available.
         """

@@ -1,7 +1,7 @@
 {# Player List Partial - Grid view of players #}
 <div id="player-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
     {% for player in players %}
-    <div class="bg-white dark:bg-bball-gray rounded-lg shadow-md hover:shadow-lg transition-shadow p-4 border-l-4 border-bball-orange group"
+    <div class="bg-white dark:bg-bball-gray rounded-lg shadow-md hover:shadow-lg transition-shadow p-4 border-l-4 border-nba-blue group"
          hx-get="/players/{{ player.player_id }}" 
          hx-target="#player-detail" 
          hx-swap="innerHTML"
@@ -9,11 +9,11 @@
         
         <div class="flex items-start justify-between mb-3">
             <div class="flex items-center space-x-3">
-                <div class="w-12 h-12 bg-gradient-to-br from-bball-orange to-bball-orange-dark rounded-full flex items-center justify-center text-white font-bold text-lg">
+                <div class="w-12 h-12 bg-gradient-to-br from-nba-blue to-nba-blue-dark rounded-full flex items-center justify-center text-white font-bold text-lg">
                     {{ player.first_name[0] }}{{ player.last_name[0] }}
                 </div>
                 <div>
-                    <h3 class="font-semibold text-gray-900 dark:text-white group-hover:text-bball-orange transition-colors">
+                    <h3 class="font-semibold text-gray-900 dark:text-white group-hover:text-nba-blue transition-colors">
                         {{ player.full_name }}
                     </h3>
                     <p class="text-sm text-gray-500 dark:text-gray-400">{{ player.team.abbreviation if player.team else 'FA' }}</p>
@@ -28,7 +28,7 @@
         
         <div class="flex items-center justify-between text-sm">
             <div class="flex items-center space-x-2">
-                <span class="px-2 py-0.5 bg-orange-100 dark:bg-orange-900/30 rounded text-bball-orange font-medium">
+                <span class="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 rounded text-nba-blue font-medium">
                     {{ player.position }}
                 </span>
             </div>

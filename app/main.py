@@ -4,16 +4,16 @@ FastAPI application for bball-ref-local.
 Provides a local API for basketball reference data using DuckDB as the backend.
 """
 
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import AsyncGenerator
 
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from app.routers import players_router, teams_router, games_router, stats_router, search_router
+from app.routers import games_router, players_router, search_router, stats_router, teams_router
 from app.services.database import (
     close_db_connection,
     get_db_connection,
@@ -54,12 +54,12 @@ static_dir = Path(__file__).parent / "static"
 if static_dir.exists():
     app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
-# Include API routers
-app.include_router(players_router, prefix="/api/v1")
-app.include_router(teams_router, prefix="/api/v1")
-app.include_router(games_router, prefix="/api/v1")
-app.include_router(stats_router, prefix="/api/v1")
-app.include_router(search_router, prefix="/api/v1")
+# Include API routers (routers define their own prefixes)
+app.include_router(players_router)
+app.include_router(teams_router)
+app.include_router(games_router)
+app.include_router(stats_router)
+app.include_router(search_router)
 
 
 @app.get("/", response_class=HTMLResponse)

@@ -31,20 +31,20 @@ def mock_execute_query():
 def sample_leader_row():
     """Sample league leader database row."""
     return (
-        2544,  # player_id
+        "2544",  # player_id
         "LeBron",  # first_name
         "James",  # last_name
-        1610612747,  # team_id
+        "1610612747",  # team_id
         "SF",  # position
         23,  # jersey_number
-        80,  # height
+        "6'8",  # height
         250,  # weight
         "1984-12-30",  # birth_date
         "USA",  # country
         2003,  # draft_year
         1,  # draft_round
         1,  # draft_number
-        1610612747,  # team_team_id
+        "1610612747",  # team_team_id
         "Los Angeles Lakers",  # team_full_name
         "LAL",  # team_abbreviation
         "Lakers",  # team_nickname
@@ -66,7 +66,7 @@ def sample_leader_row():
 def sample_standings_row():
     """Sample standings database row."""
     return (
-        1610612738,  # team_id
+        "1610612738",  # team_id
         "Boston Celtics",  # full_name
         "BOS",  # abbreviation
         "Celtics",  # nickname
@@ -245,7 +245,7 @@ class TestGetStandings:
         assert data["season"] == 2024
         assert "standings" in data
         assert len(data["standings"]) == 1
-        assert data["standings"][0]["team"]["team_id"] == 1610612738
+        assert data["standings"][0]["team"]["team_id"] == "1610612738"
         assert data["standings"][0]["wins"] == 50
         assert data["standings"][0]["losses"] == 20
 
@@ -276,7 +276,7 @@ class TestGetStandings:
     def test_get_standings_multiple_teams(self, client, mock_execute_query, sample_standings_row):
         """Test standings with multiple teams."""
         row2 = list(sample_standings_row)
-        row2[0] = 1610612747  # Different team_id
+        row2[0] = "1610612747"  # Different team_id
         row2[1] = "Los Angeles Lakers"
         row2[2] = "LAL"
         row2[11] = "Western"  # Different conference
@@ -320,7 +320,7 @@ class TestGetStandingsByConference:
     def test_get_standings_western_conference(self, client, mock_execute_query):
         """Test Western conference filter."""
         row = (
-            1610612747,
+            "1610612747",
             "Los Angeles Lakers",
             "LAL",
             "Lakers",

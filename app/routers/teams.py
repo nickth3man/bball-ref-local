@@ -11,22 +11,11 @@ from fastapi.responses import HTMLResponse
 
 from app.models import Player, Team
 from app.models.game import Game
-from app.models.responses import GameListResponse, PaginatedResponse
+from app.models.responses import GameListResponse
 from app.services.database import execute_query
+from app.services.htmx_utils import is_htmx_request
 
 router = APIRouter(prefix="/api/v1/teams", tags=["teams"])
-
-
-def _is_htmx_request(request: Request) -> bool:
-    """Check if the request is an HTMX request.
-
-    Args:
-        request: The incoming FastAPI request.
-
-    Returns:
-        bool: True if the request has the HX-Request header, False otherwise.
-    """
-    return request.headers.get("HX-Request") == "true"
 
 
 @router.get("/", response_model=None)
@@ -56,7 +45,7 @@ async def list_teams(
     """
     try:
         query = """
-            SELECT 
+            SELECT
                 team_id,
                 full_name,
                 abbreviation,
@@ -106,18 +95,19 @@ async def list_teams(
                             "division",
                         ],
                         row,
+                        strict=True,
                     )
                 )
             )
             for row in results
         ]
 
-        if _is_htmx_request(request):
+        if is_htmx_request(request):
             return HTMLResponse(content="")  # Placeholder for team_list.html
 
         return teams
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch teams: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch teams: {e}") from e
 
 
 @router.get("/{team_id}", response_model=None)
@@ -138,7 +128,7 @@ async def get_team(
     """
     try:
         query = """
-            SELECT 
+            SELECT
                 team_id,
                 full_name,
                 abbreviation,
@@ -179,18 +169,19 @@ async def get_team(
                         "division",
                     ],
                     result[0],
+                    strict=True,
                 )
             )
         )
 
-        if _is_htmx_request(request):
+        if is_htmx_request(request):
             return HTMLResponse(content="")  # Placeholder for team_card.html
 
         return team
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch team: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch team: {e}") from e
 
 
 @router.get("/{team_id}/roster", response_model=None)
@@ -216,7 +207,7 @@ async def get_team_roster(
             raise HTTPException(status_code=404, detail=f"Team with ID {team_id} not found")
 
         query = """
-            SELECT 
+            SELECT
                 player_id,
                 first_name,
                 last_name,
@@ -256,20 +247,21 @@ async def get_team_roster(
                             "draft_number",
                         ],
                         row,
+                        strict=True,
                     )
                 )
             )
             for row in results
         ]
 
-        if _is_htmx_request(request):
+        if is_htmx_request(request):
             return HTMLResponse(content="")  # Placeholder for roster_table.html
 
         return players
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch roster: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch roster: {e}") from e
 
 
 @router.get("/{team_id}/stats", response_model=None)
@@ -302,7 +294,7 @@ async def get_team_stats(
 
         # Aggregate team stats from player_game_stats and games
         query = """
-            SELECT 
+            SELECT
                 COUNT(DISTINCT g.game_id) as games_played,
                 SUM(CASE WHEN g.winner_team_id = ? THEN 1 ELSE 0 END) as wins,
                 SUM(CASE WHEN g.winner_team_id != ? AND g.winner_team_id IS NOT NULL THEN 1 ELSE 0 END) as losses,
@@ -381,14 +373,14 @@ async def get_team_stats(
                 "personal_fouls": row[17] or 0,
             }
 
-        if _is_htmx_request(request):
+        if is_htmx_request(request):
             return HTMLResponse(content="")  # Placeholder for team_stats.html
 
         return stats
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch team stats: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch team stats: {e}") from e
 
 
 @router.get("/{team_id}/games", response_model=None)
@@ -425,8 +417,8 @@ async def get_team_games(
 
         # Build count query for pagination
         count_query = """
-            SELECT COUNT(*) 
-            FROM games 
+            SELECT COUNT(*)
+            FROM games
             WHERE (home_team_id = ? OR away_team_id = ?)
         """
         count_params: list = [team_id, team_id]
@@ -440,7 +432,7 @@ async def get_team_games(
 
         # Build data query
         query = """
-            SELECT 
+            SELECT
                 game_id,
                 season,
                 season_type,
@@ -483,6 +475,7 @@ async def get_team_games(
                             "status",
                         ],
                         row,
+                        strict=True,
                     )
                 )
             )
@@ -499,11 +492,11 @@ async def get_team_games(
             pages=pages,
         )
 
-        if _is_htmx_request(request):
+        if is_htmx_request(request):
             return HTMLResponse(content="")  # Placeholder for game_list.html
 
         return response
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch team games: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch team games: {e}") from e

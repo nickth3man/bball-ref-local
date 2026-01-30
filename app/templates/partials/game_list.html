@@ -79,7 +79,7 @@
             </div>
             
             <a href="/games/{{ game.game_id }}/boxscore" 
-               class="ml-4 px-4 py-2 bg-bball-orange text-white rounded-lg hover:bg-bball-orange-dark transition-colors text-sm font-medium inline-flex items-center">
+               class="ml-4 px-4 py-2 bg-nba-blue text-white rounded-lg hover:bg-nba-blue-dark transition-colors text-sm font-medium inline-flex items-center">
                 <i class="ph ph-chart-bar mr-2"></i>
                 Box Score
             </a>
@@ -92,7 +92,7 @@
             </span>
             {% if game.leading_scorer %}
             <span class="text-gray-600 dark:text-gray-400">
-                <i class="ph ph-trophy text-bball-orange mr-1"></i>
+                <i class="ph ph-trophy text-nba-red mr-1"></i>
                 Top scorer: {{ game.leading_scorer.name }} ({{ game.leading_scorer.points }} pts)
             </span>
             {% endif %}
