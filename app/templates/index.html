@@ -1,57 +1,180 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ title }}</title>
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 2rem;
-            line-height: 1.6;
-        }
-        h1 { color: #1a73e8; }
-        .card {
-            background: #f8f9fa;
-            border-radius: 8px;
-            padding: 1.5rem;
-            margin: 1rem 0;
-        }
-        code {
-            background: #e8eaed;
-            padding: 0.2rem 0.4rem;
-            border-radius: 4px;
-            font-family: 'Courier New', monospace;
-        }
-        a { color: #1a73e8; }
-    </style>
-</head>
-<body>
-    <h1>🏀 {{ title }}</h1>
-    <p>Welcome to the local basketball reference data API.</p>
-    
-    <div class="card">
-        <h2>API Endpoints</h2>
-        <ul>
-            <li><code>GET /health</code> - Health check</li>
-            <li><code>GET /api/v1/status</code> - API status</li>
-        </ul>
+{% extends "base.html" %}
+
+{% block title %}BBall Ref Local - Home{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<div class="text-center mb-12">
+    <div class="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-bball-orange to-bball-orange-dark rounded-full shadow-lg mb-6 animate-pulse">
+        <i class="ph-fill ph-basketball text-4xl text-white"></i>
+    </div>
+    <h1 class="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-4">
+        Welcome to <span class="text-bball-orange">BBall Ref</span> Local
+    </h1>
+    <p class="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+        Your local basketball reference data API. Access player stats, team information, game data, and more with lightning-fast DuckDB queries.
+    </p>
+</div>
+
+<!-- Stats Cards Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+    <!-- Players Card -->
+    <div class="bg-white dark:bg-bball-gray rounded-xl shadow-md hover:shadow-xl transition-shadow p-6 border-l-4 border-bball-orange group">
+        <div class="flex items-center justify-between mb-4">
+            <div class="p-3 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
+                <i class="ph-fill ph-users text-2xl text-bball-orange"></i>
+            </div>
+            <span class="text-sm text-gray-500 dark:text-gray-400">Database</span>
+        </div>
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-1">Players</h3>
+        <p class="text-sm text-gray-600 dark:text-gray-400">Browse player profiles and career statistics</p>
+        <a href="/players" class="mt-4 inline-flex items-center text-sm font-medium text-bball-orange hover:text-bball-orange-dark transition-colors group-hover:translate-x-1 duration-200">
+            Explore <i class="ph ph-arrow-right ml-1"></i>
+        </a>
+    </div>
+
+    <!-- Teams Card -->
+    <div class="bg-white dark:bg-bball-gray rounded-xl shadow-md hover:shadow-xl transition-shadow p-6 border-l-4 border-blue-500 group">
+        <div class="flex items-center justify-between mb-4">
+            <div class="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                <i class="ph-fill ph-shield text-2xl text-blue-500"></i>
+            </div>
+            <span class="text-sm text-gray-500 dark:text-gray-400">Database</span>
+        </div>
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-1">Teams</h3>
+        <p class="text-sm text-gray-600 dark:text-gray-400">View team rosters and season performance</p>
+        <a href="/teams" class="mt-4 inline-flex items-center text-sm font-medium text-blue-500 hover:text-blue-600 transition-colors group-hover:translate-x-1 duration-200">
+            Explore <i class="ph ph-arrow-right ml-1"></i>
+        </a>
+    </div>
+
+    <!-- Games Card -->
+    <div class="bg-white dark:bg-bball-gray rounded-xl shadow-md hover:shadow-xl transition-shadow p-6 border-l-4 border-green-500 group">
+        <div class="flex items-center justify-between mb-4">
+            <div class="p-3 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                <i class="ph-fill ph-trophy text-2xl text-green-500"></i>
+            </div>
+            <span class="text-sm text-gray-500 dark:text-gray-400">Database</span>
+        </div>
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-1">Games</h3>
+        <p class="text-sm text-gray-600 dark:text-gray-400">Access game results and box scores</p>
+        <a href="/games" class="mt-4 inline-flex items-center text-sm font-medium text-green-500 hover:text-green-600 transition-colors group-hover:translate-x-1 duration-200">
+            Explore <i class="ph ph-arrow-right ml-1"></i>
+        </a>
+    </div>
+
+    <!-- Stats Card -->
+    <div class="bg-white dark:bg-bball-gray rounded-xl shadow-md hover:shadow-xl transition-shadow p-6 border-l-4 border-purple-500 group">
+        <div class="flex items-center justify-between mb-4">
+            <div class="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+                <i class="ph-fill ph-chart-bar text-2xl text-purple-500"></i>
+            </div>
+            <span class="text-sm text-gray-500 dark:text-gray-400">Analytics</span>
+        </div>
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-1">Statistics</h3>
+        <p class="text-sm text-gray-600 dark:text-gray-400">Advanced stats and data visualization</p>
+        <a href="/stats" class="mt-4 inline-flex items-center text-sm font-medium text-purple-500 hover:text-purple-600 transition-colors group-hover:translate-x-1 duration-200">
+            Explore <i class="ph ph-arrow-right ml-1"></i>
+        </a>
+    </div>
+</div>
+
+<!-- Tabulator Table Section -->
+<div class="bg-white dark:bg-bball-gray rounded-xl shadow-lg p-6">
+    <div class="flex items-center justify-between mb-6">
+        <div class="flex items-center space-x-3">
+            <div class="p-2 bg-bball-orange/10 dark:bg-bball-orange/20 rounded-lg">
+                <i class="ph-fill ph-table text-xl text-bball-orange"></i>
+            </div>
+            <div>
+                <h2 class="text-xl font-bold text-gray-900 dark:text-white">Sample Data Table</h2>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Powered by Tabulator.js</p>
+            </div>
+        </div>
+        <div class="flex items-center space-x-2">
+            <span class="htmx-indicator flex items-center text-sm text-bball-orange">
+                <div class="htmx-loading mr-2"></div>
+                Loading...
+            </span>
+        </div>
     </div>
     
-    <div class="card">
-        <h2>Documentation</h2>
-        <ul>
-            <li><a href="/docs">Swagger UI</a> - Interactive API documentation</li>
-            <li><a href="/redoc">ReDoc</a> - Alternative API documentation</li>
-        </ul>
+    <!-- Tabulator Table Container -->
+    <div id="sample-table" class="rounded-lg overflow-hidden border dark:border-gray-700">
+        <!-- Table will be initialized by Tabulator -->
     </div>
     
-    <div class="card">
-        <h2>Getting Started</h2>
-        <p>Run the development server with:</p>
-        <code>uv run fastapi dev app/main.py</code>
+    <div class="mt-4 flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
+        <p><i class="ph ph-info mr-1"></i> This is a placeholder for future data display</p>
+        <button hx-get="/api/v1/status" hx-target="#api-status" class="px-3 py-1 bg-bball-orange text-white rounded-md hover:bg-bball-orange-dark transition-colors text-xs font-medium">
+            <i class="ph ph-refresh mr-1"></i> Test API
+        </button>
     </div>
-</body>
-</html>
+    
+    <!-- API Status Display -->
+    <div id="api-status" class="mt-4"></div>
+</div>
+
+<!-- API Documentation Cards -->
+<div class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div class="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 rounded-xl p-6 border dark:border-gray-700">
+        <div class="flex items-start space-x-4">
+            <div class="p-3 bg-blue-500/10 rounded-lg">
+                <i class="ph-fill ph-swatches text-2xl text-blue-500"></i>
+            </div>
+            <div>
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Interactive API Docs</h3>
+                <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">Explore the full API with Swagger UI. Test endpoints directly in the browser.</p>
+                <a href="/docs" class="inline-flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium">
+                    <i class="ph ph-book-open mr-2"></i> Swagger UI
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 rounded-xl p-6 border dark:border-gray-700">
+        <div class="flex items-start space-x-4">
+            <div class="p-3 bg-green-500/10 rounded-lg">
+                <i class="ph-fill ph-code text-2xl text-green-500"></i>
+            </div>
+            <div>
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Alternative Documentation</h3>
+                <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">Clean, readable API documentation with ReDoc.</p>
+                <a href="/redoc" class="inline-flex items-center px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm font-medium">
+                    <i class="ph ph-file-text mr-2"></i> ReDoc
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Initialize sample Tabulator table
+    document.addEventListener('DOMContentLoaded', function() {
+        initTabulatorTable('#sample-table', {
+            layout: "fitColumns",
+            responsiveLayout: "collapse",
+            columns: [
+                {title: "Name", field: "name", headerSort: true},
+                {title: "Position", field: "position", headerSort: true},
+                {title: "Team", field: "team", headerSort: true},
+                {title: "PPG", field: "ppg", hozAlign: "center", sorter: "number"},
+                {title: "RPG", field: "rpg", hozAlign: "center", sorter: "number"},
+                {title: "APG", field: "apg", hozAlign: "center", sorter: "number"},
+            ],
+            data: [
+                {name: "LeBron James", position: "SF", team: "LAL", ppg: 25.7, rpg: 7.3, apg: 8.3},
+                {name: "Kevin Durant", position: "SF", team: "PHX", ppg: 27.1, rpg: 6.6, apg: 5.0},
+                {name: "Stephen Curry", position: "PG", team: "GSW", ppg: 26.4, rpg: 4.5, apg: 5.1},
+                {name: "Giannis Antetokounmpo", position: "PF", team: "MIL", ppg: 30.4, rpg: 11.5, apg: 6.5},
+                {name: "Nikola Jokic", position: "C", team: "DEN", ppg: 26.4, rpg: 12.4, apg: 9.0},
+            ],
+            initialSort: [
+                {column: "ppg", dir: "desc"}
+            ]
+        });
+    });
+</script>
+{% endblock %}
