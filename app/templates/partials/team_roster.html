@@ -1,0 +1,90 @@
+{# Team Roster Partial - Table of team roster #}
+<div id="team-roster" class="bg-white dark:bg-bball-gray rounded-xl shadow-lg overflow-hidden">
+    <div class="px-6 py-4 border-b dark:border-gray-700 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+            <i class="ph-fill ph-users text-bball-orange text-xl"></i>
+            <div>
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Team Roster</h3>
+                {% if team %}
+                <p class="text-sm text-gray-500 dark:text-gray-400">{{ team.display_name }} - {{ team.abbreviation }}</p>
+                {% endif %}
+            </div>
+        </div>
+        <span class="px-3 py-1 bg-gray-100 dark:bg-gray-700 rounded-full text-sm font-medium text-gray-700 dark:text-gray-300">
+            {{ players | length }} Players
+        </span>
+    </div>
+    
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="bg-gray-50 dark:bg-gray-800 text-left">
+                    <th class="px-4 py-3 font-semibold text-gray-700 dark:text-gray-300 text-center w-16">#</th>
+                    <th class="px-4 py-3 font-semibold text-gray-700 dark:text-gray-300">Player</th>
+                    <th class="px-4 py-3 font-semibold text-gray-700 dark:text-gray-300 text-center">Pos</th>
+                    <th class="px-4 py-3 font-semibold text-gray-700 dark:text-gray-300 text-center">Height</th>
+                    <th class="px-4 py-3 font-semibold text-gray-700 dark:text-gray-300 text-center">Weight</th>
+                    <th class="px-4 py-3 font-semibold text-gray-700 dark:text-gray-300">Birth Date</th>
+                    <th class="px-4 py-3 font-semibold text-gray-700 dark:text-gray-300 text-center">Age</th>
+                    <th class="px-4 py-3 font-semibold text-gray-700 dark:text-gray-300 text-center">Exp</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y dark:divide-gray-700">
+                {% for player in players %}
+                <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                    <td class="px-4 py-3 text-center">
+                        {% if player.jersey_number %}
+                        <span class="inline-flex items-center justify-center w-8 h-8 bg-bball-orange/10 dark:bg-bball-orange/20 rounded-full text-bball-orange font-bold text-sm">
+                            {{ player.jersey_number }}
+                        </span>
+                        {% else %}
+                        <span class="text-gray-400 dark:text-gray-600">-</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-4 py-3">
+                        <a href="/players/{{ player.player_id }}" 
+                           class="flex items-center space-x-3 group">
+                            <div class="w-8 h-8 bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-600 rounded-full flex items-center justify-center text-xs font-bold text-gray-600 dark:text-gray-400">
+                                {{ player.first_name[0] }}{{ player.last_name[0] }}
+                            </div>
+                            <span class="font-medium text-gray-900 dark:text-white group-hover:text-bball-orange transition-colors">
+                                {{ player.full_name }}
+                            </span>
+                        </a>
+                    </td>
+                    <td class="px-4 py-3 text-center">
+                        <span class="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-xs font-medium text-gray-700 dark:text-gray-300">
+                            {{ player.position }}
+                        </span>
+                    </td>
+                    <td class="px-4 py-3 text-center text-gray-700 dark:text-gray-300">
+                        {{ player.height_display or 'N/A' }}
+                    </td>
+                    <td class="px-4 py-3 text-center text-gray-700 dark:text-gray-300">
+                        {{ player.weight or 'N/A' }}
+                    </td>
+                    <td class="px-4 py-3 text-gray-700 dark:text-gray-300">
+                        {{ player.birth_date.strftime('%b %d, %Y') if player.birth_date else 'N/A' }}
+                    </td>
+                    <td class="px-4 py-3 text-center text-gray-700 dark:text-gray-300">
+                        {{ player.age if player.age else 'N/A' }}
+                    </td>
+                    <td class="px-4 py-3 text-center text-gray-700 dark:text-gray-300">
+                        {% if player.experience is not none %}
+                            {% if player.experience == 0 %}Rookie
+                            {% else %}{{ player.experience }} yrs{% endif %}
+                        {% else %}N/A{% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="8" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                        <i class="ph ph-users text-3xl mb-2"></i>
+                        <p>No players on roster</p>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>

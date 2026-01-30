@@ -1,0 +1,74 @@
+{# Player List Partial - Grid view of players #}
+<div id="player-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+    {% for player in players %}
+    <div class="bg-white dark:bg-bball-gray rounded-lg shadow-md hover:shadow-lg transition-shadow p-4 border-l-4 border-bball-orange group"
+         hx-get="/players/{{ player.player_id }}" 
+         hx-target="#player-detail" 
+         hx-swap="innerHTML"
+         hx-indicator="#player-loading-{{ player.player_id }}">
+        
+        <div class="flex items-start justify-between mb-3">
+            <div class="flex items-center space-x-3">
+                <div class="w-12 h-12 bg-gradient-to-br from-bball-orange to-bball-orange-dark rounded-full flex items-center justify-center text-white font-bold text-lg">
+                    {{ player.first_name[0] }}{{ player.last_name[0] }}
+                </div>
+                <div>
+                    <h3 class="font-semibold text-gray-900 dark:text-white group-hover:text-bball-orange transition-colors">
+                        {{ player.full_name }}
+                    </h3>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">{{ player.team.abbreviation if player.team else 'FA' }}</p>
+                </div>
+            </div>
+            {% if player.jersey_number %}
+            <span class="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-sm font-medium text-gray-700 dark:text-gray-300">
+                #{{ player.jersey_number }}
+            </span>
+            {% endif %}
+        </div>
+        
+        <div class="flex items-center justify-between text-sm">
+            <div class="flex items-center space-x-2">
+                <span class="px-2 py-0.5 bg-orange-100 dark:bg-orange-900/30 rounded text-bball-orange font-medium">
+                    {{ player.position }}
+                </span>
+            </div>
+            <span class="text-gray-400 dark:text-gray-500">
+                <i class="ph ph-arrow-right group-hover:translate-x-1 transition-transform"></i>
+            </span>
+        </div>
+        
+        <div id="player-loading-{{ player.player_id }}" class="htmx-indicator absolute inset-0 bg-white/50 dark:bg-black/50 rounded-lg flex items-center justify-center">
+            <div class="htmx-loading"></div>
+        </div>
+    </div>
+    {% else %}
+    <div class="col-span-full text-center py-12">
+        <i class="ph ph-users text-4xl text-gray-300 dark:text-gray-600 mb-3"></i>
+        <p class="text-gray-500 dark:text-gray-400">No players found</p>
+    </div>
+    {% endfor %}
+</div>
+
+{% if pagination %}
+<div class="mt-6 flex items-center justify-between">
+    <p class="text-sm text-gray-500 dark:text-gray-400">
+        Showing {{ pagination.start }} - {{ pagination.end }} of {{ pagination.total }}
+    </p>
+    <div class="flex items-center space-x-2">
+        {% if pagination.has_prev %}
+        <button hx-get="{{ pagination.prev_url }}" 
+                hx-target="#player-list-container"
+                class="px-3 py-1.5 bg-white dark:bg-bball-gray border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+            <i class="ph ph-caret-left mr-1"></i> Previous
+        </button>
+        {% endif %}
+        {% if pagination.has_next %}
+        <button hx-get="{{ pagination.next_url }}" 
+                hx-target="#player-list-container"
+                class="px-3 py-1.5 bg-white dark:bg-bball-gray border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+            Next <i class="ph ph-caret-right ml-1"></i>
+        </button>
+        {% endif %}
+    </div>
+</div>
+{% endif %}

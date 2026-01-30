@@ -1,0 +1,83 @@
+{# Player Stats Table Partial - Season statistics #}
+<div id="player-stats-table" class="bg-white dark:bg-bball-gray rounded-xl shadow-lg overflow-hidden">
+    <div class="px-6 py-4 border-b dark:border-gray-700 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+            <i class="ph-fill ph-chart-bar text-bball-orange text-xl"></i>
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Season Statistics</h3>
+        </div>
+        <span class="text-sm text-gray-500 dark:text-gray-400">Career Averages</span>
+    </div>
+    
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="bg-gray-50 dark:bg-gray-800 text-left">
+                    <th class="px-4 py-3 font-semibold text-gray-700 dark:text-gray-300">Season</th>
+                    <th class="px-4 py-3 font-semibold text-gray-700 dark:text-gray-300">Team</th>
+                    <th class="px-4 py-3 font-semibold text-gray-700 dark:text-gray-300 text-center">GP</th>
+                    <th class="px-4 py-3 font-semibold text-gray-700 dark:text-gray-300 text-center">MIN</th>
+                    <th class="px-4 py-3 font-semibold text-bball-orange text-center">PTS</th>
+                    <th class="px-4 py-3 font-semibold text-gray-700 dark:text-gray-300 text-center">REB</th>
+                    <th class="px-4 py-3 font-semibold text-gray-700 dark:text-gray-300 text-center">AST</th>
+                    <th class="px-4 py-3 font-semibold text-gray-700 dark:text-gray-300 text-center">STL</th>
+                    <th class="px-4 py-3 font-semibold text-gray-700 dark:text-gray-300 text-center">BLK</th>
+                    <th class="px-4 py-3 font-semibold text-gray-700 dark:text-gray-300 text-center">FG%</th>
+                    <th class="px-4 py-3 font-semibold text-gray-700 dark:text-gray-300 text-center">3P%</th>
+                    <th class="px-4 py-3 font-semibold text-gray-700 dark:text-gray-300 text-center">FT%</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y dark:divide-gray-700">
+                {% for stat in stats %}
+                <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                    <td class="px-4 py-3 font-medium text-gray-900 dark:text-white">{{ stat.season }}</td>
+                    <td class="px-4 py-3">
+                        <span class="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-xs font-medium">
+                            {{ stat.team_abbreviation }}
+                        </span>
+                    </td>
+                    <td class="px-4 py-3 text-center text-gray-700 dark:text-gray-300">{{ stat.games_played }}</td>
+                    <td class="px-4 py-3 text-center text-gray-700 dark:text-gray-300">{{ stat.minutes_played }}</td>
+                    <td class="px-4 py-3 text-center font-bold text-bball-orange">{{ stat.points }}</td>
+                    <td class="px-4 py-3 text-center text-gray-700 dark:text-gray-300">{{ stat.rebounds }}</td>
+                    <td class="px-4 py-3 text-center text-gray-700 dark:text-gray-300">{{ stat.assists }}</td>
+                    <td class="px-4 py-3 text-center text-gray-700 dark:text-gray-300">{{ stat.steals }}</td>
+                    <td class="px-4 py-3 text-center text-gray-700 dark:text-gray-300">{{ stat.blocks }}</td>
+                    <td class="px-4 py-3 text-center text-gray-700 dark:text-gray-300">{{ "%.1f"|format(stat.fg_pct * 100) if stat.fg_pct else '-' }}%</td>
+                    <td class="px-4 py-3 text-center text-gray-700 dark:text-gray-300">{{ "%.1f"|format(stat.fg3_pct * 100) if stat.fg3_pct else '-' }}%</td>
+                    <td class="px-4 py-3 text-center text-gray-700 dark:text-gray-300">{{ "%.1f"|format(stat.ft_pct * 100) if stat.ft_pct else '-' }}%</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="12" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                        <i class="ph ph-chart-bar text-3xl mb-2"></i>
+                        <p>No statistics available</p>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            {% if career_totals %}
+            <tfoot class="bg-gray-100 dark:bg-gray-800/80 font-semibold">
+                <tr>
+                    <td class="px-4 py-3 text-gray-900 dark:text-white">Career</td>
+                    <td class="px-4 py-3">-</td>
+                    <td class="px-4 py-3 text-center text-gray-700 dark:text-gray-300">{{ career_totals.games_played }}</td>
+                    <td class="px-4 py-3 text-center text-gray-700 dark:text-gray-300">{{ career_totals.minutes_played }}</td>
+                    <td class="px-4 py-3 text-center text-bball-orange">{{ career_totals.points }}</td>
+                    <td class="px-4 py-3 text-center text-gray-700 dark:text-gray-300">{{ career_totals.rebounds }}</td>
+                    <td class="px-4 py-3 text-center text-gray-700 dark:text-gray-300">{{ career_totals.assists }}</td>
+                    <td class="px-4 py-3 text-center text-gray-700 dark:text-gray-300">{{ career_totals.steals }}</td>
+                    <td class="px-4 py-3 text-center text-gray-700 dark:text-gray-300">{{ career_totals.blocks }}</td>
+                    <td class="px-4 py-3 text-center text-gray-700 dark:text-gray-300">{{ "%.1f"|format(career_totals.fg_pct * 100) if career_totals.fg_pct else '-' }}%</td>
+                    <td class="px-4 py-3 text-center text-gray-700 dark:text-gray-300">{{ "%.1f"|format(career_totals.fg3_pct * 100) if career_totals.fg3_pct else '-' }}%</td>
+                    <td class="px-4 py-3 text-center text-gray-700 dark:text-gray-300">{{ "%.1f"|format(career_totals.ft_pct * 100) if career_totals.ft_pct else '-' }}%</td>
+                </tr>
+            </tfoot>
+            {% endif %}
+        </table>
+    </div>
+</div>
+
+{# Tabulator.js compatible data structure (hidden) #}
+<script type="application/json" id="player-stats-data">
+{{ stats | tojson }}
+</script>
