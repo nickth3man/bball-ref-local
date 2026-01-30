@@ -57,24 +57,44 @@ class Game(BaseModel):
 
     @property
     def is_completed(self) -> bool:
-        """Check if the game has been completed."""
+        """
+        Determine whether the game is completed.
+        
+        Returns:
+            `true` if the game's status equals "final", `false` otherwise.
+        """
         return self.status == "final"
 
     @property
     def is_live(self) -> bool:
-        """Check if the game is currently live."""
+        """
+        Indicates whether the game's status is live.
+        
+        Returns:
+            `true` if the game status is "live", `false` otherwise.
+        """
         return self.status == "live"
 
     @property
     def point_differential(self) -> int | None:
-        """Return the point differential (None if game not completed)."""
+        """
+        Point difference between the home and away teams.
+        
+        Returns:
+            int: Absolute difference between `home_score` and `away_score`, or `None` if either score is missing.
+        """
         if self.home_score is None or self.away_score is None:
             return None
         return abs(self.home_score - self.away_score)
 
     @property
     def winning_team_name(self) -> str | None:
-        """Return 'home' or 'away' for the winning team."""
+        """
+        Return which side won the game ("home" or "away").
+        
+        Returns:
+            str | None: "home" if the home team won, "away" if the away team won, or None if the game is not completed or the winner is unknown.
+        """
         if not self.is_completed or self.winner_team_id is None:
             return None
         if self.winner_team_id == self.home_team_id:

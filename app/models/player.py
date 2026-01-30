@@ -78,12 +78,22 @@ class Player(BaseModel):
 
     @property
     def full_name(self) -> str:
-        """Return the player's full name."""
+        """
+        Get the player's full name.
+        
+        Returns:
+            The concatenation of `first_name` and `last_name` separated by a single space.
+        """
         return f"{self.first_name} {self.last_name}"
 
     @property
     def height_display(self) -> str | None:
-        """Return height in feet-inches format (e.g., '6-9')."""
+        """
+        Format the player's height (stored in inches) as a feet-inches string.
+        
+        Returns:
+            str: Height formatted as "F-I" (feet-inches), where inches are 0–11 (e.g., "6-9"), or `None` if `height` is not set.
+        """
         if self.height is None:
             return None
         feet = self.height // 12

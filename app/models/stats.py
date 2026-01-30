@@ -66,13 +66,23 @@ class PlayerGameStats(BaseModel):
     @computed_field
     @property
     def rebounds_total(self) -> int:
-        """Total rebounds (offensive + defensive)."""
+        """
+        Total rebounds for the game.
+        
+        Returns:
+            total_rebounds (int): Sum of offensive and defensive rebounds.
+        """
         return self.rebounds_offensive + self.rebounds_defensive
 
     @computed_field
     @property
     def fg_pct(self) -> float | None:
-        """Field goal percentage (0-1 scale)."""
+        """
+        Compute the player's field goal percentage on a 0–1 scale.
+        
+        Returns:
+            float | None: Field goal percentage rounded to three decimals, or `None` if `fg_attempted` is 0.
+        """
         if self.fg_attempted == 0:
             return None
         return round(self.fg_made / self.fg_attempted, 3)
@@ -80,7 +90,12 @@ class PlayerGameStats(BaseModel):
     @computed_field
     @property
     def fg3_pct(self) -> float | None:
-        """Three-point field goal percentage (0-1 scale)."""
+        """
+        Three-point field goal percentage on a 0-1 scale, rounded to three decimals.
+        
+        Returns:
+            fg3_pct (float | None): The three-point field goal percentage (0.0–1.0) rounded to three decimals, or `None` if `fg3_attempted` is 0.
+        """
         if self.fg3_attempted == 0:
             return None
         return round(self.fg3_made / self.fg3_attempted, 3)
@@ -88,7 +103,12 @@ class PlayerGameStats(BaseModel):
     @computed_field
     @property
     def ft_pct(self) -> float | None:
-        """Free throw percentage (0-1 scale)."""
+        """
+        Return the free throw shooting percentage on a 0-1 scale.
+        
+        Returns:
+            float | None: Free throw percentage rounded to three decimal places if free throws were attempted; `None` if `ft_attempted` is 0.
+        """
         if self.ft_attempted == 0:
             return None
         return round(self.ft_made / self.ft_attempted, 3)
@@ -96,7 +116,12 @@ class PlayerGameStats(BaseModel):
     @computed_field
     @property
     def effective_fg_pct(self) -> float | None:
-        """Effective field goal percentage (accounts for 3-pointers)."""
+        """
+        Calculate the effective field goal percentage, weighting three-pointers as 1.5 field goals.
+        
+        Returns:
+            float | None: Effective field goal percentage rounded to 3 decimals, or `None` if `fg_attempted` is 0.
+        """
         if self.fg_attempted == 0:
             return None
         return round((self.fg_made + 0.5 * self.fg3_made) / self.fg_attempted, 3)
@@ -104,7 +129,12 @@ class PlayerGameStats(BaseModel):
     @computed_field
     @property
     def true_shooting_pct(self) -> float | None:
-        """True shooting percentage (accounts for all scoring attempts)."""
+        """
+        Calculate the player's true shooting percentage.
+        
+        Returns:
+            float | None: True shooting percentage rounded to three decimals, or `None` if both field-goal attempts and free-throw attempts are zero (calculation not feasible).
+        """
         fga = self.fg_attempted
         fta = self.ft_attempted
         if fga == 0 and fta == 0:
@@ -117,7 +147,12 @@ class PlayerGameStats(BaseModel):
     @computed_field
     @property
     def plus_minus(self) -> int | None:
-        """Plus/minus statistic (not tracked in basic box score)."""
+        """
+        Represents the player's plus/minus for the game, if available.
+        
+        Returns:
+            int | None: The player's plus/minus value for the game, or `None` when the statistic is not available.
+        """
         # This would typically come from the data source
         # Returning None as it's not in the base attributes
         return None
