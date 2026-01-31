@@ -35,7 +35,7 @@
             <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 text-center">
                 <i class="ph ph-scales text-nba-blue text-xl mb-1"></i>
                 <p class="text-xs text-gray-500 dark:text-gray-400 uppercase">Weight</p>
-                <p class="font-semibold text-gray-900 dark:text-white">{{ player.weight or 'N/A' }} lbs</p>
+                <p class="font-semibold text-gray-900 dark:text-white">{{ (player.weight ~ ' lbs') if player.weight else 'N/A' }}</p>
             </div>
             <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 text-center">
                 <i class="ph ph-cake text-nba-blue text-xl mb-1"></i>

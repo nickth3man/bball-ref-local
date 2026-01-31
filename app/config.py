@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     app_name: str = "BBall Ref Local"
     app_version: str = "0.1.0"
     debug: bool = False
-    host: str = "0.0.0.0"
+    host: str = "127.0.0.1"
     port: int = 8000
     database_path: str = "./data/bball_ref.db"
     log_level: str = "info"

@@ -80,7 +80,7 @@ class Player(BaseModel):
         Format the player's height as a feet-inches string.
 
         Returns:
-            str: Height formatted as "F-I" (feet-inches), where inches are 0–11 (e.g., "6-9"), or `None` if `height` is not set.
+            str: Height formatted as "F-I" (feet-inches), where inches are 0-11 (e.g., "6-9"), or `None` if `height` is not set.
         """
         return self.height
 

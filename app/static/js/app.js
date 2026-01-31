@@ -438,13 +438,39 @@
 
     const ExportDropdownManager = {
         containers: [],
+        _documentClickHandler: null,
+        _documentKeydownHandler: null,
+        _afterSwapHandler: null,
 
         init() {
+            // Set up single document-level handlers for close-on-click and close-on-escape
+            this._documentClickHandler = (e) => {
+                this.containers.forEach(container => {
+                    if (!container.contains(e.target)) {
+                        const dropdown = container.querySelector('.export-dropdown-menu');
+                        if (dropdown) dropdown.classList.add('hidden');
+                    }
+                });
+            };
+            document.addEventListener('click', this._documentClickHandler);
+
+            this._documentKeydownHandler = (e) => {
+                if (e.key === 'Escape') {
+                    this.containers.forEach(container => {
+                        const dropdown = container.querySelector('.export-dropdown-menu');
+                        if (dropdown) dropdown.classList.add('hidden');
+                    });
+                }
+            };
+            document.addEventListener('keydown', this._documentKeydownHandler);
+
             this.setupDropdowns();
+
             // Re-setup after HTMX swaps
-            document.body.addEventListener('htmx:afterSwap', () => {
+            this._afterSwapHandler = () => {
                 this.setupDropdowns();
-            });
+            };
+            document.body.addEventListener('htmx:afterSwap', this._afterSwapHandler);
         },
 
         setupDropdowns() {
@@ -459,29 +485,28 @@
 
                 if (!toggleBtn || !dropdown) return;
 
-                // Toggle on click
+                // Toggle on click (per-element, no leak)
                 toggleBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     dropdown.classList.toggle('hidden');
-                });
-
-                // Close on outside click
-                document.addEventListener('click', (e) => {
-                    if (!container.contains(e.target)) {
-                        dropdown.classList.add('hidden');
-                    }
-                });
-
-                // Close on escape key
-                document.addEventListener('keydown', (e) => {
-                    if (e.key === 'Escape') {
-                        dropdown.classList.add('hidden');
-                    }
                 });
             });
         },
 
         cleanup() {
+            // Remove document-level handlers
+            if (this._documentClickHandler) {
+                document.removeEventListener('click', this._documentClickHandler);
+                this._documentClickHandler = null;
+            }
+            if (this._documentKeydownHandler) {
+                document.removeEventListener('keydown', this._documentKeydownHandler);
+                this._documentKeydownHandler = null;
+            }
+            if (this._afterSwapHandler) {
+                document.body.removeEventListener('htmx:afterSwap', this._afterSwapHandler);
+                this._afterSwapHandler = null;
+            }
             this.containers.forEach(container => {
                 delete container.dataset.initialized;
             });
