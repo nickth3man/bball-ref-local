@@ -20,8 +20,10 @@ Usage:
 import argparse
 import sys
 import time
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+from typing import Callable
 
 # Add project root to path
 project_root = Path(__file__).parent.parent
@@ -57,6 +59,197 @@ from scripts.ingestion.validation import ConsistencyChecker, DataValidator, Vali
 logger = get_logger("historical_ingestion")
 
 
+@dataclass
+class LoaderConfig:
+    """Configuration for a data loader."""
+
+    name: str
+    loader_class: type
+    file_path: Path | None
+    table_name: str
+    loader_args: tuple = ()
+    loader_kwargs: dict | None = None
+
+    def __post_init__(self):
+        if self.loader_kwargs is None:
+            self.loader_kwargs = {}
+
+    def create_loader(self):
+        """Create a loader instance."""
+        if self.file_path:
+            return self.loader_class(
+                self.file_path, self.table_name, *self.loader_args, **self.loader_kwargs
+            )
+        return self.loader_class(self.table_name, *self.loader_args, **self.loader_kwargs)
+
+
+# Define phase configurations
+REFERENCE_LOADERS = [
+    LoaderConfig(
+        name="Teams",
+        loader_class=TeamLoader,
+        file_path=PLANNING_CSV_DIR / "Team_Abbrev.csv",
+        table_name="team_abbreviations",
+    ),
+    LoaderConfig(
+        name="Players",
+        loader_class=PlayerLoader,
+        file_path=PLANNING_CSV_DIR / "Player_Career_Info.csv",
+        table_name="player_master",
+    ),
+]
+
+GAME_LOADERS = [
+    LoaderConfig(
+        name="Games",
+        loader_class=GamesLoader,
+        file_path=PLANNING_CSV_DIR / "Games.csv",
+        table_name="games_historical",
+    ),
+    LoaderConfig(
+        name="Player Game Statistics",
+        loader_class=PlayerGameStatsLoader,
+        file_path=PLANNING_CSV_DIR / "PlayerStatistics.csv",
+        table_name="player_game_statistics",
+    ),
+    LoaderConfig(
+        name="Team Game Statistics",
+        loader_class=TeamGameStatsLoader,
+        file_path=PLANNING_CSV_DIR / "TeamStatistics.csv",
+        table_name="team_game_statistics",
+    ),
+]
+
+SEASON_STAT_LOADERS = [
+    # Player season stats
+    LoaderConfig(
+        name="Totals",
+        loader_class=PlayerSeasonStatsLoader,
+        file_path=PLANNING_CSV_DIR / "Player_Totals.csv",
+        table_name="player_season_totals",
+        loader_args=("totals",),
+    ),
+    LoaderConfig(
+        name="Per Game",
+        loader_class=PlayerSeasonStatsLoader,
+        file_path=PLANNING_CSV_DIR / "Player_Per_Game.csv",
+        table_name="player_season_per_game",
+        loader_args=("per_game",),
+    ),
+    LoaderConfig(
+        name="Advanced",
+        loader_class=PlayerSeasonStatsLoader,
+        file_path=PLANNING_CSV_DIR / "Advanced.csv",
+        table_name="player_season_advanced",
+        loader_args=("advanced",),
+    ),
+    LoaderConfig(
+        name="Per 100 Poss",
+        loader_class=PlayerSeasonStatsLoader,
+        file_path=PLANNING_CSV_DIR / "Per_100_Poss.csv",
+        table_name="player_season_per_100",
+        loader_args=("per_100_poss",),
+    ),
+    LoaderConfig(
+        name="Per 36 Minutes",
+        loader_class=PlayerSeasonStatsLoader,
+        file_path=PLANNING_CSV_DIR / "Per_36_Minutes.csv",
+        table_name="player_season_per_36",
+        loader_args=("per_36_minutes",),
+    ),
+    LoaderConfig(
+        name="Shooting",
+        loader_class=PlayerSeasonStatsLoader,
+        file_path=PLANNING_CSV_DIR / "Player_Shooting.csv",
+        table_name="player_season_shooting",
+        loader_args=("shooting",),
+    ),
+    LoaderConfig(
+        name="Play By Play",
+        loader_class=PlayerSeasonStatsLoader,
+        file_path=PLANNING_CSV_DIR / "Player_Play_By_Play.csv",
+        table_name="player_season_play_by_play",
+        loader_args=("play_by_play",),
+    ),
+    # Team season stats
+    LoaderConfig(
+        name="Team Totals",
+        loader_class=TeamSeasonStatsLoader,
+        file_path=PLANNING_CSV_DIR / "Team_Totals.csv",
+        table_name="team_season_totals",
+        loader_args=("totals",),
+    ),
+    LoaderConfig(
+        name="Team Summaries",
+        loader_class=TeamSeasonStatsLoader,
+        file_path=PLANNING_CSV_DIR / "Team_Summaries.csv",
+        table_name="team_season_summaries",
+        loader_args=("summaries",),
+    ),
+    LoaderConfig(
+        name="Team Per Game",
+        loader_class=TeamSeasonStatsLoader,
+        file_path=PLANNING_CSV_DIR / "Team_Stats_Per_Game.csv",
+        table_name="team_season_per_game",
+        loader_args=("per_game",),
+    ),
+    LoaderConfig(
+        name="Opponent Totals",
+        loader_class=TeamSeasonStatsLoader,
+        file_path=PLANNING_CSV_DIR / "Opponent_Totals.csv",
+        table_name="opponent_season_totals",
+        loader_args=("opponent_totals",),
+    ),
+]
+
+AWARD_LOADERS = [
+    LoaderConfig(
+        name="All-Star Selections",
+        loader_class=AwardsLoader,
+        file_path=PLANNING_CSV_DIR / "All-Star Selections.csv",
+        table_name="awards_all_star",
+        loader_args=("all_star",),
+    ),
+    LoaderConfig(
+        name="End of Season Teams",
+        loader_class=AwardsLoader,
+        file_path=PLANNING_CSV_DIR / "End_of_Season_Teams.csv",
+        table_name="awards_end_of_season_teams",
+        loader_args=("end_of_season_teams",),
+    ),
+    LoaderConfig(
+        name="End of Season Voting",
+        loader_class=AwardsLoader,
+        file_path=PLANNING_CSV_DIR / "End_of_Season_Teams_(Voting).csv",
+        table_name="awards_end_of_season_voting",
+        loader_args=("end_of_season_voting",),
+    ),
+    LoaderConfig(
+        name="Award Shares",
+        loader_class=AwardsLoader,
+        file_path=PLANNING_CSV_DIR / "Player_Award_Shares.csv",
+        table_name="awards_award_shares",
+        loader_args=("award_shares",),
+    ),
+    LoaderConfig(
+        name="Draft History",
+        loader_class=DraftLoader,
+        file_path=PLANNING_CSV_DIR / "Draft_Pick_History.csv",
+        table_name="draft_pick_history",
+    ),
+]
+
+PARQUET_LOADERS = [
+    LoaderConfig(
+        name="Roster Data",
+        loader_class=ParquetLoader,
+        file_path=PLANNING_PARQ_DIR / "roster.parq",
+        table_name="player_demographics",
+        loader_args=("roster",),
+    ),
+]
+
+
 def create_schema(conn) -> bool:
     """Create all database tables from SQL files."""
     log_stage(logger, "Schema Creation", "started")
@@ -71,14 +264,12 @@ def create_schema(conn) -> bool:
         return False
 
     logger.debug(f"Found {len(sql_files)} SQL schema files")
-    total_steps = len(sql_files)
 
     for idx, sql_file in enumerate(sql_files, 1):
-        log_step(logger, idx, total_steps, f"Executing {sql_file.name}")
+        log_step(logger, idx, len(sql_files), f"Executing {sql_file.name}")
         try:
             logger.debug(f"Opening and reading {sql_file}")
-            with open(sql_file) as f:
-                sql = f.read()
+            sql = sql_file.read_text(encoding="utf-8")
             conn.execute(sql)
             logger.info(f"  [OK] {sql_file.name}")
         except Exception as e:
@@ -100,8 +291,6 @@ def build_id_mappings(conn) -> bool:
         resolver = IDResolver(conn)
         logger.debug("IDResolver initialized")
 
-        # Build all mappings using the coordinated method
-        logger.debug("Calling build_all_mappings()...")
         resolver.build_all_mappings()
         logger.debug("build_all_mappings() completed")
 
@@ -125,52 +314,54 @@ def build_id_mappings(conn) -> bool:
         return False
 
 
+def _run_loader_phase(
+    logger, loaders: list[LoaderConfig], dry_run: bool, warning_message: str | None = None
+) -> dict:
+    """Run a phase of data loaders.
+
+    Args:
+        logger: Logger instance
+        loaders: List of LoaderConfig objects
+        dry_run: If True, don't actually load data
+        warning_message: Optional warning message to display before loading
+
+    Returns:
+        Dictionary with stats about the phase
+    """
+    stats = {"tables": [], "rows": 0}
+
+    if warning_message:
+        logger.info(warning_message)
+
+    total_steps = len(loaders)
+
+    for idx, config in enumerate(loaders, 1):
+        log_step(logger, idx, total_steps, f"Loading {config.name}")
+        logger.debug(f"Loading from {config.file_path}")
+
+        if not dry_run:
+            try:
+                loader = config.create_loader()
+                loader.load()
+            except Exception as e:
+                logger.error(f"Failed to load {config.name}: {e}")
+                raise
+
+        stats["tables"].append(config.table_name)
+        logger.info(f"  [OK] {config.name} loaded")
+
+    return stats
+
+
 def run_phase_1_reference_data(conn, dry_run: bool = False) -> dict:
     """Load reference data (teams, players)."""
     log_stage(logger, "Phase 1: Loading Reference Data", "started")
 
-    stats = {"tables": [], "rows": 0}
-
     try:
-        total_steps = 4
-        step_num = 0
+        stats = _run_loader_phase(logger, REFERENCE_LOADERS, dry_run)
 
-        # Load teams
-        step_num += 1
-        log_step(logger, step_num, total_steps, "Loading team data")
-        logger.debug(f"Loading from {PLANNING_CSV_DIR / 'Team_Abbrev.csv'}")
-        team_loader = TeamLoader(PLANNING_CSV_DIR / "Team_Abbrev.csv", "team_abbreviations")
-        if not dry_run:
-            logger.debug("Executing team_loader.load()...")
-            team_loader.load()
-        stats["tables"].append("team_abbreviations")
-        logger.info("  [OK] Teams loaded")
-
-        # Load players
-        step_num += 1
-        log_step(logger, step_num, total_steps, "Loading player data")
-        logger.debug(f"Loading from {PLANNING_CSV_DIR / 'Player_Career_Info.csv'}")
-        player_loader = PlayerLoader(PLANNING_CSV_DIR / "Player_Career_Info.csv", "player_master")
-        if not dry_run:
-            logger.debug("Executing player_loader.load()...")
-            player_loader.load()
-        stats["tables"].append("player_master")
-        logger.info("  [OK] Players loaded")
-
-        # Load player demographics (supplemental)
-        step_num += 1
-        log_step(logger, step_num, total_steps, "Loading player demographics")
-        logger.debug("Player demographics handled by PlayerLoader merging")
-        stats["tables"].append("player_demographics")
-        logger.info("  [OK] Player demographics loaded")
-
-        # Load player season info
-        step_num += 1
-        log_step(logger, step_num, total_steps, "Loading player season info")
-
-        logger.debug("Player season info loaded")
-        stats["tables"].append("player_season_info")
-        logger.info("  [OK] Player season info loaded")
+        # Add virtual tables for tracking
+        stats["tables"].extend(["player_demographics", "player_season_info"])
 
         log_stage(logger, "Phase 1: Loading Reference Data", "completed")
         return stats
@@ -181,56 +372,20 @@ def run_phase_1_reference_data(conn, dry_run: bool = False) -> dict:
 
         traceback.print_exc()
         log_stage(logger, "Phase 1: Loading Reference Data", "failed")
-        return stats
+        return {"tables": [], "rows": 0}
 
 
 def run_phase_2_games_data(conn, dry_run: bool = False) -> dict:
     """Load game-level transaction data."""
     log_stage(logger, "Phase 2: Loading Game Data", "started")
 
-    stats = {"tables": [], "rows": 0}
-
     try:
-        total_steps = 3
-        step_num = 0
-
-        # Load games
-        step_num += 1
-        log_step(logger, step_num, total_steps, "Loading games")
-        logger.debug(f"Loading from {PLANNING_CSV_DIR / 'Games.csv'}")
-        games_loader = GamesLoader(PLANNING_CSV_DIR / "Games.csv", "games_historical")
-        if not dry_run:
-            logger.debug("Executing games_loader.load()...")
-            games_loader.load()
-        stats["tables"].append("games_historical")
-        logger.info("  [OK] Games loaded")
-
-        # Load player game stats (large file!)
-        step_num += 1
-        log_step(logger, step_num, total_steps, "Loading player game statistics")
-        logger.info("This may take a while due to large file size...")
-        logger.debug(f"Loading from {PLANNING_CSV_DIR / 'PlayerStatistics.csv'}")
-        player_stats_loader = PlayerGameStatsLoader(
-            PLANNING_CSV_DIR / "PlayerStatistics.csv", "player_game_statistics"
+        stats = _run_loader_phase(
+            logger,
+            GAME_LOADERS,
+            dry_run,
+            warning_message="This may take a while due to large file size...",
         )
-        if not dry_run:
-            logger.debug("Executing player_stats_loader.load()...")
-            player_stats_loader.load()
-        stats["tables"].append("player_game_statistics")
-        logger.info("  [OK] Player game statistics loaded")
-
-        # Load team game stats
-        step_num += 1
-        log_step(logger, step_num, total_steps, "Loading team game statistics")
-        logger.debug(f"Loading from {PLANNING_CSV_DIR / 'TeamStatistics.csv'}")
-        team_stats_loader = TeamGameStatsLoader(
-            PLANNING_CSV_DIR / "TeamStatistics.csv", "team_game_statistics"
-        )
-        if not dry_run:
-            logger.debug("Executing team_stats_loader.load()...")
-            team_stats_loader.load()
-        stats["tables"].append("team_game_statistics")
-        logger.info("  [OK] Team game statistics loaded")
 
         log_stage(logger, "Phase 2: Loading Game Data", "completed")
         return stats
@@ -241,64 +396,15 @@ def run_phase_2_games_data(conn, dry_run: bool = False) -> dict:
 
         traceback.print_exc()
         log_stage(logger, "Phase 2: Loading Game Data", "failed")
-        return stats
+        return {"tables": [], "rows": 0}
 
 
 def run_phase_3_season_stats(conn, dry_run: bool = False) -> dict:
     """Load aggregated season statistics."""
     log_stage(logger, "Phase 3: Loading Season Statistics", "started")
 
-    stats = {"tables": [], "rows": 0}
-
     try:
-        # Player season stats
-        stat_files = [
-            ("Player_Totals.csv", "totals"),
-            ("Player_Per_Game.csv", "per_game"),
-            ("Advanced.csv", "advanced"),
-            ("Per_100_Poss.csv", "per_100_poss"),
-            ("Per_36_Minutes.csv", "per_36_minutes"),
-            ("Player_Shooting.csv", "shooting"),
-            ("Player_Play_By_Play.csv", "play_by_play"),
-        ]
-
-        total_player_steps = len(stat_files)
-        logger.debug(f"Loading {total_player_steps} player season stat types")
-
-        for idx, (filename, stat_type) in enumerate(stat_files, 1):
-            log_step(logger, idx, total_player_steps, f"Loading {stat_type} statistics")
-            logger.debug(f"Loading from {PLANNING_CSV_DIR / filename}")
-            loader = PlayerSeasonStatsLoader(
-                PLANNING_CSV_DIR / filename, f"player_season_{stat_type}", stat_type
-            )
-            if not dry_run:
-                logger.debug(f"Executing load for {stat_type}...")
-                loader.load()
-            stats["tables"].append(f"player_season_{stat_type}")
-            logger.info(f"  [OK] {stat_type} loaded")
-
-        # Team season stats
-        team_stat_files = [
-            ("Team_Totals.csv", "totals"),
-            ("Team_Summaries.csv", "summaries"),
-            ("Team_Stats_Per_Game.csv", "per_game"),
-            ("Opponent_Totals.csv", "opponent_totals"),
-        ]
-
-        total_team_steps = len(team_stat_files)
-        logger.debug(f"Loading {total_team_steps} team season stat types")
-
-        for idx, (filename, stat_type) in enumerate(team_stat_files, 1):
-            log_step(logger, idx, total_team_steps, f"Loading team {stat_type} statistics")
-            logger.debug(f"Loading from {PLANNING_CSV_DIR / filename}")
-            loader = TeamSeasonStatsLoader(
-                PLANNING_CSV_DIR / filename, f"team_season_{stat_type}", stat_type
-            )
-            if not dry_run:
-                logger.debug(f"Executing load for team {stat_type}...")
-                loader.load()
-            stats["tables"].append(f"team_season_{stat_type}")
-            logger.info(f"  [OK] Team {stat_type} loaded")
+        stats = _run_loader_phase(logger, SEASON_STAT_LOADERS, dry_run)
 
         log_stage(logger, "Phase 3: Loading Season Statistics", "completed")
         return stats
@@ -309,49 +415,15 @@ def run_phase_3_season_stats(conn, dry_run: bool = False) -> dict:
 
         traceback.print_exc()
         log_stage(logger, "Phase 3: Loading Season Statistics", "failed")
-        return stats
+        return {"tables": [], "rows": 0}
 
 
 def run_phase_4_awards_data(conn, dry_run: bool = False) -> dict:
     """Load awards and draft data."""
     log_stage(logger, "Phase 4: Loading Awards and Draft Data", "started")
 
-    stats = {"tables": [], "rows": 0}
-
     try:
-        # Load awards
-        award_files = [
-            ("All-Star Selections.csv", "all_star"),
-            ("End_of_Season_Teams.csv", "end_of_season_teams"),
-            ("End_of_Season_Teams_(Voting).csv", "end_of_season_voting"),
-            ("Player_Award_Shares.csv", "award_shares"),
-        ]
-
-        total_award_steps = len(award_files) + 1  # +1 for draft history
-        logger.debug(f"Loading {len(award_files)} award types")
-
-        for idx, (filename, award_type) in enumerate(award_files, 1):
-            log_step(logger, idx, total_award_steps, f"Loading {award_type} awards")
-            table_name = f"awards_{award_type}"
-            logger.debug(f"Loading from {PLANNING_CSV_DIR / filename}")
-            loader = AwardsLoader(PLANNING_CSV_DIR / filename, table_name, award_type)
-            if not dry_run:
-                logger.debug(f"Executing load for {award_type}...")
-                loader.load()
-            stats["tables"].append(table_name)
-            logger.info(f"  [OK] {award_type} loaded")
-
-        # Load draft history
-        log_step(logger, total_award_steps, total_award_steps, "Loading draft history")
-        logger.debug(f"Loading from {PLANNING_CSV_DIR / 'Draft_Pick_History.csv'}")
-        draft_loader = DraftLoader(
-            PLANNING_CSV_DIR / "Draft_Pick_History.csv", "draft_pick_history"
-        )
-        if not dry_run:
-            logger.debug("Executing draft_loader.load()...")
-            draft_loader.load()
-        stats["tables"].append("draft_pick_history")
-        logger.info("  [OK] Draft history loaded")
+        stats = _run_loader_phase(logger, AWARD_LOADERS, dry_run)
 
         log_stage(logger, "Phase 4: Loading Awards and Draft Data", "completed")
         return stats
@@ -362,29 +434,17 @@ def run_phase_4_awards_data(conn, dry_run: bool = False) -> dict:
 
         traceback.print_exc()
         log_stage(logger, "Phase 4: Loading Awards and Draft Data", "failed")
-        return stats
+        return {"tables": [], "rows": 0}
 
 
 def run_phase_5_parquet_supplemental(conn, dry_run: bool = False) -> dict:
     """Load supplemental data from parquet files."""
     log_stage(logger, "Phase 5: Loading Parquet Supplemental Data", "started")
 
-    stats = {"tables": [], "rows": 0}
-
     try:
-        # Load roster data (contains height/weight/birth dates)
-        log_step(logger, 1, 1, "Loading roster data from parquet")
-        logger.debug(f"Loading from {PLANNING_PARQ_DIR / 'roster.parq'}")
-        parquet_loader = ParquetLoader(
-            PLANNING_PARQ_DIR / "roster.parq", "player_demographics", "roster"
-        )
-        if not dry_run:
-            logger.debug("Executing parquet_loader.load()...")
-            parquet_loader.load()
-        stats["tables"].append("player_demographics_parquet")
-        logger.info("  [OK] Roster data loaded")
+        stats = _run_loader_phase(logger, PARQUET_LOADERS, dry_run)
 
-        # Other parquet files are subsets of CSV data, so we skip them
+        # Note about other parquet files
         logger.info("  (Other parquet files are subsets of CSV data)")
 
         log_stage(logger, "Phase 5: Loading Parquet Supplemental Data", "completed")
@@ -396,7 +456,7 @@ def run_phase_5_parquet_supplemental(conn, dry_run: bool = False) -> dict:
 
         traceback.print_exc()
         log_stage(logger, "Phase 5: Loading Parquet Supplemental Data", "failed")
-        return stats
+        return {"tables": [], "rows": 0}
 
 
 def run_validation(conn, full: bool = True) -> bool:
@@ -445,18 +505,9 @@ def run_validation(conn, full: bool = True) -> bool:
         report_dir = Path("validation_reports")
         report_dir.mkdir(exist_ok=True)
 
-        html_path = report_dir / f"validation_{timestamp}.html"
-        md_path = report_dir / f"validation_{timestamp}.md"
-        json_path = report_dir / f"validation_{timestamp}.json"
-
-        report.generate_html_report(html_path)
-        logger.debug(f"HTML report saved: {html_path}")
-
-        report.generate_markdown_report(md_path)
-        logger.debug(f"Markdown report saved: {md_path}")
-
-        report.save_json(json_path)
-        logger.debug(f"JSON report saved: {json_path}")
+        report.generate_html_report(report_dir / f"validation_{timestamp}.html")
+        report.generate_markdown_report(report_dir / f"validation_{timestamp}.md")
+        report.save_json(report_dir / f"validation_{timestamp}.json")
 
         summary = report.generate_summary()
         if summary["status"] == "failed":
@@ -475,6 +526,18 @@ def run_validation(conn, full: bool = True) -> bool:
         traceback.print_exc()
         log_stage(logger, "Validation", "failed")
         return False
+
+
+# Phase registry for dynamic execution
+PHASE_REGISTRY: dict[str, Callable] = {
+    "schema": create_schema,
+    "mapping": build_id_mappings,
+    "reference": run_phase_1_reference_data,
+    "games": run_phase_2_games_data,
+    "stats": run_phase_3_season_stats,
+    "awards": run_phase_4_awards_data,
+    "parquet": run_phase_5_parquet_supplemental,
+}
 
 
 def main():
@@ -505,7 +568,7 @@ Examples:
 
     parser.add_argument(
         "--phase",
-        choices=["schema", "mapping", "reference", "games", "stats", "awards", "parquet"],
+        choices=list(PHASE_REGISTRY.keys()),
         help="Run only specific phase",
     )
 
@@ -542,7 +605,7 @@ Examples:
 
     # Determine which phases to run
     if args.full:
-        phases = ["schema", "mapping", "reference", "games", "stats", "awards", "parquet"]
+        phases = list(PHASE_REGISTRY.keys())
     elif args.phase:
         phases = [args.phase]
     else:
@@ -558,49 +621,22 @@ Examples:
     try:
         all_stats = []
 
-        if "schema" in phases:
-            logger.debug("Starting schema phase")
-            if not create_schema(conn):
-                logger.error("Schema creation failed, aborting")
-                sys.exit(1)
-            logger.debug("Schema phase completed")
+        for phase in phases:
+            logger.debug(f"Starting {phase} phase")
 
-        if "mapping" in phases:
-            logger.debug("Starting mapping phase")
-            if not build_id_mappings(conn):
-                logger.error("ID mapping failed, aborting")
-                sys.exit(1)
-            logger.debug("Mapping phase completed")
+            phase_func = PHASE_REGISTRY[phase]
 
-        if "reference" in phases:
-            logger.debug("Starting reference phase")
-            stats = run_phase_1_reference_data(conn, args.dry_run)
-            all_stats.append(("Reference Data", stats))
-            logger.debug("Reference phase completed")
+            # Schema and mapping phases return bool, data phases return dict
+            if phase in ("schema", "mapping"):
+                success = phase_func(conn)
+                if not success:
+                    logger.error(f"{phase} failed, aborting")
+                    sys.exit(1)
+            else:
+                stats = phase_func(conn, args.dry_run)
+                all_stats.append((phase.replace("_", " ").title(), stats))
 
-        if "games" in phases:
-            logger.debug("Starting games phase")
-            stats = run_phase_2_games_data(conn, args.dry_run)
-            all_stats.append(("Game Data", stats))
-            logger.debug("Games phase completed")
-
-        if "stats" in phases:
-            logger.debug("Starting stats phase")
-            stats = run_phase_3_season_stats(conn, args.dry_run)
-            all_stats.append(("Season Stats", stats))
-            logger.debug("Stats phase completed")
-
-        if "awards" in phases:
-            logger.debug("Starting awards phase")
-            stats = run_phase_4_awards_data(conn, args.dry_run)
-            all_stats.append(("Awards", stats))
-            logger.debug("Awards phase completed")
-
-        if "parquet" in phases:
-            logger.debug("Starting parquet phase")
-            stats = run_phase_5_parquet_supplemental(conn, args.dry_run)
-            all_stats.append(("Parquet Data", stats))
-            logger.debug("Parquet phase completed")
+            logger.debug(f"{phase} phase completed")
 
         # Summary
         elapsed = time.time() - start_time

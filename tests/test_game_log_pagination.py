@@ -95,14 +95,19 @@ class TestGameLogPagination:
 
         assert response.status_code == 200
 
-    def test_game_log_invalid_page_size(self, client: TestClient) -> None:
-        """Test invalid page size parameter returns 422 (validation error)."""
-        # FastAPI will return 422 for invalid query parameters before hitting the database
-        response = client.get("/api/v1/players/2544/gamelog/2024?page_size=invalid")
-
+    def test_game_log_invalid_page_size(self, client: TestClient, mock_execute_query) -> None:
+        """Test invalid page size parameter defaults to 50."""
         # The endpoint accepts int | str for page_size, so "invalid" is accepted as string
         # and defaults to 50 internally
-        assert response.status_code in [200, 422]
+        mock_execute_query.side_effect = [
+            [(3,)],  # Count query
+            [("2024-10-22", 2024, "BOS", 1610612738, 1, 1, 110, 105, 35.5, 25, 8, 7, 1, 0, 10, 18, 3, 7, 2, 3, 3, 2)],
+        ]
+
+        response = client.get("/api/v1/players/2544/gamelog/2024?page_size=invalid")
+
+        # Invalid page_size defaults to 50, so request should succeed
+        assert response.status_code == 200
 
 
 class TestGameLogSorting:

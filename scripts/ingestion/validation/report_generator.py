@@ -2,6 +2,7 @@
 
 import json
 import logging
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -9,24 +10,25 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
+@dataclass
 class ReportSection:
     """A section of a validation report."""
 
-    def __init__(self, title: str, status: str = "pending"):
-        self.title = title
-        self.status = status
-        self.items: list[dict[str, Any]] = []
-        self.summary: dict[str, Any] = {}
+    title: str
+    status: str = "pending"
+    items: list[dict[str, Any]] = field(default_factory=list)
+    summary: dict[str, Any] = field(default_factory=dict)
 
-    def add_item(self, item: dict[str, Any]):
+    def add_item(self, item: dict[str, Any]) -> None:
         """Add an item to the section."""
         self.items.append(item)
 
-    def set_summary(self, summary: dict[str, Any]):
+    def set_summary(self, summary: dict[str, Any]) -> None:
         """Set the section summary."""
         self.summary = summary
 
     def to_dict(self) -> dict[str, Any]:
+        """Convert section to dictionary."""
         return {
             "title": self.title,
             "status": self.status,
@@ -36,14 +38,63 @@ class ReportSection:
         }
 
 
+class ReportFormatter:
+    """Handles formatting of report data for different output formats."""
+
+    @staticmethod
+    def format_json_item(item: dict[str, Any]) -> str:
+        """Format an item as indented JSON."""
+        return json.dumps(item, indent=2)
+
+    @staticmethod
+    def truncate_items(items: list[Any], limit: int) -> tuple[list[Any], int]:
+        """Truncate items to limit and return remaining count.
+
+        Args:
+            items: List of items to potentially truncate
+            limit: Maximum number of items to return
+
+        Returns:
+            Tuple of (truncated_items, remaining_count)
+        """
+        if len(items) <= limit:
+            return items, 0
+        return items[:limit], len(items) - limit
+
+
 class ValidationReport:
-    """Generates validation reports."""
+    """Generates validation reports in multiple formats."""
+
+    # Format-specific limits
+    HTML_ITEM_LIMIT = 100
+    MARKDOWN_ITEM_LIMIT = 50
+    TEXT_ITEM_LIMIT = 20
+
+    # HTML template constants
+    HTML_STYLE = """
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        h1 { color: #333; }
+        h2 { color: #666; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
+        .summary { background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0; }
+        .status-passed { color: green; }
+        .status-failed { color: red; }
+        .status-pending { color: orange; }
+        table { border-collapse: collapse; width: 100%; margin: 10px 0; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #4CAF50; color: white; }
+        tr:nth-child(even) { background-color: #f2f2f2; }
+        .section { margin: 30px 0; }
+        .no-issues { color: green; font-style: italic; }
+    </style>
+    """
 
     def __init__(self, title: str = "Data Validation Report"):
         self.title = title
         self.generated_at = datetime.now()
         self.sections: list[ReportSection] = []
         self.metadata: dict[str, Any] = {}
+        self.formatter = ReportFormatter()
 
     def add_section(
         self, title: str, results: list[dict[str, Any]], status: str = "pending"
@@ -55,7 +106,7 @@ class ValidationReport:
         self.sections.append(section)
         return section
 
-    def add_metadata(self, key: str, value: Any):
+    def add_metadata(self, key: str, value: Any) -> None:
         """Add metadata to the report."""
         self.metadata[key] = value
 
@@ -73,6 +124,50 @@ class ValidationReport:
             "status": "failed" if total_issues > 0 else "passed",
         }
 
+    def _build_html_section(self, section: ReportSection) -> str:
+        """Build HTML for a single section."""
+        html = f"""
+    <div class="section">
+        <h2>{section.title} <span class="status-{section.status}">({section.status})</span></h2>
+"""
+        if section.summary:
+            html += f"""
+        <div class="summary">
+            <pre>{self.formatter.format_json_item(section.summary)}</pre>
+        </div>
+"""
+
+        if section.items:
+            items, remaining = self.formatter.truncate_items(
+                section.items, self.HTML_ITEM_LIMIT
+            )
+            html += """
+        <table>
+            <tr>
+                <th>#</th>
+                <th>Details</th>
+            </tr>
+"""
+            for i, item in enumerate(items, 1):
+                html += f"""
+            <tr>
+                <td>{i}</td>
+                <td><pre>{self.formatter.format_json_item(item)}</pre></td>
+            </tr>
+"""
+            if remaining:
+                html += f"""
+            <tr>
+                <td colspan="2"><em>... and {remaining} more issues</em></td>
+            </tr>
+"""
+            html += "</table>"
+        else:
+            html += '<p class="no-issues">No issues found</p>'
+
+        html += "</div>"
+        return html
+
     def generate_html_report(self, output_path: str | Path) -> str:
         """Generate HTML report with tables."""
         summary = self.generate_summary()
@@ -81,21 +176,7 @@ class ValidationReport:
 <html>
 <head>
     <title>{self.title}</title>
-    <style>
-        body {{ font-family: Arial, sans-serif; margin: 20px; }}
-        h1 {{ color: #333; }}
-        h2 {{ color: #666; border-bottom: 1px solid #ddd; padding-bottom: 5px; }}
-        .summary {{ background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0; }}
-        .status-passed {{ color: green; }}
-        .status-failed {{ color: red; }}
-        .status-pending {{ color: orange; }}
-        table {{ border-collapse: collapse; width: 100%; margin: 10px 0; }}
-        th, td {{ border: 1px solid #ddd; padding: 8px; text-align: left; }}
-        th {{ background-color: #4CAF50; color: white; }}
-        tr:nth-child(even) {{ background-color: #f2f2f2; }}
-        .section {{ margin: 30px 0; }}
-        .no-issues {{ color: green; font-style: italic; }}
-    </style>
+    {self.HTML_STYLE}
 </head>
 <body>
     <h1>{self.title}</h1>
@@ -111,43 +192,7 @@ class ValidationReport:
 """
 
         for section in self.sections:
-            html += f"""
-    <div class="section">
-        <h2>{section.title} <span class="status-{section.status}">({section.status})</span></h2>
-"""
-            if section.summary:
-                html += f"""
-        <div class="summary">
-            <pre>{json.dumps(section.summary, indent=2)}</pre>
-        </div>
-"""
-
-            if section.items:
-                html += """
-        <table>
-            <tr>
-                <th>#</th>
-                <th>Details</th>
-            </tr>
-"""
-                for i, item in enumerate(section.items[:100], 1):  # Limit to 100
-                    html += f"""
-            <tr>
-                <td>{i}</td>
-                <td><pre>{json.dumps(item, indent=2)}</pre></td>
-            </tr>
-"""
-                if len(section.items) > 100:
-                    html += f"""
-            <tr>
-                <td colspan="2"><em>... and {len(section.items) - 100} more issues</em></td>
-            </tr>
-"""
-                html += "</table>"
-            else:
-                html += '<p class="no-issues">No issues found</p>'
-
-            html += "</div>"
+            html += self._build_html_section(section)
 
         html += """
 </body>
@@ -158,6 +203,42 @@ class ValidationReport:
         output.write_text(html, encoding="utf-8")
         logger.info(f"HTML report written to {output_path}")
         return html
+
+    def _build_markdown_section(self, section: ReportSection) -> str:
+        """Build Markdown for a single section."""
+        md = f"""## {section.title}
+
+**Status**: {section.status}
+
+"""
+        if section.summary:
+            md += f"""### Summary
+
+```json
+{self.formatter.format_json_item(section.summary)}
+```
+
+"""
+
+        if section.items:
+            items, remaining = self.formatter.truncate_items(
+                section.items, self.MARKDOWN_ITEM_LIMIT
+            )
+            md += f"""### Issues ({len(section.items)} total)
+
+| # | Issue |
+|---|-------|
+"""
+            for i, item in enumerate(items, 1):
+                md += f"| {i} | `{self.formatter.format_json_item(item)}` |\n"
+
+            if remaining:
+                md += f"\n*... and {remaining} more issues*\n"
+        else:
+            md += "*No issues found*\n"
+
+        md += "\n"
+        return md
 
     def generate_markdown_report(self, output_path: str | Path) -> str:
         """Generate markdown report."""
@@ -177,35 +258,7 @@ Generated: {self.generated_at.strftime("%Y-%m-%d %H:%M:%S")}
 """
 
         for section in self.sections:
-            md += f"""## {section.title}
-
-**Status**: {section.status}
-
-"""
-            if section.summary:
-                md += f"""### Summary
-
-```json
-{json.dumps(section.summary, indent=2)}
-```
-
-"""
-
-            if section.items:
-                md += f"""### Issues ({len(section.items)} total)
-
-| # | Issue |
-|---|-------|
-"""
-                for i, item in enumerate(section.items[:50], 1):  # Limit to 50
-                    md += f"| {i} | `{json.dumps(item)}` |\n"
-
-                if len(section.items) > 50:
-                    md += f"\n*... and {len(section.items) - 50} more issues*\n"
-            else:
-                md += "*No issues found*\n"
-
-            md += "\n"
+            md += self._build_markdown_section(section)
 
         output = Path(output_path)
         output.write_text(md, encoding="utf-8")
@@ -242,11 +295,14 @@ Generated: {self.generated_at.strftime("%Y-%m-%d %H:%M:%S")}
                 ]
             )
 
-            for i, item in enumerate(section.items[:20], 1):
+            items, remaining = self.formatter.truncate_items(
+                section.items, self.TEXT_ITEM_LIMIT
+            )
+            for i, item in enumerate(items, 1):
                 lines.append(f"  {i}. {json.dumps(item)}")
 
-            if len(section.items) > 20:
-                lines.append(f"  ... and {len(section.items) - 20} more")
+            if remaining:
+                lines.append(f"  ... and {remaining} more")
 
         return "\n".join(lines)
 
@@ -260,13 +316,13 @@ Generated: {self.generated_at.strftime("%Y-%m-%d %H:%M:%S")}
             "sections": [s.to_dict() for s in self.sections],
         }
 
-    def save_json(self, output_path: str | Path):
+    def save_json(self, output_path: str | Path) -> None:
         """Save report as JSON."""
         data = self.to_dict()
         output = Path(output_path)
         output.write_text(json.dumps(data, indent=2), encoding="utf-8")
         logger.info(f"JSON report written to {output_path}")
 
-    def print_summary(self):
+    def print_summary(self) -> None:
         """Print summary to console."""
         print(self.generate_text_report())

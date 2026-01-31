@@ -838,7 +838,10 @@ async def get_player_gamelog_enhanced(
     if isinstance(page_size, str) and page_size.lower() == "all":
         page_size_int = total_count
     else:
-        page_size_int = int(page_size) if isinstance(page_size, (int, str)) else 50
+        try:
+            page_size_int = int(page_size) if isinstance(page_size, (int, str)) else 50
+        except (ValueError, TypeError):
+            page_size_int = 50
     total_pages = (total_count + page_size_int - 1) // page_size_int if page_size_int > 0 else 1
 
     games = []

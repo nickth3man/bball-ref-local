@@ -134,7 +134,15 @@
                 {% for game in games %}
                 <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
                     <td class="px-4 py-3 text-gray-700 dark:text-gray-300 whitespace-nowrap">
-                        {{ game.game_date.strftime('%m/%d/%Y') if game.game_date else '-' }}
+                        {% if game.game_date %}
+                            {% if game.game_date is string %}
+                                {{ game.game_date }}
+                            {% else %}
+                                {{ game.game_date.strftime('%m/%d/%Y') }}
+                            {% endif %}
+                        {% else %}
+                            -
+                        {% endif %}
                     </td>
                     <td class="px-4 py-3">
                         <a href="/teams/{{ game.opponent_id }}" class="font-medium text-gray-900 dark:text-white hover:text-nba-blue transition-colors">

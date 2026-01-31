@@ -9,29 +9,7 @@ from typing import Any
 import duckdb
 
 from scripts.ingestion.logger import get_logger
-from scripts.ingestion.validation.sql_validators import (
-    VALIDATE_DUPLICATE_GAMES,
-    VALIDATE_DUPLICATE_PLAYER_GAMES,
-    VALIDATE_DUPLICATE_PLAYERS,
-    VALIDATE_FOREIGN_KEYS_GAMES,
-    VALIDATE_FOREIGN_KEYS_PLAYERS,
-    VALIDATE_FOREIGN_KEYS_SEASONS,
-    VALIDATE_FOREIGN_KEYS_TEAMS,
-    VALIDATE_GAME_QUARTER_SUMS,
-    VALIDATE_GAME_SCORES,
-    VALIDATE_GAME_TIES,
-    VALIDATE_GAME_WINNERS,
-    VALIDATE_PLAYER_AGES,
-    VALIDATE_PLAYER_CAREER_SEASONS,
-    VALIDATE_PLAYER_CAREER_SPAN,
-    VALIDATE_POINTS_CALCULATION,
-    VALIDATE_POINTS_CALCULATION_SEASON,
-    VALIDATE_SEASON_RANGES,
-    VALIDATE_STAT_PERCENTAGES,
-    VALIDATE_STAT_PERCENTAGES_GAME,
-    VALIDATE_TEAM_ACTIVE_YEARS,
-    VALIDATE_TEAM_SEASON_CONTINUITY,
-)
+from scripts.ingestion.validation.sql_validators import SQLValidators
 
 logger = get_logger(__name__)
 
@@ -81,6 +59,9 @@ class ValidationResult:
 class DataValidator:
     """Main validation class for data integrity checks."""
 
+    # Maximum number of issues to report per validation check
+    MAX_ISSUES_PER_CHECK = 10
+
     def __init__(self, conn: duckdb.DuckDBPyConnection):
         self.conn = conn
         self.logger = get_logger(self.__class__.__name__)
@@ -123,575 +104,508 @@ class DataValidator:
     def _execute_query(self, query: str, description: str) -> list:
         """Execute a validation query and return results."""
         try:
-            result = self.conn.execute(query).fetchall()
-            return result
+            return self.conn.execute(query).fetchall()
         except Exception as e:
             self.logger.error(f"Failed to execute {description}: {e}")
             return []
 
-    def validate_foreign_keys_players(self) -> ValidationResult:
-        """Validate that all player references in player_game_stats exist in players table."""
-        result = ValidationResult(check_name="Foreign Keys: Players")
+    def _create_issue(
+        self,
+        severity: ValidationSeverity,
+        message: str,
+        table: str = "",
+        row_id: Any = None,
+        details: dict | None = None,
+    ) -> ValidationIssue:
+        """Create a ValidationIssue with the given parameters."""
+        return ValidationIssue(
+            severity=severity,
+            message=message,
+            table=table,
+            row_id=row_id,
+            details=details or {},
+        )
 
-        orphans = self._execute_query(VALIDATE_FOREIGN_KEYS_PLAYERS, "foreign key players check")
+    def _create_result(
+        self,
+        check_name: str,
+        rows: list,
+        issue_builder: callable,
+        passed: bool = True,
+    ) -> ValidationResult:
+        """Create a ValidationResult from query results.
 
-        if orphans:
+        Args:
+            check_name: Name of the validation check
+            rows: Query result rows
+            issue_builder: Callable that takes a row and returns a ValidationIssue
+            passed: Default passed state if no rows
+
+        Returns:
+            ValidationResult with issues populated
+        """
+        result = ValidationResult(check_name=check_name)
+
+        if rows:
             result.passed = False
-            for row in orphans[:10]:  # Limit to first 10
-                result.issues.append(
-                    ValidationIssue(
-                        severity=ValidationSeverity.ERROR,
-                        message=f"Orphan player_id: {row[0]} with {row[1]} records",
-                        table="player_game_stats",
-                        row_id=row[0],
-                        details={"orphan_count": row[1]},
-                    )
-                )
+            for row in rows[: self.MAX_ISSUES_PER_CHECK]:
+                result.issues.append(issue_builder(row))
         else:
-            result.passed = True
+            result.passed = passed
 
         return result
+
+    # =========================================================================
+    # Foreign Key Validations
+    # =========================================================================
+
+    def validate_foreign_keys_players(self) -> ValidationResult:
+        """Validate that all player references in player_game_stats exist in players table."""
+        orphans = self._execute_query(
+            SQLValidators.VALIDATE_FOREIGN_KEYS_PLAYERS, "foreign key players check"
+        )
+
+        def build_issue(row):
+            return self._create_issue(
+                severity=ValidationSeverity.ERROR,
+                message=f"Orphan player_id: {row[0]} with {row[1]} records",
+                table="player_game_stats",
+                row_id=row[0],
+                details={"orphan_count": row[1]},
+            )
+
+        return self._create_result("Foreign Keys: Players", orphans, build_issue)
 
     def validate_foreign_keys_teams(self) -> ValidationResult:
         """Validate that all team references exist in teams table."""
-        result = ValidationResult(check_name="Foreign Keys: Teams")
+        orphans = self._execute_query(
+            SQLValidators.VALIDATE_FOREIGN_KEYS_TEAMS, "foreign key teams check"
+        )
 
-        orphans = self._execute_query(VALIDATE_FOREIGN_KEYS_TEAMS, "foreign key teams check")
+        def build_issue(row):
+            return self._create_issue(
+                severity=ValidationSeverity.ERROR,
+                message=f"Orphan team_id: {row[0]} with {row[1]} records",
+                table="player_game_stats",
+                row_id=row[0],
+                details={"orphan_count": row[1]},
+            )
 
-        if orphans:
-            result.passed = False
-            for row in orphans[:10]:
-                result.issues.append(
-                    ValidationIssue(
-                        severity=ValidationSeverity.ERROR,
-                        message=f"Orphan team_id: {row[0]} with {row[1]} records",
-                        table="player_game_stats",
-                        row_id=row[0],
-                        details={"orphan_count": row[1]},
-                    )
-                )
-        else:
-            result.passed = True
-
-        return result
+        return self._create_result("Foreign Keys: Teams", orphans, build_issue)
 
     def validate_foreign_keys_games(self) -> ValidationResult:
         """Validate that all game references exist in games table."""
-        result = ValidationResult(check_name="Foreign Keys: Games")
+        orphans = self._execute_query(
+            SQLValidators.VALIDATE_FOREIGN_KEYS_GAMES, "foreign key games check"
+        )
 
-        orphans = self._execute_query(VALIDATE_FOREIGN_KEYS_GAMES, "foreign key games check")
+        def build_issue(row):
+            return self._create_issue(
+                severity=ValidationSeverity.ERROR,
+                message=f"Orphan game_id: {row[0]} with {row[1]} records",
+                table="player_game_stats",
+                row_id=row[0],
+                details={"orphan_count": row[1]},
+            )
 
-        if orphans:
-            result.passed = False
-            for row in orphans[:10]:
-                result.issues.append(
-                    ValidationIssue(
-                        severity=ValidationSeverity.ERROR,
-                        message=f"Orphan game_id: {row[0]} with {row[1]} records",
-                        table="player_game_stats",
-                        row_id=row[0],
-                        details={"orphan_count": row[1]},
-                    )
-                )
-        else:
-            result.passed = True
-
-        return result
+        return self._create_result("Foreign Keys: Games", orphans, build_issue)
 
     def validate_foreign_keys_seasons(self) -> ValidationResult:
         """Validate that all season references exist in seasons table."""
-        result = ValidationResult(check_name="Foreign Keys: Seasons")
+        orphans = self._execute_query(
+            SQLValidators.VALIDATE_FOREIGN_KEYS_SEASONS, "foreign key seasons check"
+        )
 
-        orphans = self._execute_query(VALIDATE_FOREIGN_KEYS_SEASONS, "foreign key seasons check")
+        def build_issue(row):
+            return self._create_issue(
+                severity=ValidationSeverity.ERROR,
+                message=f"Orphan season_id: {row[0]} with {row[1]} records",
+                table="player_season_stats",
+                row_id=row[0],
+                details={"orphan_count": row[1]},
+            )
 
-        if orphans:
-            result.passed = False
-            for row in orphans[:10]:
-                result.issues.append(
-                    ValidationIssue(
-                        severity=ValidationSeverity.ERROR,
-                        message=f"Orphan season_id: {row[0]} with {row[1]} records",
-                        table="player_season_stats",
-                        row_id=row[0],
-                        details={"orphan_count": row[1]},
-                    )
-                )
-        else:
-            result.passed = True
+        return self._create_result("Foreign Keys: Seasons", orphans, build_issue)
 
-        return result
+    # =========================================================================
+    # Duplicate Validations
+    # =========================================================================
 
     def validate_duplicate_players(self) -> ValidationResult:
         """Validate no duplicate players exist."""
-        result = ValidationResult(check_name="Duplicate: Players")
+        duplicates = self._execute_query(
+            SQLValidators.VALIDATE_DUPLICATE_PLAYERS, "duplicate players check"
+        )
 
-        duplicates = self._execute_query(VALIDATE_DUPLICATE_PLAYERS, "duplicate players check")
+        def build_issue(row):
+            return self._create_issue(
+                severity=ValidationSeverity.ERROR,
+                message=f"Duplicate player_id: {row[0]} with {row[1]} records",
+                table="players",
+                row_id=row[0],
+                details={"duplicate_count": row[1]},
+            )
 
-        if duplicates:
-            result.passed = False
-            for row in duplicates[:10]:
-                result.issues.append(
-                    ValidationIssue(
-                        severity=ValidationSeverity.ERROR,
-                        message=f"Duplicate player_id: {row[0]} with {row[1]} records",
-                        table="players",
-                        row_id=row[0],
-                        details={"duplicate_count": row[1]},
-                    )
-                )
-        else:
-            result.passed = True
-
-        return result
+        return self._create_result("Duplicate: Players", duplicates, build_issue)
 
     def validate_duplicate_games(self) -> ValidationResult:
         """Validate no duplicate games exist."""
-        result = ValidationResult(check_name="Duplicate: Games")
+        duplicates = self._execute_query(
+            SQLValidators.VALIDATE_DUPLICATE_GAMES, "duplicate games check"
+        )
 
-        duplicates = self._execute_query(VALIDATE_DUPLICATE_GAMES, "duplicate games check")
+        def build_issue(row):
+            return self._create_issue(
+                severity=ValidationSeverity.ERROR,
+                message=f"Duplicate game_id: {row[0]} with {row[1]} records",
+                table="games",
+                row_id=row[0],
+                details={"duplicate_count": row[1]},
+            )
 
-        if duplicates:
-            result.passed = False
-            for row in duplicates[:10]:
-                result.issues.append(
-                    ValidationIssue(
-                        severity=ValidationSeverity.ERROR,
-                        message=f"Duplicate game_id: {row[0]} with {row[1]} records",
-                        table="games",
-                        row_id=row[0],
-                        details={"duplicate_count": row[1]},
-                    )
-                )
-        else:
-            result.passed = True
-
-        return result
+        return self._create_result("Duplicate: Games", duplicates, build_issue)
 
     def validate_duplicate_player_games(self) -> ValidationResult:
         """Validate no duplicate player-game combinations exist."""
-        result = ValidationResult(check_name="Duplicate: Player Games")
-
         duplicates = self._execute_query(
-            VALIDATE_DUPLICATE_PLAYER_GAMES, "duplicate player games check"
+            SQLValidators.VALIDATE_DUPLICATE_PLAYER_GAMES, "duplicate player games check"
         )
 
-        if duplicates:
-            result.passed = False
-            for row in duplicates[:10]:
-                result.issues.append(
-                    ValidationIssue(
-                        severity=ValidationSeverity.ERROR,
-                        message=f"Duplicate player-game: ({row[0]}, {row[1]}) with {row[2]} records",
-                        table="player_game_stats",
-                        details={"player_id": row[0], "game_id": row[1], "duplicate_count": row[2]},
-                    )
-                )
-        else:
-            result.passed = True
+        def build_issue(row):
+            return self._create_issue(
+                severity=ValidationSeverity.ERROR,
+                message=f"Duplicate player-game: ({row[0]}, {row[1]}) with {row[2]} records",
+                table="player_game_stats",
+                details={"player_id": row[0], "game_id": row[1], "duplicate_count": row[2]},
+            )
 
-        return result
+        return self._create_result("Duplicate: Player Games", duplicates, build_issue)
+
+    # =========================================================================
+    # Data Integrity Validations
+    # =========================================================================
 
     def validate_points_calculation(self) -> ValidationResult:
         """Validate points calculation in player_game_stats."""
-        result = ValidationResult(check_name="Points Calculation: Games")
+        invalid = self._execute_query(
+            SQLValidators.VALIDATE_POINTS_CALCULATION_GAME, "points calculation check"
+        )
 
-        invalid = self._execute_query(VALIDATE_POINTS_CALCULATION, "points calculation check")
+        def build_issue(row):
+            return self._create_issue(
+                severity=ValidationSeverity.ERROR,
+                message=f"Invalid points calculation: {row[2]} != {row[3]} (diff: {row[4]})",
+                table="player_game_stats",
+                row_id=row[0],
+                details={
+                    "player_id": row[0],
+                    "game_id": row[1],
+                    "points": row[2],
+                    "calculated": row[3],
+                },
+            )
 
-        if invalid:
-            result.passed = False
-            for row in invalid[:10]:
-                result.issues.append(
-                    ValidationIssue(
-                        severity=ValidationSeverity.ERROR,
-                        message=f"Invalid points calculation: {row[2]} != {row[3]} (diff: {row[4]})",
-                        table="player_game_stats",
-                        row_id=row[0],
-                        details={
-                            "player_id": row[0],
-                            "game_id": row[1],
-                            "points": row[2],
-                            "calculated": row[3],
-                        },
-                    )
-                )
-        else:
-            result.passed = True
-
-        return result
+        return self._create_result("Points Calculation: Games", invalid, build_issue)
 
     def validate_points_calculation_season(self) -> ValidationResult:
         """Validate points calculation in player_season_stats."""
-        result = ValidationResult(check_name="Points Calculation: Seasons")
-
         invalid = self._execute_query(
-            VALIDATE_POINTS_CALCULATION_SEASON, "season points calculation check"
+            SQLValidators.VALIDATE_POINTS_CALCULATION_SEASON, "season points calculation check"
         )
 
-        if invalid:
-            result.passed = False
-            for row in invalid[:10]:
-                result.issues.append(
-                    ValidationIssue(
-                        severity=ValidationSeverity.ERROR,
-                        message=f"Invalid season points calculation: {row[2]} != {row[3]} (diff: {row[4]})",
-                        table="player_season_stats",
-                        row_id=row[0],
-                        details={
-                            "player_id": row[0],
-                            "season_id": row[1],
-                            "points": row[2],
-                            "calculated": row[3],
-                        },
-                    )
-                )
-        else:
-            result.passed = True
+        def build_issue(row):
+            return self._create_issue(
+                severity=ValidationSeverity.ERROR,
+                message=f"Invalid season points calculation: {row[2]} != {row[3]} (diff: {row[4]})",
+                table="player_season_stats",
+                row_id=row[0],
+                details={
+                    "player_id": row[0],
+                    "season_id": row[1],
+                    "points": row[2],
+                    "calculated": row[3],
+                },
+            )
 
-        return result
+        return self._create_result("Points Calculation: Seasons", invalid, build_issue)
 
     def validate_game_winners(self) -> ValidationResult:
         """Validate game winners match calculated winners."""
-        result = ValidationResult(check_name="Game Winners")
+        invalid = self._execute_query(
+            SQLValidators.VALIDATE_GAME_WINNERS, "game winners check"
+        )
 
-        invalid = self._execute_query(VALIDATE_GAME_WINNERS, "game winners check")
+        def build_issue(row):
+            return self._create_issue(
+                severity=ValidationSeverity.ERROR,
+                message=f"Incorrect winner: {row[4]} (should be {row[6]})",
+                table="games",
+                row_id=row[0],
+                details={
+                    "game_id": row[0],
+                    "winner_team_id": row[4],
+                    "calculated_winner": row[6],
+                },
+            )
 
-        if invalid:
-            result.passed = False
-            for row in invalid[:10]:
-                result.issues.append(
-                    ValidationIssue(
-                        severity=ValidationSeverity.ERROR,
-                        message=f"Incorrect winner: {row[4]} (should be {row[6]})",
-                        table="games",
-                        row_id=row[0],
-                        details={
-                            "game_id": row[0],
-                            "winner_team_id": row[4],
-                            "calculated_winner": row[6],
-                        },
-                    )
-                )
-        else:
-            result.passed = True
-
-        return result
+        return self._create_result("Game Winners", invalid, build_issue)
 
     def validate_game_ties(self) -> ValidationResult:
         """Validate tie games have no winner."""
-        result = ValidationResult(check_name="Game Ties")
+        invalid = self._execute_query(SQLValidators.VALIDATE_GAME_TIES, "game ties check")
 
-        invalid = self._execute_query(VALIDATE_GAME_TIES, "game ties check")
+        def build_issue(row):
+            return self._create_issue(
+                severity=ValidationSeverity.ERROR,
+                message=f"Tie game has winner: {row[4]}",
+                table="games",
+                row_id=row[0],
+                details={
+                    "game_id": row[0],
+                    "home_score": row[2],
+                    "away_score": row[3],
+                    "winner": row[4],
+                },
+            )
 
-        if invalid:
-            result.passed = False
-            for row in invalid[:10]:
-                result.issues.append(
-                    ValidationIssue(
-                        severity=ValidationSeverity.ERROR,
-                        message=f"Tie game has winner: {row[4]}",
-                        table="games",
-                        row_id=row[0],
-                        details={
-                            "game_id": row[0],
-                            "home_score": row[2],
-                            "away_score": row[3],
-                            "winner": row[4],
-                        },
-                    )
-                )
-        else:
-            result.passed = True
-
-        return result
+        return self._create_result("Game Ties", invalid, build_issue)
 
     def validate_game_scores(self) -> ValidationResult:
         """Validate game scores are within reasonable ranges."""
-        result = ValidationResult(check_name="Game Scores")
+        invalid = self._execute_query(
+            SQLValidators.VALIDATE_GAME_SCORES, "game scores check"
+        )
 
-        invalid = self._execute_query(VALIDATE_GAME_SCORES, "game scores check")
+        def build_issue(row):
+            return self._create_issue(
+                severity=ValidationSeverity.ERROR,
+                message=f"Invalid score - Home: {row[3]}, Away: {row[4]}",
+                table="games",
+                row_id=row[0],
+                details={"game_id": row[0], "home_score": row[3], "away_score": row[4]},
+            )
 
-        if invalid:
-            result.passed = False
-            for row in invalid[:10]:
-                result.issues.append(
-                    ValidationIssue(
-                        severity=ValidationSeverity.ERROR,
-                        message=f"Invalid score - Home: {row[3]}, Away: {row[4]}",
-                        table="games",
-                        row_id=row[0],
-                        details={"game_id": row[0], "home_score": row[3], "away_score": row[4]},
-                    )
-                )
-        else:
-            result.passed = True
-
-        return result
+        return self._create_result("Game Scores", invalid, build_issue)
 
     def validate_game_quarter_sums(self) -> ValidationResult:
         """Validate quarter sums match final scores."""
-        result = ValidationResult(check_name="Game Quarter Sums")
+        invalid = self._execute_query(
+            SQLValidators.VALIDATE_GAME_QUARTER_SUMS, "quarter sums check"
+        )
 
-        invalid = self._execute_query(VALIDATE_GAME_QUARTER_SUMS, "quarter sums check")
+        def build_issue(row):
+            return self._create_issue(
+                severity=ValidationSeverity.ERROR,
+                message="Quarter sum mismatch",
+                table="games",
+                row_id=row[0],
+                details={
+                    "game_id": row[0],
+                    "home_score": row[1],
+                    "calc_home": row[2],
+                    "away_score": row[3],
+                    "calc_away": row[4],
+                },
+            )
 
-        if invalid:
-            result.passed = False
-            for row in invalid[:10]:
-                result.issues.append(
-                    ValidationIssue(
-                        severity=ValidationSeverity.ERROR,
-                        message="Quarter sum mismatch",
-                        table="games",
-                        row_id=row[0],
-                        details={
-                            "game_id": row[0],
-                            "home_score": row[1],
-                            "calc_home": row[2],
-                            "away_score": row[3],
-                            "calc_away": row[4],
-                        },
-                    )
-                )
-        else:
-            result.passed = True
-
-        return result
+        return self._create_result("Game Quarter Sums", invalid, build_issue)
 
     def validate_stat_percentages(self) -> ValidationResult:
         """Validate statistical percentages are between 0 and 1."""
-        result = ValidationResult(check_name="Stat Percentages")
+        invalid = self._execute_query(
+            SQLValidators.VALIDATE_STAT_PERCENTAGES_SEASON, "stat percentages check"
+        )
 
-        invalid = self._execute_query(VALIDATE_STAT_PERCENTAGES, "stat percentages check")
+        def build_issue(row):
+            return self._create_issue(
+                severity=ValidationSeverity.ERROR,
+                message=f"Invalid percentage - FG: {row[2]}, 3P: {row[3]}, FT: {row[4]}",
+                table="player_season_stats",
+                row_id=row[0],
+                details={
+                    "player_id": row[0],
+                    "season_id": row[1],
+                    "fg_pct": row[2],
+                    "fg3_pct": row[3],
+                    "ft_pct": row[4],
+                },
+            )
 
-        if invalid:
-            result.passed = False
-            for row in invalid[:10]:
-                result.issues.append(
-                    ValidationIssue(
-                        severity=ValidationSeverity.ERROR,
-                        message=f"Invalid percentage - FG: {row[2]}, 3P: {row[3]}, FT: {row[4]}",
-                        table="player_season_stats",
-                        row_id=row[0],
-                        details={
-                            "player_id": row[0],
-                            "season_id": row[1],
-                            "fg_pct": row[2],
-                            "fg3_pct": row[3],
-                            "ft_pct": row[4],
-                        },
-                    )
-                )
-        else:
-            result.passed = True
-
-        return result
+        return self._create_result("Stat Percentages", invalid, build_issue)
 
     def validate_stat_percentages_game(self) -> ValidationResult:
         """Validate game log percentage calculations."""
         result = ValidationResult(check_name="Stat Percentages: Games")
 
         # Check if player_game_logs table exists
-        try:
-            result_exists = self.conn.execute(
-                "SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 'player_game_logs'"
-            ).fetchone()
-            if not result_exists or result_exists[0] == 0:
-                result.passed = True
-                return result
-        except Exception:
+        if not self._table_exists("player_game_logs"):
             result.passed = True
             return result
 
-        invalid = self._execute_query(VALIDATE_STAT_PERCENTAGES_GAME, "game percentages check")
+        invalid = self._execute_query(
+            SQLValidators.VALIDATE_STAT_PERCENTAGES_GAME, "game percentages check"
+        )
 
-        if invalid:
-            result.passed = False
-            for row in invalid[:10]:
-                result.issues.append(
-                    ValidationIssue(
-                        severity=ValidationSeverity.ERROR,
-                        message=f"Invalid game percentage - FG: {row[2]}, 3P: {row[3]}, FT: {row[4]}",
-                        table="player_game_logs",
-                        row_id=row[0],
-                        details={
-                            "player_id": row[0],
-                            "game_id": row[1],
-                            "fg_pct": row[2],
-                            "fg3_pct": row[3],
-                            "ft_pct": row[4],
-                        },
-                    )
-                )
-        else:
-            result.passed = True
+        def build_issue(row):
+            return self._create_issue(
+                severity=ValidationSeverity.ERROR,
+                message=f"Invalid game percentage - FG: {row[2]}, 3P: {row[3]}, FT: {row[4]}",
+                table="player_game_logs",
+                row_id=row[0],
+                details={
+                    "player_id": row[0],
+                    "game_id": row[1],
+                    "fg_pct": row[2],
+                    "fg3_pct": row[3],
+                    "ft_pct": row[4],
+                },
+            )
 
-        return result
+        return self._create_result("Stat Percentages: Games", invalid, build_issue)
+
+    def _table_exists(self, table_name: str) -> bool:
+        """Check if a table exists in the database."""
+        try:
+            result = self.conn.execute(
+                "SELECT COUNT(*) FROM information_schema.tables WHERE table_name = ?",
+                [table_name],
+            ).fetchone()
+            return result is not None and result[0] > 0
+        except Exception:
+            return False
+
+    # =========================================================================
+    # Range Validations
+    # =========================================================================
 
     def validate_season_ranges(self) -> ValidationResult:
         """Validate season ranges are valid."""
-        result = ValidationResult(check_name="Season Ranges")
+        invalid = self._execute_query(
+            SQLValidators.VALIDATE_SEASON_RANGES, "season ranges check"
+        )
 
-        invalid = self._execute_query(VALIDATE_SEASON_RANGES, "season ranges check")
+        def build_issue(row):
+            return self._create_issue(
+                severity=ValidationSeverity.ERROR,
+                message=f"Invalid season range: {row[0]} ({row[1]}-{row[2]})",
+                table="seasons",
+                row_id=row[0],
+                details={"season_id": row[0], "year_start": row[1], "year_end": row[2]},
+            )
 
-        if invalid:
-            result.passed = False
-            for row in invalid[:10]:
-                result.issues.append(
-                    ValidationIssue(
-                        severity=ValidationSeverity.ERROR,
-                        message=f"Invalid season range: {row[0]} ({row[1]}-{row[2]})",
-                        table="seasons",
-                        row_id=row[0],
-                        details={"season_id": row[0], "year_start": row[1], "year_end": row[2]},
-                    )
-                )
-        else:
-            result.passed = True
-
-        return result
+        return self._create_result("Season Ranges", invalid, build_issue)
 
     def validate_player_career_seasons(self) -> ValidationResult:
         """Validate player career seasons are within valid ranges."""
-        result = ValidationResult(check_name="Player Career Seasons")
+        invalid = self._execute_query(
+            SQLValidators.VALIDATE_PLAYER_CAREER_SEASONS, "player career seasons check"
+        )
 
-        invalid = self._execute_query(VALIDATE_PLAYER_CAREER_SEASONS, "player career seasons check")
+        def build_issue(row):
+            return self._create_issue(
+                severity=ValidationSeverity.WARNING,
+                message=f"Invalid career span for {row[1]}: {row[3]}-{row[4]}",
+                table="players",
+                row_id=row[0],
+                details={
+                    "player_id": row[0],
+                    "name": row[1],
+                    "draft_year": row[2],
+                    "career_start": row[3],
+                    "career_end": row[4],
+                },
+            )
 
-        if invalid:
-            result.passed = False
-            for row in invalid[:10]:
-                result.issues.append(
-                    ValidationIssue(
-                        severity=ValidationSeverity.WARNING,
-                        message=f"Invalid career span for {row[1]}: {row[3]}-{row[4]}",
-                        table="players",
-                        row_id=row[0],
-                        details={
-                            "player_id": row[0],
-                            "name": row[1],
-                            "draft_year": row[2],
-                            "career_start": row[3],
-                            "career_end": row[4],
-                        },
-                    )
-                )
-        else:
-            result.passed = True
-
-        return result
+        return self._create_result("Player Career Seasons", invalid, build_issue)
 
     def validate_player_ages(self) -> ValidationResult:
         """Validate player ages are reasonable."""
-        result = ValidationResult(check_name="Player Ages")
+        invalid = self._execute_query(
+            SQLValidators.VALIDATE_PLAYER_AGES, "player ages check"
+        )
 
-        invalid = self._execute_query(VALIDATE_PLAYER_AGES, "player ages check")
+        def build_issue(row):
+            return self._create_issue(
+                severity=ValidationSeverity.WARNING,
+                message=f"Unusual age for {row[1]}: {row[4]}",
+                table="player_season_stats",
+                row_id=row[0],
+                details={
+                    "player_id": row[0],
+                    "name": row[1],
+                    "birth_date": row[2],
+                    "season_id": row[3],
+                    "age": row[4],
+                },
+            )
 
-        if invalid:
-            result.passed = False
-            for row in invalid[:10]:
-                result.issues.append(
-                    ValidationIssue(
-                        severity=ValidationSeverity.WARNING,
-                        message=f"Unusual age for {row[1]}: {row[4]}",
-                        table="player_season_stats",
-                        row_id=row[0],
-                        details={
-                            "player_id": row[0],
-                            "name": row[1],
-                            "birth_date": row[2],
-                            "season_id": row[3],
-                            "age": row[4],
-                        },
-                    )
-                )
-        else:
-            result.passed = True
-
-        return result
+        return self._create_result("Player Ages", invalid, build_issue)
 
     def validate_player_career_span(self) -> ValidationResult:
         """Validate player career spans are reasonable."""
-        result = ValidationResult(check_name="Player Career Span")
+        invalid = self._execute_query(
+            SQLValidators.VALIDATE_PLAYER_CAREER_SPAN, "player career span check"
+        )
 
-        invalid = self._execute_query(VALIDATE_PLAYER_CAREER_SPAN, "player career span check")
+        def build_issue(row):
+            return self._create_issue(
+                severity=ValidationSeverity.WARNING,
+                message=f"Unusual career span for {row[1]}",
+                table="players",
+                row_id=row[0],
+                details={
+                    "player_id": row[0],
+                    "name": row[1],
+                    "birth_date": row[2],
+                    "career_start": row[3],
+                    "career_end": row[4],
+                    "age_at_career_end": row[5],
+                },
+            )
 
-        if invalid:
-            result.passed = False
-            for row in invalid[:10]:
-                result.issues.append(
-                    ValidationIssue(
-                        severity=ValidationSeverity.WARNING,
-                        message=f"Unusual career span for {row[1]}",
-                        table="players",
-                        row_id=row[0],
-                        details={
-                            "player_id": row[0],
-                            "name": row[1],
-                            "birth_date": row[2],
-                            "career_start": row[3],
-                            "career_end": row[4],
-                            "age_at_career_end": row[5],
-                        },
-                    )
-                )
-        else:
-            result.passed = True
-
-        return result
+        return self._create_result("Player Career Span", invalid, build_issue)
 
     def validate_team_season_continuity(self) -> ValidationResult:
         """Validate team season continuity."""
-        result = ValidationResult(check_name="Team Season Continuity")
-
         invalid = self._execute_query(
-            VALIDATE_TEAM_SEASON_CONTINUITY, "team season continuity check"
+            SQLValidators.VALIDATE_TEAM_SEASON_CONTINUITY, "team season continuity check"
         )
 
-        if invalid:
-            result.passed = False
-            for row in invalid[:10]:
-                result.issues.append(
-                    ValidationIssue(
-                        severity=ValidationSeverity.WARNING,
-                        message=f"Season gap for team {row[0]}: {row[1]} (gap: {row[3]} years)",
-                        table="team_season_stats",
-                        row_id=row[0],
-                        details={
-                            "team_id": row[0],
-                            "season_year": row[1],
-                            "prev_season": row[2],
-                            "gap": row[3],
-                        },
-                    )
-                )
-        else:
-            result.passed = True
+        def build_issue(row):
+            return self._create_issue(
+                severity=ValidationSeverity.WARNING,
+                message=f"Season gap for team {row[0]}: {row[1]} (gap: {row[3]} years)",
+                table="team_season_stats",
+                row_id=row[0],
+                details={
+                    "team_id": row[0],
+                    "season_year": row[1],
+                    "prev_season": row[2],
+                    "gap": row[3],
+                },
+            )
 
-        return result
+        return self._create_result("Team Season Continuity", invalid, build_issue)
 
     def validate_team_active_years(self) -> ValidationResult:
         """Validate team active years match statistics."""
-        result = ValidationResult(check_name="Team Active Years")
+        invalid = self._execute_query(
+            SQLValidators.VALIDATE_TEAM_ACTIVE_YEARS, "team active years check"
+        )
 
-        invalid = self._execute_query(VALIDATE_TEAM_ACTIVE_YEARS, "team active years check")
+        def build_issue(row):
+            return self._create_issue(
+                severity=ValidationSeverity.WARNING,
+                message=f"Team {row[1]} stats mismatch",
+                table="teams",
+                row_id=row[0],
+                details={
+                    "team_id": row[0],
+                    "team_name": row[1],
+                    "year_founded": row[2],
+                    "first_season": row[3],
+                    "last_season": row[4],
+                },
+            )
 
-        if invalid:
-            result.passed = False
-            for row in invalid[:10]:
-                result.issues.append(
-                    ValidationIssue(
-                        severity=ValidationSeverity.WARNING,
-                        message=f"Team {row[1]} stats mismatch",
-                        table="teams",
-                        row_id=row[0],
-                        details={
-                            "team_id": row[0],
-                            "team_name": row[1],
-                            "year_founded": row[2],
-                            "first_season": row[3],
-                            "last_season": row[4],
-                        },
-                    )
-                )
-        else:
-            result.passed = True
-
-        return result
+        return self._create_result("Team Active Years", invalid, build_issue)
