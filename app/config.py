@@ -5,8 +5,9 @@ data ingestion pipeline, replacing multiple separate configuration files.
 """
 
 from pathlib import Path
-from typing import Final
+from typing import Any, Final
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings
 
 
@@ -56,6 +57,21 @@ class Settings(BaseSettings):
     # Data ingestion batch sizes
     batch_size: int = 10000
     insert_batch_size: int = 1000
+
+    @field_validator("debug", mode="before")
+    @classmethod
+    def parse_debug(cls, v: Any) -> Any:
+        """Parse debug value, handling invalid inputs gracefully."""
+        if isinstance(v, str):
+            v = v.strip().lower()
+            # Handle common boolean string representations
+            if v in ("true", "1", "yes", "on"):
+                return True
+            if v in ("false", "0", "no", "off", ""):
+                return False
+            # For any other invalid value, default to False
+            return False
+        return v
 
     class Config:
         env_file = ".env"

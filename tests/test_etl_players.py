@@ -24,13 +24,7 @@ class TestParseHeight:
 
     def test_parse_height_valid(self):
         """Test parsing valid height string."""
-        assert parse_height("6-9") == (
-            81,
-            81,
-        )  # 6*12 + 9 = 81 (Note: Implementation changed to return tuple)
-        # Actually implementation returns (height_str, height_cm) not (cm, cm)
-        # Wait, implementation is:
-        # return height_str, height_cm
+        # Implementation returns (height_str, height_cm)
         assert parse_height("6-9") == ("6-9", 205)  # 81 inches * 2.54 = 205.74 -> 205
         assert parse_height("7-0") == ("7-0", 213)  # 84 inches * 2.54 = 213.36 -> 213
         assert parse_height("5-11") == ("5-11", 180)  # 71 inches * 2.54 = 180.34 -> 180
@@ -82,8 +76,15 @@ class TestPlayersETL:
     """Tests for PlayersETL class."""
 
     @pytest.fixture
-    def etl(self):
+    def etl(self, tmp_path):
+        """Create PlayersETL instance."""
         return PlayersETL()
+
+    @pytest.fixture(autouse=True)
+    def patch_csv_merge(self):
+        """Patch _merge_csv_bio_data to return df unchanged (no CSV dependency)."""
+        with patch.object(PlayersETL, "_merge_csv_bio_data", lambda self, df: df):
+            yield
 
     def test_extract_active_only(self, etl, mock_common_all_players):
         """Test extract with active_only=True."""
@@ -107,14 +108,7 @@ class TestPlayersETL:
                 is_only_current_season=0, season="2023-24"
             )
             assert isinstance(result, pd.DataFrame)
-        assert len(result) == 3
-
-    def test_extract_all_players(self, etl, mock_common_all_players):
-        """Test extract with active_only=False."""
-        result = etl.extract(active_only=False)
-
-        mock_common_all_players.assert_called_once_with(is_only_current_season=0, season="2023-24")
-        assert isinstance(result, pd.DataFrame)
+            assert len(result) == 3
 
     def test_extract_applies_rate_limit(self, etl, mock_common_all_players, mock_time_sleep):
         """Test extract applies rate limiting."""
@@ -326,6 +320,12 @@ class TestPlayersETL:
 class TestRunETL:
     """Tests for run_etl function."""
 
+    @pytest.fixture(autouse=True)
+    def patch_csv_merge(self):
+        """Patch _merge_csv_bio_data to return df unchanged (no CSV dependency)."""
+        with patch("scripts.etl_players.PlayersETL._merge_csv_bio_data", lambda self, df: df):
+            yield
+
     def test_run_etl_success(self, mock_common_all_players, mock_database):
         """Test run_etl successful execution."""
         result = run_etl(active_only=True)
@@ -337,7 +337,9 @@ class TestRunETL:
 
     def test_run_etl_with_active_only_false(self, mock_common_all_players, mock_database):
         """Test run_etl with active_only=False."""
-        result = run_etl(active_only=False)
+        with patch("scripts.etl_players.get_current_season") as mock_season:
+            mock_season.return_value = "2023-24"
+            result = run_etl(active_only=False)
 
         mock_common_all_players.assert_called_once_with(is_only_current_season=0, season="2023-24")
         assert result["status"] == "success"

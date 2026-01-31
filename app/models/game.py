@@ -19,19 +19,7 @@ class Game(BaseModel):
         away_score: Final score for the away team.
         winner_team_id: ID of the winning team (None if game not completed).
         status: Current status of the game (scheduled, live, final).
-
-    TODO: MEDIUM - Add quarter score fields if needed for box score display
-    Current database schema includes quarter scores but not in this model:
-      - home_q1, home_q2, home_q3, home_q4, home_ot
-      - away_q1, away_q2, away_q3, away_q4, away_ot
-    However, these fields are often NULL in ETL (see TODO in etl_games.py)
-
-    TODO: MEDIUM - Add is_overtime flag to model
-    Database has this field but it's not in the Pydantic model.
-    Currently hardcoded to False in etl_games.py
-
-    TODO: MEDIUM - Add arena and attendance fields
-    Present in database schema but not populated by ETL
+        is_overtime: Whether the game went to overtime.
     """
 
     #
@@ -57,6 +45,10 @@ class Game(BaseModel):
         description="Current status of the game",
         pattern=r"^(scheduled|live|final)$",
     )
+    is_overtime: bool = Field(
+        default=False,
+        description="Whether the game went to overtime",
+    )
 
     @property
     def is_completed(self) -> bool:
@@ -81,22 +73,29 @@ class Game(BaseModel):
     @property
     def point_differential(self) -> int | None:
         """
-        Point difference between the home and away teams.
+        Point difference between the home and away teams (absolute value).
 
         Returns:
             int: Absolute difference between `home_score` and `away_score`, or `None` if either score is missing.
-
-        TODO: MEDIUM - Consider adding signed point differential variant
-        Current implementation returns abs() which loses information about which team won.
-        Options:
-          1. Keep as-is for display purposes (margin of victory)
-          2. Add home_point_differential property (home_score - away_score)
-          3. Add away_point_differential property
-        Note: winning_team_name property already provides winner information
+            Use this for display purposes (margin of victory).
         """
         if self.home_score is None or self.away_score is None:
             return None
         return abs(self.home_score - self.away_score)
+
+    @property
+    def home_point_differential(self) -> int | None:
+        """
+        Point differential from the home team's perspective (signed value).
+
+        Returns:
+            int: `home_score - away_score`, or `None` if either score is missing.
+            Positive values mean home team won, negative means away team won.
+            Use this for analytical purposes where signed direction matters.
+        """
+        if self.home_score is None or self.away_score is None:
+            return None
+        return self.home_score - self.away_score
 
     @property
     def winning_team_name(self) -> str | None:

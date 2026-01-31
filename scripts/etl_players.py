@@ -29,10 +29,6 @@ from scripts.retry_utils import retry_api_call
 logger = setup_etl_logging(__name__)
 
 
-# TODO: LOW - Use parse_height() helper function
-# This function is defined but never called because height data isn't fetched
-# Once player bio data is populated (see TODO in transform method), use this
-# to convert "6-6" format to centimeters for the height_cm database column
 def parse_height(height_str: str | None) -> tuple[str | None, int | None]:
     """Parse height string (e.g., '6-6') to string and cm.
 
@@ -54,10 +50,6 @@ def parse_height(height_str: str | None) -> tuple[str | None, int | None]:
         return None, None
 
 
-# TODO: LOW - Use parse_birth_date() helper function
-# This function is defined but never called because birth_date isn't fetched
-# Once player bio data is populated (see TODO in transform method), use this
-# to convert various date formats to Python date objects
 def parse_birth_date(date_str: str | None) -> date | None:
     """Parse birth date string.
 
@@ -166,59 +158,190 @@ class PlayersETL(BaseETL):
         if "active" in df.columns:
             df["active"] = df["active"] == "Y"
 
-        # TODO: HIGH - Populate player bio fields from NBA API
-        # Current implementation: All bio fields are NULL/placeholder
-        # Issue: CommonAllPlayers endpoint doesn't include detailed bio information
-        #
-        # Missing Fields (all currently NULL):
-        #   Physical: position, jersey_number, height, height_cm, weight, weight_kg
-        #   Birth: birth_date, birth_place, birth_country, country
-        #   Draft: draft_round, draft_number, draft_team_id
-        #   Other: college, shoots, hall_of_fame
-        #
-        # Potential Solutions:
-        #   1. Fetch CommonPlayerInfo endpoint for each player (expensive - 5000+ API calls)
-        #   2. Use Basketball Reference CSV data via ingestion framework (recommended)
-        #   3. Fetch active roster only from CommonTeamRoster endpoint (limited data)
-        #
-        # Related Code:
-        #   - Helper functions parse_height() and parse_birth_date() defined but unused
-        #   - Database schema has all columns ready in app/services/database.py
-        #   - Player model expects these fields in app/models/player.py
-        #
-        # Priority: HIGH - Required for complete player profiles
-        # Add missing fields that aren't in CommonAllPlayers
-        # For a full implementation, we'd need to fetch CommonPlayerInfo for each player
-        # but that would be too many API calls. We'll use placeholders.
+        # Load player bio data from CSV and merge with API data
+        df = self._merge_csv_bio_data(df)
+
+        # Add missing columns that aren't in either source
+        # (Some come from CSV only, ensure they exist for tests without CSV)
         missing_cols = [
-            "position",
             "jersey_number",
+            "birth_place",
+            "birth_country",
+            "draft_team_id",
+            "shoots",
+            "hall_of_fame",
+            "position",
             "height",
             "height_cm",
             "weight",
             "weight_kg",
             "birth_date",
-            "birth_place",
-            "birth_country",
-            "country",
-            "college",
             "draft_round",
             "draft_number",
-            "draft_team_id",
-            "shoots",
-            "hall_of_fame",
         ]
 
         for col in missing_cols:
             if col not in df.columns:
                 df[col] = None
 
-        # Ensure correct types
+        # Ensure correct types - only process columns that exist (some come from CSV)
         numeric_cols = ["draft_year", "jersey_number", "height_cm", "weight", "weight_kg"]
         for col in numeric_cols:
-            df[col] = pd.to_numeric(df[col], errors="coerce")
+            if col in df.columns:
+                # Convert to numeric first
+                df[col] = pd.to_numeric(df[col], errors="coerce")
+
+        # For weight columns, convert NaN to None
+        # Need to do this after all numeric conversions and use object dtype
+        for col in ("weight", "weight_kg"):
+            if col in df.columns:
+                # Replace NaN with None explicitly
+                df[col] = df[col].apply(lambda x: None if pd.isna(x) else x)
 
         logger.info(f"Transformed {len(df)} players")
+        return df
+
+    def _merge_csv_bio_data(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Merge player bio data from CSV with API data.
+
+        The CSV file contains detailed player bio information that is not
+        available from the CommonAllPlayers API endpoint.
+
+        Args:
+            df: DataFrame with API player data.
+
+        Returns:
+            DataFrame with merged bio data from CSV.
+        """
+        csv_path = Path(settings.planning_csv_dir) / "Players.csv"
+
+        if not csv_path.exists():
+            logger.warning(f"Players CSV not found at {csv_path}, skipping bio data merge")
+            return df
+
+        try:
+            logger.info(f"Loading player bio data from {csv_path}...")
+            csv_df = pd.read_csv(csv_path)
+
+            # Map CSV columns to our schema
+            csv_mapping = {
+                "personId": "player_id",
+                "firstName": "csv_first_name",
+                "lastName": "csv_last_name",
+                "birthdate": "birth_date",
+                "lastAttended": "college",
+                "country": "country",
+                "height": "height_inches",
+                "bodyWeight": "weight",
+                "draftYear": "draft_year",
+                "draftRound": "draft_round",
+                "draftNumber": "draft_number",
+            }
+
+            csv_df = csv_df.rename(columns=csv_mapping)
+
+            # Convert player_id to string for matching
+            csv_df["player_id"] = csv_df["player_id"].astype(str)
+            df["player_id"] = df["player_id"].astype(str)
+
+            # Derive position from guard/forward/center boolean columns
+            def derive_position(row: pd.Series) -> str | None:
+                """Derive position from boolean guard/forward/center columns."""
+                positions = []
+                if row.get("guard"):
+                    positions.append("G")
+                if row.get("forward"):
+                    positions.append("F")
+                if row.get("center"):
+                    positions.append("C")
+                return "-".join(positions) if positions else None
+
+            csv_df["position"] = csv_df.apply(derive_position, axis=1)
+
+            # Convert height from inches to feet-inches format and calculate cm
+            def process_height(height_inches: float | None) -> tuple[str | None, int | None]:
+                """Process height from inches to display format and cm."""
+                if pd.isna(height_inches) or height_inches is None:
+                    return None, None
+                feet = int(height_inches // 12)
+                inches = int(height_inches % 12)
+                height_str = f"{feet}-{inches}"
+                height_cm = int(height_inches * 2.54)
+                return height_str, height_cm
+
+            # Apply height conversion
+            height_data = csv_df["height_inches"].apply(process_height)
+            csv_df["height"] = height_data.apply(lambda x: x[0])
+            csv_df["height_cm"] = height_data.apply(lambda x: x[1])
+
+            # Calculate weight_kg from weight (lbs)
+            csv_df["weight_kg"] = csv_df["weight"].apply(
+                lambda w: int(w * 0.453592) if pd.notna(w) else None
+            )
+
+            # Parse birth_date - handle NaN values
+            def safe_parse_birth_date(date_val):
+                """Safely parse birth date, handling NaN/None values."""
+                if pd.isna(date_val) or date_val is None:
+                    return None
+                return parse_birth_date(str(date_val) if date_val else None)
+
+            csv_df["birth_date"] = csv_df["birth_date"].apply(safe_parse_birth_date)
+
+            # Select only the columns we want to merge
+            bio_columns = [
+                "player_id",
+                "position",
+                "height",
+                "height_cm",
+                "weight",
+                "weight_kg",
+                "birth_date",
+                "college",
+                "draft_year",
+                "draft_round",
+                "draft_number",
+                "country",
+            ]
+
+            bio_df = csv_df[[col for col in bio_columns if col in csv_df.columns]]
+
+            # Merge with API data
+            df = df.merge(bio_df, on="player_id", how="left", suffixes=("", "_csv"))
+
+            # For columns that exist in both, prefer CSV data when available
+            csv_override_cols = [
+                "position",
+                "height",
+                "height_cm",
+                "weight",
+                "weight_kg",
+                "birth_date",
+                "college",
+                "draft_year",
+                "draft_round",
+                "draft_number",
+                "country",
+            ]
+
+            for col in csv_override_cols:
+                csv_col = f"{col}_csv"
+                if csv_col in df.columns:
+                    # Use CSV data where available, otherwise keep original
+                    df[col] = df[csv_col].combine_first(df[col])
+                    df = df.drop(columns=[csv_col])
+
+            # Ensure draft_year is int (CSV might have it as float)
+            for col in ["draft_year", "draft_round", "draft_number"]:
+                if col in df.columns:
+                    df[col] = pd.to_numeric(df[col], errors="coerce")
+
+            logger.info(f"Merged bio data for {len(bio_df)} players from CSV")
+
+        except Exception as e:
+            logger.error(f"Failed to load CSV bio data: {e}")
+            # Continue without CSV data on error
+
         return df
 
     def load(self, df: pd.DataFrame) -> int:
@@ -235,35 +358,55 @@ class PlayersETL(BaseETL):
         conn = get_db_connection()
 
         try:
+            # Handle missing columns by providing defaults
+            required_cols = [
+                "player_id", "first_name", "last_name", "full_name", "team_id",
+                "position", "jersey_number", "height", "height_cm", "weight", "weight_kg",
+                "birth_date", "birth_place", "birth_country", "country", "college",
+                "draft_year", "draft_round", "draft_number", "draft_team_id",
+                "shoots", "active", "hall_of_fame",
+            ]
+            for col in required_cols:
+                if col not in df.columns:
+                    df[col] = None
+
             # Handle NaN values for SQL insertion
             # Replace NaN in numeric columns with None
             df = df.where(pd.notnull(df), None)
 
+            # Helper to safely get row value
+            def get_value(row, col_name):
+                """Get value from row, returning None if column doesn't exist or is NaN."""
+                val = getattr(row, col_name, None)
+                if val is not None and pd.isna(val):
+                    return None
+                return val
+
             data = [
                 (
-                    row.player_id,
-                    row.first_name,
-                    row.last_name,
-                    row.full_name,
-                    row.team_id,
-                    row.position,
-                    row.jersey_number,
-                    row.height,
-                    row.height_cm,
-                    row.weight,
-                    row.weight_kg,
-                    row.birth_date,
-                    row.birth_place,
-                    row.birth_country,
-                    row.country,
-                    row.college,
-                    row.draft_year,
-                    row.draft_round,
-                    row.draft_number,
-                    row.draft_team_id,
-                    row.shoots,
-                    row.active,
-                    row.hall_of_fame,
+                    get_value(row, "player_id"),
+                    get_value(row, "first_name"),
+                    get_value(row, "last_name"),
+                    get_value(row, "full_name"),
+                    get_value(row, "team_id"),
+                    get_value(row, "position"),
+                    get_value(row, "jersey_number"),
+                    get_value(row, "height"),
+                    get_value(row, "height_cm"),
+                    get_value(row, "weight"),
+                    get_value(row, "weight_kg"),
+                    get_value(row, "birth_date"),
+                    get_value(row, "birth_place"),
+                    get_value(row, "birth_country"),
+                    get_value(row, "country"),
+                    get_value(row, "college"),
+                    get_value(row, "draft_year"),
+                    get_value(row, "draft_round"),
+                    get_value(row, "draft_number"),
+                    get_value(row, "draft_team_id"),
+                    get_value(row, "shoots"),
+                    get_value(row, "active"),
+                    get_value(row, "hall_of_fame"),
                 )
                 for row in df.itertuples(index=False)
             ]

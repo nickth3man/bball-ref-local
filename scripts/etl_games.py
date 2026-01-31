@@ -7,19 +7,8 @@ Usage:
 
 Fetches games from nba_api and inserts into DuckDB games table.
 
-TODO: MEDIUM - Missing quarter score data
-The database schema includes quarter columns (home_q1-4, away_q1-4, home_ot, away_ot)
-but they are not populated because LeagueGameFinder endpoint doesn't provide them.
-To populate:
-  1. Use BoxScore endpoint for each game (500+ API calls per season)
-  2. Use Basketball Reference CSV data via ingestion framework (recommended)
-
-TODO: MEDIUM - Missing arena and attendance data
-Database schema has arena and attendance columns but they are not populated.
-These fields are available in BoxScore endpoint.
-
-TODO: LOW - Verify is_overtime flag
-Currently hardcoded to False - see implementation below for details
+Note: Attendance data is loaded from planning/csv_data/Games.csv when available.
+Quarter scores require BoxScore endpoint (500+ calls/season) - not implemented.
 """
 
 import argparse
@@ -36,7 +25,6 @@ sys.path.insert(0, str(project_root))
 
 from nba_api.stats.endpoints import LeagueGameFinder
 
-from app.config import settings
 from app.services.database import get_db_connection
 from scripts.etl_base import BaseETL
 from scripts.etl_utils import (
@@ -79,6 +67,39 @@ def parse_game_date(date_str: str) -> date | None:
         return None
 
 
+def _load_attendance_from_csv() -> pd.DataFrame:
+    """Load attendance data from planning/csv_data/Games.csv.
+
+    Returns:
+        DataFrame with game_id and attendance columns, empty if file not found.
+    """
+    csv_path = Path("planning/csv_data/Games.csv")
+    if not csv_path.exists():
+        logger.warning(f"Games.csv not found at {csv_path}, attendance will be NULL")
+        return pd.DataFrame(columns=["game_id", "attendance"])
+
+    try:
+        df = pd.read_csv(csv_path)
+        # Games.csv uses gameId column, convert to game_id for consistency
+        if "gameId" in df.columns and "attendance" in df.columns:
+            df = df[["gameId", "attendance"]].copy()
+            df = df.rename(columns={"gameId": "game_id"})
+            # Ensure game_id is string for consistent merging
+            df["game_id"] = df["game_id"].astype(str)
+            # Convert attendance to numeric, coercing errors to NaN
+            df["attendance"] = pd.to_numeric(df["attendance"], errors="coerce")
+            # Drop rows where attendance is NaN
+            df = df.dropna(subset=["attendance"])
+            logger.info(f"Loaded attendance data for {len(df)} games from CSV")
+            return df
+        else:
+            logger.warning("Games.csv missing required columns (gameId, attendance)")
+            return pd.DataFrame(columns=["game_id", "attendance"])
+    except Exception as e:
+        logger.warning(f"Failed to load attendance from CSV: {e}")
+        return pd.DataFrame(columns=["game_id", "attendance"])
+
+
 class GamesETL(BaseETL):
     """ETL process for NBA games."""
 
@@ -86,6 +107,7 @@ class GamesETL(BaseETL):
         super().__init__("games_etl")
         self.season = None
         self.season_type = None
+        self.attendance_df = _load_attendance_from_csv()
 
     @retry_api_call(max_retries=3, initial_delay=0.6)
     def extract(
@@ -145,14 +167,16 @@ class GamesETL(BaseETL):
         away_games = df[~df["is_home"]].copy()
 
         # Rename columns to distinguish home/away
-        home_games = home_games.rename(
-            columns={
-                "TEAM_ID": "home_team_id",
-                "PTS": "home_score",
-                "WL": "home_wl",
-                "MIN": "minutes",
-            }
-        )
+        # Note: MIN column may not exist in test fixtures
+        home_rename_cols = {
+            "TEAM_ID": "home_team_id",
+            "PTS": "home_score",
+            "WL": "home_wl",
+        }
+        if "MIN" in home_games.columns:
+            home_rename_cols["MIN"] = "home_minutes"
+
+        home_games = home_games.rename(columns=home_rename_cols)
 
         away_games = away_games.rename(
             columns={
@@ -162,10 +186,15 @@ class GamesETL(BaseETL):
             }
         )
 
+        # Build merge columns - only include home_minutes if it exists
+        home_merge_cols = ["GAME_ID", "GAME_DATE", "home_team_id", "home_score", "home_wl"]
+        if "home_minutes" in home_games.columns:
+            home_merge_cols.append("home_minutes")
+
         # Merge on Game ID
         # Note: Using inner join to ensure we have data for both teams
         games = pd.merge(
-            home_games[["GAME_ID", "GAME_DATE", "home_team_id", "home_score", "home_wl"]],
+            home_games[home_merge_cols],
             away_games[["GAME_ID", "away_team_id", "away_score", "away_wl"]],
             on="GAME_ID",
             how="inner",
@@ -179,13 +208,15 @@ class GamesETL(BaseETL):
         games["season_id"] = self.season if self.season else get_current_season()
         games["season_type"] = self.season_type
         games["is_playoff"] = self.season_type == "Playoffs"
-        # TODO: MEDIUM - Fetch actual overtime data
-        # Current: is_overtime is hardcoded to False
-        # Issue: LeagueGameFinder endpoint doesn't provide quarter scores or OT flag
-        # Solution: Fetch from BoxScore endpoint for each game (expensive)
-        # Alternative: Use play-by-play data to calculate
-        # Note: Database schema has is_overtime column ready
-        games["is_overtime"] = False  # Not easily available from LeagueGameFinder
+        # Infer overtime from game minutes played
+        # Regular NBA games are 48 minutes (4 x 12 min quarters)
+        # Games with more than 48 minutes went to overtime
+        # Note: This is an approximation but more accurate than hardcoded False
+        # Default to False if home_minutes column doesn't exist
+        if "home_minutes" in games.columns:
+            games["is_overtime"] = games["home_minutes"] > 48
+        else:
+            games["is_overtime"] = False
         games["status"] = games.apply(
             lambda x: "Final"
             if x["home_score"] is not None and x["away_score"] is not None
@@ -207,7 +238,13 @@ class GamesETL(BaseETL):
             axis=1,
         )
 
-        # Select db columns
+        # Merge with attendance data from CSV if available
+        if not self.attendance_df.empty:
+            games = games.merge(self.attendance_df, on="game_id", how="left")
+        else:
+            games["attendance"] = None
+
+        # Select db columns (excluding attendance from default output for compatibility)
         db_columns = [
             "game_id",
             "season_id",
@@ -224,9 +261,22 @@ class GamesETL(BaseETL):
             "status",
         ]
 
+        # Only include attendance if it exists (from CSV merge)
+        if "attendance" in games.columns:
+            db_columns.append("attendance")
+
         result_df = games[db_columns]
 
-        logger.info(f"Transformed into {len(result_df)} unique games")
+        # Log attendance coverage
+        if not self.attendance_df.empty:
+            attendance_count = result_df["attendance"].notna().sum()
+            logger.info(
+                f"Transformed into {len(result_df)} unique games "
+                f"({attendance_count} with attendance data)"
+            )
+        else:
+            logger.info(f"Transformed into {len(result_df)} unique games")
+
         return result_df
 
     def load(self, df: pd.DataFrame) -> int:
@@ -247,6 +297,9 @@ class GamesETL(BaseETL):
             if "game_id" in df.columns:
                 df["game_id"] = df["game_id"].astype(str)
 
+            # Check if attendance column exists
+            has_attendance = "attendance" in df.columns
+
             data = [
                 (
                     row.game_id,
@@ -262,6 +315,7 @@ class GamesETL(BaseETL):
                     row.is_playoff,
                     row.is_overtime,
                     row.status,
+                    int(row.attendance) if has_attendance and pd.notna(row.attendance) else None,
                 )
                 for row in df.itertuples(index=False)
             ]
@@ -276,8 +330,8 @@ class GamesETL(BaseETL):
                     game_id, season_id, season, season_type, game_date,
                     home_team_id, away_team_id, home_score, away_score,
                     winner_team_id, is_playoff, is_overtime, status,
-                    updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                    attendance, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
             """,
                 data,
             )

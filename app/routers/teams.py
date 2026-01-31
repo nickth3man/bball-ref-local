@@ -106,15 +106,7 @@ async def list_teams(
         ]
 
         if is_htmx_request(request):
-            # TODO: CRITICAL - Implement HTMX template for team list
-            # File: app/templates/partials/team_list.html
-            # Requirements:
-            #   - Display teams in a grid or table layout
-            #   - Show team logo (if available), name, abbreviation, conference, division
-            #   - Link to team detail page: /teams/{team_id}
-            #   - Support conference/division filtering display
-            # Priority: HIGH
-            return HTMLResponse(content="")  # Placeholder for team_list.html
+            return HTMLResponse(content="")  # team_list.html exists but not yet integrated
 
         return teams
     except Exception as e:
@@ -187,15 +179,7 @@ async def get_team(
         )
 
         if is_htmx_request(request):
-            # TODO: CRITICAL - Implement HTMX template for team detail card
-            # File: app/templates/partials/team_card.html
-            # Requirements:
-            #   - Display team header with full name, city, abbreviation
-            #   - Show team metadata: founded year, arena, conference, division
-            #   - Include quick links to roster, stats, games
-            #   - Show team colors/logo placeholder
-            # Priority: HIGH
-            return HTMLResponse(content="")  # Placeholder for team_card.html
+            return HTMLResponse(content="")  # team_card.html does not exist
 
         return team
     except HTTPException:
@@ -228,6 +212,7 @@ async def get_team_roster(
                 player_id,
                 first_name,
                 last_name,
+                full_name,
                 team_id,
                 position,
                 jersey_number,
@@ -252,6 +237,7 @@ async def get_team_roster(
                             "player_id",
                             "first_name",
                             "last_name",
+                            "full_name",
                             "team_id",
                             "position",
                             "jersey_number",
@@ -272,16 +258,9 @@ async def get_team_roster(
         ]
 
         if is_htmx_request(request):
-            # TODO: CRITICAL - Implement HTMX template for team roster table
-            # File: app/templates/partials/roster_table.html
-            # Requirements:
-            #   - Table with columns: Name, Position, Jersey #, Height, Weight, Birth Date, College
-            #   - Sortable columns via HTMX
-            #   - Link to player profile: /players/{player_id}
-            #   - Handle empty roster state
-            # Note: Many player bio fields are NULL (see TODO in etl_players.py)
-            # Priority: HIGH
-            return HTMLResponse(content="")  # Placeholder for roster_table.html
+            return HTMLResponse(
+                content=""
+            )  # roster_table.html does not exist (team_roster.html exists)
 
         return players
     except Exception as e:
@@ -394,17 +373,7 @@ async def get_team_stats(
             }
 
         if is_htmx_request(request):
-            # TODO: CRITICAL - Implement HTMX template for team season stats
-            # File: app/templates/partials/team_stats.html
-            # Requirements:
-            #   - Display season record: wins, losses, win_pct
-            #   - Show offensive stats: PPG, FG%, 3P%, FT%, RPG, APG
-            #   - Show defensive stats: opponent PPG, opponent FG%
-            #   - Add toggle for per-game vs totals view
-            # Missing Data: Advanced stats (SRS, pace, ORtg, DRtg, nrtg) not yet calculated
-            #   - See TODO in app/services/database.py for missing ETL
-            # Priority: HIGH
-            return HTMLResponse(content="")  # Placeholder for team_stats.html
+            return HTMLResponse(content="")  # team_stats.html does not exist
 
         return stats
     except HTTPException:
@@ -508,16 +477,7 @@ async def get_team_games(
         )
 
         if is_htmx_request(request):
-            # TODO: CRITICAL - Implement HTMX template for team games list
-            # File: app/templates/partials/game_list.html (shared with games router)
-            # Requirements:
-            #   - Table with columns: Date, Opponent, Result, Score, W/L
-            #   - Show game status (scheduled, live, final)
-            #   - Link to box score: /games/{game_id}
-            #   - Pagination controls
-            #   - Filter by season
-            # Priority: HIGH
-            return HTMLResponse(content="")  # Placeholder for game_list.html
+            return HTMLResponse(content="")  # game_list.html exists but not yet integrated
 
         return response
     except Exception as e:

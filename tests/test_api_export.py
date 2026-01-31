@@ -53,12 +53,21 @@ class TestPlayerExport:
         assert response.status_code == 200
         mock_export.assert_called_once_with("123", 2024, "csv")
 
-    def test_export_player_invalid_format(self, client: TestClient) -> None:
+    @patch("app.routers.players.export_player_stats")
+    def test_export_player_invalid_format(self, mock_export: Mock, client: TestClient) -> None:
         """Test export with invalid format defaults to CSV."""
+        from fastapi.responses import Response
+
+        csv_content = "season,games_played,points\n2024,10,250\n"
+        response_mock = Response(content=csv_content, media_type="text/csv")
+        mock_export.return_value = response_mock
+
         response = client.get("/api/v1/players/123/export?format=xml")
 
         # Should default to CSV, not error
-        assert response.status_code in [200, 404]  # 404 if no data, 200 if data exists
+        assert response.status_code == 200
+        # Verify export was called (with format defaulting to csv)
+        mock_export.assert_called_once()
 
 
 class TestTeamExport:

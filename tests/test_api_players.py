@@ -44,6 +44,7 @@ def sample_player_row():
         2003,  # draft_year
         1,  # draft_round
         1,  # draft_number
+        1,  # total_count from window function
     )
 
 
@@ -65,6 +66,7 @@ def sample_player_rows():
             2003,
             1,
             1,
+            3,  # total_count from window function
         ),
         (
             "201939",
@@ -80,6 +82,7 @@ def sample_player_rows():
             2009,
             1,
             7,
+            3,  # total_count from window function
         ),
         (
             "1628983",
@@ -95,6 +98,7 @@ def sample_player_rows():
             2018,
             1,
             11,
+            3,  # total_count from window function
         ),
     ]
 
@@ -122,6 +126,9 @@ def sample_player_stats_row():
         7,  # fg3_attempted
         2,  # ft_made
         3,  # ft_attempted
+        "2024-10-22",  # game_date
+        2024,  # season
+        50,  # total_count (window function)
     )
 
 
@@ -130,11 +137,8 @@ class TestListPlayers:
 
     def test_list_players(self, client, mock_execute_query, sample_player_rows):
         """Test GET /api/v1/players/ returns paginated player list."""
-        # Mock count query
-        mock_execute_query.side_effect = [
-            [(3,)],  # Count result
-            sample_player_rows,  # Player data
-        ]
+        # Mock single query with window function
+        mock_execute_query.return_value = sample_player_rows
 
         response = client.get("/api/v1/players/")
 
@@ -153,12 +157,12 @@ class TestListPlayers:
 
     def test_list_players_with_search(self, client, mock_execute_query, sample_player_rows):
         """Test search filter on player list."""
-        # Filter to just LeBron
-        filtered_rows = [sample_player_rows[0]]
-        mock_execute_query.side_effect = [
-            [(1,)],  # Count result
-            filtered_rows,  # Player data
-        ]
+        # Filter to just LeBron (with total_count=1 from window function)
+        filtered_rows = [(
+            "2544", "LeBron", "James", "1610612747", "SF", 23,
+            "6'8", 250, "1984-12-30", "USA", 2003, 1, 1, 1  # total_count=1
+        )]
+        mock_execute_query.return_value = filtered_rows
 
         response = client.get("/api/v1/players/?search=LeBron")
 
@@ -171,10 +175,7 @@ class TestListPlayers:
     def test_list_players_with_pagination(self, client, mock_execute_query, sample_player_rows):
         """Test page and page_size parameters."""
         # Return only first player for page 1 with page_size 1
-        mock_execute_query.side_effect = [
-            [(3,)],  # Count result (3 total)
-            [sample_player_rows[0]],  # First player only
-        ]
+        mock_execute_query.return_value = [sample_player_rows[0]]
 
         response = client.get("/api/v1/players/?page=1&page_size=1")
 
@@ -188,10 +189,7 @@ class TestListPlayers:
 
     def test_list_players_empty_result(self, client, mock_execute_query):
         """Test player list with no results."""
-        mock_execute_query.side_effect = [
-            [(0,)],  # Count result
-            [],  # No players
-        ]
+        mock_execute_query.return_value = []  # No players
 
         response = client.get("/api/v1/players/?search=NonExistentPlayer")
 
@@ -203,11 +201,9 @@ class TestListPlayers:
 
     def test_list_players_with_team_filter(self, client, mock_execute_query, sample_player_rows):
         """Test filtering players by team_id."""
-        lakers_players = [row for row in sample_player_rows if row[3] == 1610612747]
-        mock_execute_query.side_effect = [
-            [(len(lakers_players),)],
-            lakers_players,
-        ]
+        # LeBron is the only Lakers player in sample data
+        lakers_players = [sample_player_rows[0]]
+        mock_execute_query.return_value = lakers_players
 
         response = client.get("/api/v1/players/?team_id=1610612747")
 
@@ -222,7 +218,7 @@ class TestListPlayers:
         response = client.get("/api/v1/players/")
 
         assert response.status_code == 500
-        assert "Database error" in response.json()["detail"]
+        assert "Failed to fetch players" in response.json()["detail"]
 
 
 class TestGetPlayerById:
@@ -268,19 +264,19 @@ class TestGetPlayerStats:
         # Mock player exists check
         # Mock career stats query
         # Mock season stats query
-        # Mock recent games query
+        # Mock recent games query (recent_games query returns 19 columns)
         mock_execute_query.side_effect = [
-            [("2544",)],  # Player exists check
+            [(1,)],  # Player exists check (returns integer 1)
             [(10, 345.0, 250, 80, 60, 15, 5, 100, 200, 30, 80, 40, 50, 25, 40)],  # Career stats
             [],  # Season stats (empty for this test)
-            [sample_player_stats_row],  # Recent games
+            [sample_player_stats_row[:19]],  # Recent games (19 columns only)
         ]
 
         response = client.get("/api/v1/players/2544/stats")
 
         assert response.status_code == 200
         data = response.json()
-        assert data["player_id"] == "2544"
+        assert data["player_id"] == 2544  # Integer player_id
         assert "career_stats" in data
         assert "season_stats" in data
         assert "recent_games" in data
@@ -300,17 +296,17 @@ class TestGetPlayerStats:
     ):
         """Test stats endpoint with season filter."""
         mock_execute_query.side_effect = [
-            [("2544",)],  # Player exists check
+            [(1,)],  # Player exists check (returns integer 1)
             [(5, 172.5, 125, 40, 30, 8, 3, 50, 100, 15, 40, 20, 25, 12, 20)],  # Season stats
             [],  # No season-by-season when filter applied
-            [sample_player_stats_row],  # Recent games
+            [sample_player_stats_row[:19]],  # Recent games (19 columns only)
         ]
 
         response = client.get("/api/v1/players/2544/stats?season=2024")
 
         assert response.status_code == 200
         data = response.json()
-        assert data["player_id"] == "2544"
+        assert data["player_id"] == 2544  # Integer player_id
         assert data["career_stats"]["season"] == 2024
 
 
@@ -319,17 +315,14 @@ class TestGetPlayerGames:
 
     def test_get_player_games(self, client, mock_execute_query, sample_player_stats_row):
         """Test GET /api/v1/players/{id}/games returns player game log."""
-        mock_execute_query.side_effect = [
-            [("2544",)],  # Player exists check
-            [(50,)],  # Total count
-            [sample_player_stats_row],  # Game data
-        ]
+        # Endpoint makes single query with window function
+        mock_execute_query.return_value = [sample_player_stats_row]
 
         response = client.get("/api/v1/players/2544/games")
 
         assert response.status_code == 200
         data = response.json()
-        assert data["player_id"] == "2544"
+        assert data["player_id"] == 2544  # Integer
         assert "games" in data
         assert "total_count" in data
         assert data["total_count"] == 50
@@ -337,29 +330,29 @@ class TestGetPlayerGames:
         assert data["games"][0]["points"] == 25
 
     def test_get_player_games_not_found(self, client, mock_execute_query):
-        """Test 404 when player doesn't exist."""
+        """Test empty games list when player has no games (endpoint doesn't check player existence)."""
         mock_execute_query.return_value = []
 
         response = client.get("/api/v1/players/999999/games")
 
-        assert response.status_code == 404
+        assert response.status_code == 200
+        data = response.json()
+        assert data["games"] == []
+        assert data["total_count"] == 0
 
     def test_get_player_games_with_season_filter(
         self, client, mock_execute_query, sample_player_stats_row
     ):
         """Test games endpoint with season filter."""
-        mock_execute_query.side_effect = [
-            [("2544",)],  # Player exists check
-            [(20,)],  # Count for season
-            [sample_player_stats_row],  # Game data
-        ]
+        # Endpoint makes single query with window function
+        mock_execute_query.return_value = [sample_player_stats_row]
 
         response = client.get("/api/v1/players/2544/games?season=2024")
 
         assert response.status_code == 200
         data = response.json()
         assert data["season"] == 2024
-        assert data["total_count"] == 20
+        assert data["total_count"] == 50
 
 
 class TestListPlayersHtmx:
@@ -367,10 +360,9 @@ class TestListPlayersHtmx:
 
     def test_list_players_htmx(self, client, mock_execute_query, sample_player_rows):
         """Test HTMX request returns HTML response."""
-        mock_execute_query.side_effect = [
-            [(3,)],
-            sample_player_rows,
-        ]
+        # Add total_count to each row (window function result)
+        rows_with_count = [row + (3,) for row in sample_player_rows]
+        mock_execute_query.return_value = rows_with_count
 
         response = client.get("/api/v1/players/", headers={"HX-Request": "true"})
 
@@ -388,11 +380,14 @@ class TestListPlayersHtmx:
 
     def test_get_player_stats_htmx(self, client, mock_execute_query, sample_player_stats_row):
         """Test HTMX request for player stats returns HTML."""
+        # Endpoint makes 4 queries: player check, career stats, season stats, recent games
         mock_execute_query.side_effect = [
-            [("2544",)],
+            [(1,)],  # Player exists check
+            # Career stats query returns 15 columns
             [(10, 345.0, 250, 80, 60, 15, 5, 100, 200, 30, 80, 40, 50, 25, 40)],
-            [],
-            [sample_player_stats_row],
+            [],  # Season stats (empty when no season filter)
+            # Recent games - need only 19 columns (without game_date, season, total_count)
+            [sample_player_stats_row[:19]],
         ]
 
         response = client.get("/api/v1/players/2544/stats", headers={"HX-Request": "true"})

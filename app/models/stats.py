@@ -141,50 +141,43 @@ class PlayerGameStats(BaseModel):
             return None
         return round(self.points / ts_attempts, 3)
 
-    # TODO: MEDIUM - Add computed fields for 2-point statistics
-    # These are commonly displayed alongside other shooting stats
-    #
-    # @computed_field
-    # @property
-    # def two_fg_made(self) -> int:
-    #     """Two-point field goals made: FG - 3P"""
-    #     return self.fg_made - self.fg3_made
-    #
-    # @computed_field
-    # @property
-    # def two_fg_attempted(self) -> int:
-    #     """Two-point field goals attempted: FGA - 3PA"""
-    #     return self.fg_attempted - self.fg3_attempted
-    #
-    # @computed_field
-    # @property
-    # def two_fg_pct(self) -> float | None:
-    #     """Two-point field goal percentage: 2P / 2PA"""
-    #     if self.two_fg_attempted == 0:
-    #         return None
-    #     return round(self.two_fg_made / self.two_fg_attempted, 3)
-    #
-    # Note: Add corresponding columns to player_game_stats table if needed
+    @computed_field
+    @property
+    def two_fg_made(self) -> int:
+        """
+        Two-point field goals made.
+
+        Returns:
+            int: Two-point field goals made (FG - 3P).
+        """
+        return self.fg_made - self.fg3_made
 
     @computed_field
     @property
-    def plus_minus(self) -> int | None:
+    def two_fg_attempted(self) -> int:
         """
-        Represents the player's plus/minus for the game, if available.
+        Two-point field goals attempted.
 
         Returns:
-            int | None: The player's plus/minus value for the game, or `None` when the statistic is not available.
-
-        TODO: HIGH - Implement plus/minus from data source
-        Issue: This currently always returns None as a placeholder
-        Options:
-          1. Fetch from NBA API PlayerGameLogs endpoint (includes PLUS_MINUS field)
-          2. Calculate from play-by-play data (if available)
-          3. Remove this computed field and use database column directly
-        Related: player_game_logs table has plus_minus column but not populated by ETL
-          - See TODO in scripts/etl_stats.py
-        Priority: MEDIUM
+            int: Two-point field goals attempted (FGA - 3PA).
         """
-        # This would typically come from the data source
-        # Returning None as it's not in the base attributes
-        return None
+        return self.fg_attempted - self.fg3_attempted
+
+    @computed_field
+    @property
+    def two_fg_pct(self) -> float | None:
+        """
+        Two-point field goal percentage on a 0-1 scale, rounded to three decimals.
+
+        Returns:
+            float | None: Two-point field goal percentage (0.0-1.0) rounded to three decimals,
+                or `None` if `two_fg_attempted` is 0.
+        """
+        if self.two_fg_attempted == 0:
+            return None
+        return round(self.two_fg_made / self.two_fg_attempted, 3)
+
+    plus_minus: int | None = Field(
+        default=None,
+        description="Player's plus/minus for the game (point differential while on court)",
+    )

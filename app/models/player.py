@@ -1,18 +1,8 @@
-"""Player Pydantic models for basketball statistics.
-
-TODO: LOW - Align column naming with PRD specification
-Issue: Model uses `draft_number` but PRD specifies `draft_pick`
-Location: players table in database.py also uses `draft_number`
-Options:
-  1. Rename field to `draft_pick` in model and database (breaking change)
-  2. Keep as-is and document the difference (current approach)
-  3. Add alias `draft_pick` for backward compatibility
-Note: Both names refer to the same concept - overall draft pick number
-"""
+"""Player Pydantic models for basketball statistics."""
 
 from datetime import date
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 
 
 class Player(BaseModel):
@@ -72,7 +62,13 @@ class Player(BaseModel):
     draft_round: int | None = Field(
         default=None, description="Round the player was drafted", ge=1, le=3
     )
-    draft_number: int | None = Field(default=None, description="Overall pick number", ge=1, le=60)
+    draft_number: int | None = Field(
+        default=None,
+        description="Overall pick number",
+        ge=1,
+        le=60,
+        validation_alias=AliasChoices("draft_number", "draft_pick"),
+    )
     draft_team_id: str | None = Field(
         default=None, description="ID of the team that drafted the player"
     )
@@ -106,14 +102,18 @@ class Player(BaseModel):
             return None
         return f"{self.weight} lbs"
 
-    # TODO: MEDIUM - Add age computed property
-    # Calculate age from birth_date to current date
-    # Formula: (today - birth_date) in years
-    # Note: birth_date is currently NULL for all players (see etl_players.py TODO)
-    # Example implementation:
-    # @property
-    # def age(self) -> int | None:
-    #     if self.birth_date is None:
-    #         return None
-    #     today = date.today()
-    #     return today.year - self.birth_date.year - ((today.month, today.day) < (self.birth_date.month, self.birth_date.day))
+    @property
+    def age(self) -> int | None:
+        """Calculate the player's age from their birth date.
+
+        Returns:
+            int: The player's age in years, or `None` if `birth_date` is not set.
+        """
+        if self.birth_date is None:
+            return None
+        today = date.today()
+        return (
+            today.year
+            - self.birth_date.year
+            - ((today.month, today.day) < (self.birth_date.month, self.birth_date.day))
+        )

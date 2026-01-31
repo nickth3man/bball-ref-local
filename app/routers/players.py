@@ -569,13 +569,12 @@ async def get_player_stats(
     if is_htmx_request(request):
         templates = get_templates()
         return templates.TemplateResponse(
-            "partials/stats_table.html",
+            "partials/player_stats_table.html",
             {
                 "request": request,
                 "player_id": player_id,
-                "career_stats": career_stats,
-                "season_stats": season_stats,
-                "recent_games": recent_games,
+                "stats": season_stats,
+                "career_totals": career_stats,
             },
         )
 

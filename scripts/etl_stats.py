@@ -266,7 +266,7 @@ class StatsETL(BaseETL):
     # This is to match the signature expected by run_all_etl.py
     def run(self, *args, **kwargs) -> dict[str, Any]:
         if "batch_size" in kwargs:
-            self.batch_size = kwargs["batch_size"]
+            self.batch_size = kwargs.pop("batch_size")
         return super().run(*args, **kwargs)
 
 

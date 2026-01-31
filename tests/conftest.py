@@ -233,6 +233,9 @@ def sample_player_api_data():
         "FROM_YEAR": [2003, 2009, 2018],
         "TO_YEAR": [2025, 2025, 2025],
         "GAMES_PLAYED_FLAG": ["Y", "Y", "Y"],
+        "HEIGHT": ["6-9", "6-2", "6-6"],
+        "WEIGHT": ["250", "185", "180"],
+        "POSITION": ["F", "G", "G"],
     }
 
 
@@ -255,6 +258,8 @@ def sample_player_with_all_fields():
         "POSITION": ["F"],
         "HEIGHT": ["6-9"],
         "WEIGHT": ["250"],
+        "HEIGHT_CM": [206],  # Required by transform
+        "WEIGHT_KG": [113],  # Required by transform
         "BIRTH_DATE": ["1984-12-30"],
         "COUNTRY": ["USA"],
         "JERSEY": ["23"],
@@ -292,6 +297,7 @@ def sample_game_api_data():
         "PTS": [132, 109, 117, 118],
         "WL": ["W", "L", "L", "W"],
         "SEASON_ID": ["22024", "22024", "22024", "22024"],
+        "MIN": [48, 48, 53, 53],  # Minutes played (53 = overtime game)
     }
 
 

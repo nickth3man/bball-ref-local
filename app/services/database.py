@@ -235,8 +235,8 @@ def _create_player_game_stats_table(conn: duckdb.DuckDBPyConnection) -> None:
 def _create_seasons_table(conn: duckdb.DuckDBPyConnection) -> None:
     """Create the seasons table.
 
-    TODO: CRITICAL - Create ETL script to populate this table
-    This table stores NBA season metadata but NO ETL populates it.
+    TODO: Populate seasons data in init_db.py or via helper function.
+    This table stores NBA season metadata and can be populated programmatically.
 
     Data to include:
       - All NBA seasons from 1946-47 to present
@@ -245,14 +245,11 @@ def _create_seasons_table(conn: duckdb.DuckDBPyConnection) -> None:
       - display_name (e.g., "2023-24 NBA Season")
 
     Implementation approach:
-      1. Create etl_seasons.py script
-      2. Generate seasons programmatically (1946-47 to current)
-      3. Insert into this table
+      1. Generate seasons programmatically (1946-47 to current)
+      2. Insert into this table during database initialization
 
-    Note: This is a prerequisite for other ETLs that reference season_id
-
-    File to create: scripts/etl_seasons.py
-    Priority: CRITICAL - Required as foreign key reference for other tables
+    Note: This is a prerequisite for other tables that reference season_id.
+          No separate ETL script needed - simple static data generation.
     """
     conn.execute("""
         CREATE TABLE IF NOT EXISTS seasons (
@@ -268,34 +265,21 @@ def _create_seasons_table(conn: duckdb.DuckDBPyConnection) -> None:
 def _create_player_season_stats_table(conn: duckdb.DuckDBPyConnection) -> None:
     """Create the player_season_stats table.
 
-    TODO: CRITICAL - Create ETL script to populate this table
-    This table has columns for advanced statistics but NO ETL populates it:
-      - per: Player Efficiency Rating (complex formula requiring league averages)
-      - ts_pct: True Shooting % (can calculate from basic stats)
-      - usg_pct: Usage Rate (requires team totals)
-      - ortg: Offensive Rating (requires team pace and league averages)
-      - drtg: Defensive Rating (requires team defensive stats)
-      - ws: Win Shares (complex calculation)
-      - ws_per_48: Win Shares per 48 minutes
-      - bpm: Box Plus/Minus (requires regression coefficients)
-      - vorp: Value Over Replacement Player (derived from BPM)
+    TODO: Create ETL or use ingestion framework data to populate this table.
 
-    Advanced statistics formulas verified correct per basketball-reference.com:
-      - TS% = PTS / (2 * (FGA + 0.44 * FTA))
-      - USG% = 100 * ((FGA + 0.44 * FTA + TO) * (TmMP / 5)) / (MP * (TmFGA + 0.44 * TmFTA + TmTO))
-      - PER: Complex formula (see basketball-reference.com/about/per.html)
-      - WS: Based on Marginal Offensive/Defensive Contribution
-      - BPM: Box Plus/Minus with team adjustment
-      - VORP: (BPM - (-2.0)) * (% of minutes played)
+    Note: The ingestion framework (scripts/ingestion/) loads similar data into
+    separate tables: player_season_totals, player_season_per_game,
+    player_season_advanced, etc. from CSV files (Advanced.csv, Player_Totals.csv).
 
-    Implementation approach:
-      1. Aggregate player_game_stats to season totals
-      2. Calculate per-game averages
-      3. Calculate advanced stats using league averages
-      4. Insert into this table
+    This core table combines all stats into one table with advanced metrics:
+      - per, ts_pct, usg_pct, ortg, drtg, ws, ws_per_48, bpm, vorp
 
-    File to create: scripts/etl_player_season_stats.py
-    Priority: CRITICAL - Required for player career stats and leaderboards
+    Options:
+      1. Create etl_player_season_stats.py to populate from NBA API
+      2. Create view that unions/aggregates ingestion framework tables
+      3. Populate from ingestion framework tables via SQL INSERT...SELECT
+
+    Priority: MEDIUM - Ingestion framework tables provide similar functionality
     """
     conn.execute("""
         CREATE TABLE IF NOT EXISTS player_season_stats (
@@ -409,37 +393,29 @@ def _create_player_game_logs_table(conn: duckdb.DuckDBPyConnection) -> None:
 def _create_team_season_stats_table(conn: duckdb.DuckDBPyConnection) -> None:
     """Create the team_season_stats table.
 
-    TODO: CRITICAL - Create ETL script to populate this table
-    This table has columns for team advanced stats but NO ETL populates it:
-      - pace: Team pace factor (possessions per game)
-      - srs: Simple Rating System (point differential adjusted for SOS)
-      - ortg: Offensive Rating (points per 100 possessions)
-      - drtg: Defensive Rating (points allowed per 100 possessions)
-      - nrtg: Net Rating (ortg - drtg)
+    TODO: Create ETL or use ingestion framework data to populate this table.
 
-    Advanced statistics formulas verified correct per basketball-reference.com:
+    Note: The ingestion framework (scripts/ingestion/) loads similar data into
+    separate tables: team_season_totals, team_season_summaries,
+    team_season_per_game, opponent_season_totals from CSV files
+    (Team_Totals.csv, Team_Summaries.csv, Team_Stats_Per_Game.csv, etc.).
+
+    This core table combines team and opponent stats with advanced metrics:
+      - pace, srs, ortg, drtg, nrtg
+
+    Options:
+      1. Create etl_team_season_stats.py to populate from NBA API
+      2. Create view that unions/aggregates ingestion framework tables
+      3. Populate from ingestion framework tables via SQL INSERT...SELECT
+
+    Advanced statistics formulas:
       - Pace = 48 * ((Tm Poss + Opp Poss) / (2 * (Tm MP / 5)))
-      - SRS: Requires solving system of equations for all teams
+      - SRS: Simple Rating System (point differential adjusted for SOS)
       - ORtg = (Points Scored / Possessions) * 100
       - DRtg = (Points Allowed / Possessions) * 100
       - NRtg = ORtg - DRtg
 
-    Data source:
-      1. Aggregate from player_game_stats for offensive stats
-      2. Aggregate opponent stats from games table
-      3. Calculate possessions using standard formula
-      4. Calculate SRS via matrix algebra or iterative method
-
-    Implementation approach:
-      1. Aggregate team stats per season
-      2. Calculate opponent stats per season
-      3. Calculate possessions for pace
-      4. Calculate SRS (Simple Rating System)
-      5. Calculate ORtg, DRtg, NRtg
-      6. Insert into this table
-
-    File to create: scripts/etl_team_season_stats.py
-    Priority: CRITICAL - Required for team standings and analytics
+    Priority: MEDIUM - Ingestion framework tables provide similar functionality
     """
     conn.execute("""
         CREATE TABLE IF NOT EXISTS team_season_stats (
@@ -503,31 +479,19 @@ def _create_team_season_stats_table(conn: duckdb.DuckDBPyConnection) -> None:
 def _create_awards_table(conn: duckdb.DuckDBPyConnection) -> None:
     """Create the awards table.
 
-    TODO: CRITICAL - Create ETL script to populate this table
-    This table stores NBA awards but NO ETL populates it.
+    Note: Awards data is loaded by the ingestion framework (scripts/ingestion/)
+    into separate tables: all_star_selections, end_of_season_teams,
+    end_of_season_teams_voting, award_shares from CSV files:
+    - All-Star Selections.csv
+    - End_of_Season_Teams.csv
+    - End_of_Season_Teams_(Voting).csv
+    - Player_Award_Shares.csv
 
-    Awards to track:
-      - MVP (Most Valuable Player)
-      - All-NBA First/Second/Third Team
-      - ROY (Rookie of the Year)
-      - DPOY (Defensive Player of the Year)
-      - All-Defensive First/Second Team
-      - All-Star selections
-      - And more...
+    See: AwardsLoader in scripts/ingestion/loaders/awards_loaders.py
+         run_phase_4_awards_data() in scripts/run_historical_ingestion.py
 
-    Data sources:
-      1. NBA API Awards endpoints (if available)
-      2. Basketball Reference CSV exports (planning/csv_data/)
-      3. Manual data entry for historical completeness
-
-    Implementation approach:
-      1. Create etl_awards.py script
-      2. Load from CSV or API
-      3. Map player/team IDs
-      4. Insert into this table
-
-    File to create: scripts/etl_awards.py
-    Priority: CRITICAL - Required for awards tracking and player achievements
+    This core table can be populated from the ingestion framework tables
+    or via a future ETL script if a unified awards table is needed.
     """
     conn.execute("""
         CREATE TABLE IF NOT EXISTS awards (
@@ -551,29 +515,21 @@ def _create_awards_table(conn: duckdb.DuckDBPyConnection) -> None:
 def _create_draft_picks_table(conn: duckdb.DuckDBPyConnection) -> None:
     """Create the draft_picks table.
 
-    TODO: CRITICAL - Create ETL script to populate this table
-    This table stores NBA draft history but NO ETL populates it.
+    Note: Draft data is loaded by the ingestion framework (scripts/ingestion/)
+    into the draft_pick_history table from Draft_Pick_History.csv.
 
-    Data to include:
+    See: DraftLoader in scripts/ingestion/loaders/awards_loaders.py
+         run_phase_4_awards_data() in scripts/run_historical_ingestion.py
+
+    This core table can be populated from the ingestion framework table
+    or via a future ETL script if needed.
+
+    Data includes:
       - All NBA draft picks from 1947 to present
       - Draft year, round, pick number
       - Team that made the selection
       - Player selected
       - College/nationality
-
-    Data sources:
-      1. Basketball Reference CSV exports (planning/csv_data/)
-      2. NBA API Draft endpoints (limited historical data)
-      3. Manual compilation for older drafts
-
-    Implementation approach:
-      1. Create etl_draft_picks.py script
-      2. Load from CSV files
-      3. Map team and player IDs
-      4. Insert into this table
-
-    File to create: scripts/etl_draft_picks.py
-    Priority: CRITICAL - Required for draft history feature
     """
     conn.execute("""
         CREATE TABLE IF NOT EXISTS draft_picks (
