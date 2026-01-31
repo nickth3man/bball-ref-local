@@ -1,7 +1,6 @@
 """Command-line interface for validation framework."""
 
 import argparse
-import logging
 import sys
 from pathlib import Path
 
@@ -9,8 +8,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from scripts.ingestion.database import close_ingestion_connection, get_ingestion_connection
-from scripts.ingestion.logger import get_logger
 from scripts.ingestion.validation.consistency_checks import ConsistencyChecker
+from scripts.logging_utils import enable_verbose_logging, get_logger
 from scripts.ingestion.validation.report_generator import ValidationReport
 from scripts.ingestion.validation.validators import DataValidator
 
@@ -67,7 +66,7 @@ def run_validation(args: argparse.Namespace) -> int:
     """Run validation based on arguments."""
 
     if args.verbose:
-        logging.getLogger().setLevel(logging.DEBUG)
+        enable_verbose_logging()
 
     logger.info("Starting validation...")
 

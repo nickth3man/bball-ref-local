@@ -42,6 +42,7 @@ def sample_game_row():
         109,  # away_score
         "1610612738",  # winner_team_id
         "final",  # status
+        1,  # total_count (from window function)
     )
 
 
@@ -60,6 +61,7 @@ def sample_game_rows():
             109,
             "1610612738",
             "final",
+            3,  # total_count (from window function)
         ),
         (
             "0022400002",
@@ -72,6 +74,7 @@ def sample_game_rows():
             118,
             "1610612749",
             "final",
+            3,  # total_count (from window function)
         ),
         (
             "0022400003",
@@ -84,6 +87,7 @@ def sample_game_rows():
             105,
             "1610612761",
             "final",
+            3,  # total_count (from window function)
         ),
     ]
 
@@ -139,10 +143,8 @@ class TestListGames:
 
     def test_list_games(self, client, mock_execute_query, sample_game_rows):
         """Test GET /api/v1/games/ returns paginated game list."""
-        mock_execute_query.side_effect = [
-            [(3,)],  # Count
-            sample_game_rows,  # Games data
-        ]
+        # Router uses window function - single query returns data with total_count
+        mock_execute_query.return_value = sample_game_rows
 
         response = client.get("/api/v1/games/")
 
@@ -156,10 +158,8 @@ class TestListGames:
 
     def test_list_games_empty(self, client, mock_execute_query):
         """Test game list with no games."""
-        mock_execute_query.side_effect = [
-            [(0,)],  # Count
-            [],  # No games
-        ]
+        # Router uses window function - single query returns empty list when no games
+        mock_execute_query.return_value = []
 
         response = client.get("/api/v1/games/")
 
@@ -170,10 +170,24 @@ class TestListGames:
 
     def test_list_games_pagination(self, client, mock_execute_query, sample_game_rows):
         """Test game list pagination."""
-        mock_execute_query.side_effect = [
-            [(100,)],  # Count
-            sample_game_rows[:1],  # First page with 1 item
+        # Router uses window function - single query returns data with total_count
+        # For pagination test, we need a row with total_count=100
+        paginated_rows = [
+            (
+                "0022400001",
+                2024,
+                "Regular Season",
+                date(2024, 10, 22),
+                "1610612738",
+                "1610612752",
+                132,
+                109,
+                "1610612738",
+                "final",
+                100,  # total_count from window function
+            ),
         ]
+        mock_execute_query.return_value = paginated_rows
 
         response = client.get("/api/v1/games/?page=1&page_size=1")
 
@@ -190,10 +204,36 @@ class TestListGamesWithDateFilter:
 
     def test_list_games_with_date_from(self, client, mock_execute_query, sample_game_rows):
         """Test date_from filter."""
-        mock_execute_query.side_effect = [
-            [(2,)],  # Count
-            sample_game_rows[:2],  # Filtered games
+        # Router uses window function - single query returns data with total_count
+        filtered_rows = [
+            (
+                "0022400001",
+                2024,
+                "Regular Season",
+                date(2024, 10, 22),
+                "1610612738",
+                "1610612752",
+                132,
+                109,
+                "1610612738",
+                "final",
+                2,  # total_count from window function
+            ),
+            (
+                "0022400002",
+                2024,
+                "Regular Season",
+                date(2024, 10, 22),
+                "1610612755",
+                "1610612749",
+                117,
+                118,
+                "1610612749",
+                "final",
+                2,  # total_count from window function
+            ),
         ]
+        mock_execute_query.return_value = filtered_rows
 
         response = client.get("/api/v1/games/?date_from=2024-10-22")
 
@@ -203,10 +243,23 @@ class TestListGamesWithDateFilter:
 
     def test_list_games_with_date_to(self, client, mock_execute_query, sample_game_rows):
         """Test date_to filter."""
-        mock_execute_query.side_effect = [
-            [(1,)],  # Count
-            sample_game_rows[:1],  # Filtered games
+        # Router uses window function - single query returns data with total_count
+        filtered_rows = [
+            (
+                "0022400001",
+                2024,
+                "Regular Season",
+                date(2024, 10, 22),
+                "1610612738",
+                "1610612752",
+                132,
+                109,
+                "1610612738",
+                "final",
+                1,  # total_count from window function
+            ),
         ]
+        mock_execute_query.return_value = filtered_rows
 
         response = client.get("/api/v1/games/?date_to=2024-10-22")
 
@@ -216,10 +269,36 @@ class TestListGamesWithDateFilter:
 
     def test_list_games_with_date_range(self, client, mock_execute_query, sample_game_rows):
         """Test both date_from and date_to filters."""
-        mock_execute_query.side_effect = [
-            [(2,)],  # Count
-            sample_game_rows[:2],  # Filtered games
+        # Router uses window function - single query returns data with total_count
+        filtered_rows = [
+            (
+                "0022400001",
+                2024,
+                "Regular Season",
+                date(2024, 10, 22),
+                "1610612738",
+                "1610612752",
+                132,
+                109,
+                "1610612738",
+                "final",
+                2,  # total_count from window function
+            ),
+            (
+                "0022400002",
+                2024,
+                "Regular Season",
+                date(2024, 10, 22),
+                "1610612755",
+                "1610612749",
+                117,
+                118,
+                "1610612749",
+                "final",
+                2,  # total_count from window function
+            ),
         ]
+        mock_execute_query.return_value = filtered_rows
 
         response = client.get("/api/v1/games/?date_from=2024-10-22&date_to=2024-10-22")
 
@@ -233,10 +312,23 @@ class TestListGamesWithTeamFilter:
 
     def test_list_games_with_team_filter(self, client, mock_execute_query, sample_game_rows):
         """Test team_id filter."""
-        mock_execute_query.side_effect = [
-            [(1,)],  # Count
-            [sample_game_rows[0]],  # Games for specific team
+        # Router uses window function - single query returns data with total_count
+        filtered_rows = [
+            (
+                "0022400001",
+                2024,
+                "Regular Season",
+                date(2024, 10, 22),
+                "1610612738",
+                "1610612752",
+                132,
+                109,
+                "1610612738",
+                "final",
+                1,  # total_count from window function
+            ),
         ]
+        mock_execute_query.return_value = filtered_rows
 
         response = client.get("/api/v1/games/?team_id=1610612738")
 
@@ -247,10 +339,23 @@ class TestListGamesWithTeamFilter:
 
     def test_list_games_with_team_as_away(self, client, mock_execute_query, sample_game_rows):
         """Test team filter includes games where team is away."""
-        mock_execute_query.side_effect = [
-            [(1,)],  # Count
-            [sample_game_rows[0]],  # Team is home
+        # Router uses window function - single query returns data with total_count
+        filtered_rows = [
+            (
+                "0022400001",
+                2024,
+                "Regular Season",
+                date(2024, 10, 22),
+                "1610612738",
+                "1610612752",
+                132,
+                109,
+                "1610612738",
+                "final",
+                1,  # total_count from window function
+            ),
         ]
+        mock_execute_query.return_value = filtered_rows
 
         response = client.get("/api/v1/games/?team_id=1610612752")
 
@@ -294,11 +399,69 @@ class TestGetGameById:
         self, client, mock_execute_query, sample_game_row, sample_team_row, sample_player_stats_row
     ):
         """Test GET /api/v1/games/{id} returns game box score."""
-        mock_execute_query.side_effect = [
-            [sample_game_row],  # Game details
-            [sample_team_row, sample_team_row],  # Home and away teams
-            [sample_player_stats_row],  # Player stats
-        ]
+        # Box score query returns combined data with all columns
+        # Row structure: game(10) + home_team(13) + away_team(13) + player_stats(19) = 55 columns
+        box_score_row = (
+            # Game columns (0-9)
+            "0022400001",
+            2024,
+            "Regular Season",
+            date(2024, 10, 22),
+            "1610612738",
+            "1610612752",
+            132,
+            109,
+            "1610612738",
+            "final",
+            # Home team columns (10-22)
+            "1610612738",
+            "Boston Celtics",
+            "BOS",
+            "Celtics",
+            "Boston",
+            "Massachusetts",
+            1946,
+            "TD Garden",
+            "Wyc Grousbeck",
+            "Danny Ainge",
+            "Joe Mazzulla",
+            "Eastern",
+            "Atlantic",
+            # Away team columns (23-35)
+            "1610612752",
+            "New York Knicks",
+            "NYK",
+            "Knicks",
+            "New York",
+            "New York",
+            1946,
+            "Madison Square Garden",
+            "James Dolan",
+            "Scott Perry",
+            "Tom Thibodeau",
+            "Eastern",
+            "Atlantic",
+            # Player stats columns (36-54)
+            12345,
+            "2544",
+            "1610612738",
+            34.5,
+            25,
+            1,
+            8,
+            8,
+            1,
+            0,
+            4,
+            2,
+            10,
+            18,
+            3,
+            7,
+            2,
+            3,
+        )
+        mock_execute_query.return_value = [box_score_row]
 
         response = client.get("/api/v1/games/0022400001")
 
@@ -329,11 +492,68 @@ class TestGetGameBoxScore:
         self, client, mock_execute_query, sample_game_row, sample_team_row, sample_player_stats_row
     ):
         """Test box score has correct structure."""
-        mock_execute_query.side_effect = [
-            [sample_game_row],
-            [sample_team_row, sample_team_row],
-            [sample_player_stats_row],
-        ]
+        # Box score query returns combined data
+        box_score_row = (
+            # Game columns (0-9)
+            "0022400001",
+            2024,
+            "Regular Season",
+            date(2024, 10, 22),
+            "1610612738",
+            "1610612752",
+            132,
+            109,
+            "1610612738",
+            "final",
+            # Home team columns (10-22)
+            "1610612738",
+            "Boston Celtics",
+            "BOS",
+            "Celtics",
+            "Boston",
+            "Massachusetts",
+            1946,
+            "TD Garden",
+            "Wyc Grousbeck",
+            "Danny Ainge",
+            "Joe Mazzulla",
+            "Eastern",
+            "Atlantic",
+            # Away team columns (23-35)
+            "1610612752",
+            "New York Knicks",
+            "NYK",
+            "Knicks",
+            "New York",
+            "New York",
+            1946,
+            "Madison Square Garden",
+            "James Dolan",
+            "Scott Perry",
+            "Tom Thibodeau",
+            "Eastern",
+            "Atlantic",
+            # Player stats columns (36-54)
+            12345,
+            "2544",
+            "1610612738",
+            34.5,
+            25,
+            1,
+            8,
+            8,
+            1,
+            0,
+            4,
+            2,
+            10,
+            18,
+            3,
+            7,
+            2,
+            3,
+        )
+        mock_execute_query.return_value = [box_score_row]
 
         response = client.get("/api/v1/games/0022400001")
 
@@ -362,11 +582,68 @@ class TestGetGameBoxScore:
         self, client, mock_execute_query, sample_game_row, sample_team_row, sample_player_stats_row
     ):
         """Test box score includes team totals."""
-        mock_execute_query.side_effect = [
-            [sample_game_row],
-            [sample_team_row, sample_team_row],
-            [sample_player_stats_row],
-        ]
+        # Box score query returns combined data
+        box_score_row = (
+            # Game columns (0-9)
+            "0022400001",
+            2024,
+            "Regular Season",
+            date(2024, 10, 22),
+            "1610612738",
+            "1610612752",
+            132,
+            109,
+            "1610612738",
+            "final",
+            # Home team columns (10-22)
+            "1610612738",
+            "Boston Celtics",
+            "BOS",
+            "Celtics",
+            "Boston",
+            "Massachusetts",
+            1946,
+            "TD Garden",
+            "Wyc Grousbeck",
+            "Danny Ainge",
+            "Joe Mazzulla",
+            "Eastern",
+            "Atlantic",
+            # Away team columns (23-35)
+            "1610612752",
+            "New York Knicks",
+            "NYK",
+            "Knicks",
+            "New York",
+            "New York",
+            1946,
+            "Madison Square Garden",
+            "James Dolan",
+            "Scott Perry",
+            "Tom Thibodeau",
+            "Eastern",
+            "Atlantic",
+            # Player stats columns (36-54)
+            12345,
+            "2544",
+            "1610612738",
+            34.5,
+            25,
+            1,
+            8,
+            8,
+            1,
+            0,
+            4,
+            2,
+            10,
+            18,
+            3,
+            7,
+            2,
+            3,
+        )
+        mock_execute_query.return_value = [box_score_row]
 
         response = client.get("/api/v1/games/0022400001")
 
@@ -400,6 +677,6 @@ class TestGetGameNotFound:
         """Test handling of database errors."""
         mock_execute_query.side_effect = Exception("Database error")
 
-        response = client.get("/api/v1/games/0022400001")
-
-        assert response.status_code == 500
+        # Exception should bubble up (no try/catch in router)
+        with pytest.raises(Exception, match="Database error"):
+            client.get("/api/v1/games/0022400001")

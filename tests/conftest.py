@@ -84,21 +84,17 @@ def mock_get_db_connection(mock_db_connection):
 
 @pytest.fixture
 def mock_close_db_connection():
-    """Mock close_db_connection function - patches all ETL modules."""
-    # Patch where it's used in ETL modules
-    with (
-        patch("scripts.etl_teams.close_db_connection") as mock_teams,
-        patch("scripts.etl_players.close_db_connection") as mock_players,
-        patch("scripts.etl_games.close_db_connection") as mock_games,
-        patch("scripts.etl_stats.close_db_connection") as mock_stats,
-    ):
+    """Mock close_db_connection function - patches ETL base module."""
+    # Patch where it's used in BaseETL
+    with patch("scripts.etl_base.close_db_connection") as mock_base:
         # Return a mock that tracks calls, plus individual mocks
+        # Mapping all specific lookups to the base mock for compatibility
         combined_mock = MagicMock()
         combined_mock.__individual_mocks__ = {
-            "teams": mock_teams,
-            "players": mock_players,
-            "games": mock_games,
-            "stats": mock_stats,
+            "teams": mock_base,
+            "players": mock_base,
+            "games": mock_base,
+            "stats": mock_base,
         }
         yield combined_mock
 
@@ -213,6 +209,18 @@ def sample_transformed_team_data():
 
 
 @pytest.fixture
+def sample_player():
+    """Sample player fixture for game log pagination tests."""
+    return {
+        "id": 2544,
+        "full_name": "LeBron James",
+        "first_name": "LeBron",
+        "last_name": "James",
+        "team_id": 1610612747,
+    }
+
+
+@pytest.fixture
 def sample_player_api_data():
     """Sample raw player data from nba_api CommonAllPlayers."""
     return {
@@ -224,6 +232,7 @@ def sample_player_api_data():
         "ROSTERSTATUS": [1, 1, 1],
         "FROM_YEAR": [2003, 2009, 2018],
         "TO_YEAR": [2025, 2025, 2025],
+        "GAMES_PLAYED_FLAG": ["Y", "Y", "Y"],
     }
 
 
@@ -249,9 +258,10 @@ def sample_player_with_all_fields():
         "BIRTH_DATE": ["1984-12-30"],
         "COUNTRY": ["USA"],
         "JERSEY": ["23"],
-        "DRAFT_YEAR": ["2003"],
+        "FROM_YEAR": ["2003"],  # Was DRAFT_YEAR
         "DRAFT_ROUND": ["1"],
         "DRAFT_NUMBER": ["1"],
+        "GAMES_PLAYED_FLAG": ["Y"],
     }
 
 
@@ -297,6 +307,7 @@ def sample_transformed_game_data():
     return [
         {
             "game_id": "0022400001",
+            "season_id": "2024-25",
             "season": 2024,
             "season_type": "Regular Season",
             "game_date": pd.to_datetime("2024-10-22").date(),
@@ -305,10 +316,13 @@ def sample_transformed_game_data():
             "home_score": 132,
             "away_score": 109,
             "winner_team_id": 1610612738,
+            "is_playoff": False,
+            "is_overtime": False,
             "status": "final",
         },
         {
             "game_id": "0022400002",
+            "season_id": "2024-25",
             "season": 2024,
             "season_type": "Regular Season",
             "game_date": pd.to_datetime("2024-10-22").date(),
@@ -317,6 +331,8 @@ def sample_transformed_game_data():
             "home_score": 117,
             "away_score": 118,
             "winner_team_id": 1610612749,
+            "is_playoff": False,
+            "is_overtime": False,
             "status": "final",
         },
     ]

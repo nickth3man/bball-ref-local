@@ -1,66 +1,53 @@
 """Configuration management for the data ingestion pipeline.
 
-This module contains all configuration constants and settings used throughout
-the ingestion pipeline, including paths, batch sizes, and validation thresholds.
+This module provides backward-compatible configuration constants that delegate
+to the unified app.config.Settings.
 """
 
-from pathlib import Path
 from typing import Final
 
-# =============================================================================
-# Path Configuration
-# =============================================================================
+from app.config import (
+    BACKUP_TABLE_SUFFIX,
+    BATCH_SIZE,
+    BULK_INSERT_OPTIMIZATIONS,
+    DATA_SOURCE_CSV,
+    DATA_SOURCE_PARQUET,
+    INSERT_BATCH_SIZE,
+    LOG_DATE_FORMAT,
+    LOG_FORMAT,
+    LOG_LEVEL,
+    MAX_SEASON,
+    MIN_SEASON,
+    PLANNING_CSV_DIR,
+    PLANNING_PARQ_DIR,
+    TEMP_TABLE_SUFFIX,
+)
 
-PLANNING_CSV_DIR: Final[Path] = Path(__file__).parent.parent.parent / "planning" / "csv_data"
-PLANNING_PARQ_DIR: Final[Path] = Path(__file__).parent.parent.parent / "planning" / "parq_data"
+# Re-export all constants
+__all__ = [
+    "PLANNING_CSV_DIR",
+    "PLANNING_PARQ_DIR",
+    "BATCH_SIZE",
+    "INSERT_BATCH_SIZE",
+    "DATA_SOURCE_CSV",
+    "DATA_SOURCE_PARQUET",
+    "LOG_LEVEL",
+    "LOG_FORMAT",
+    "LOG_DATE_FORMAT",
+    "MIN_SEASON",
+    "MAX_SEASON",
+    "BULK_INSERT_OPTIMIZATIONS",
+    "TEMP_TABLE_SUFFIX",
+    "BACKUP_TABLE_SUFFIX",
+    "CSV_ENCODING",
+    "CSV_DELIMITER",
+    "EXPECTED_CSV_FILES",
+    "EXPECTED_PARQUET_FILES",
+    "INGESTION_PHASES",
+    "PHASE_DEPENDENCIES",
+]
 
-# =============================================================================
-# Batch Processing Configuration
-# =============================================================================
-
-BATCH_SIZE: Final[int] = 10000  # rows per batch for large files like PlayerStatistics.csv
-INSERT_BATCH_SIZE: Final[int] = 1000  # rows per INSERT batch for database operations
-
-# =============================================================================
-# Data Source Identifiers
-# =============================================================================
-
-DATA_SOURCE_CSV: Final[str] = "planning_csv"
-DATA_SOURCE_PARQUET: Final[str] = "planning_parquet"
-
-# =============================================================================
-# Logging Configuration
-# =============================================================================
-
-LOG_LEVEL: Final[str] = "INFO"
-LOG_FORMAT: Final[str] = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-LOG_DATE_FORMAT: Final[str] = "%Y-%m-%d %H:%M:%S"
-
-# =============================================================================
-# Validation Thresholds
-# =============================================================================
-
-MIN_SEASON: Final[int] = 1946  # First NBA season
-MAX_SEASON: Final[int] = 2026  # Future season buffer
-
-# =============================================================================
-# Database Configuration
-# =============================================================================
-
-# Connection settings for bulk operations
-BULK_INSERT_OPTIMIZATIONS: Final[dict[str, str]] = {
-    "memory_limit": "1GB",
-    "threads": "4",
-}
-
-# Temp table suffix for staging operations
-TEMP_TABLE_SUFFIX: Final[str] = "_temp"
-BACKUP_TABLE_SUFFIX: Final[str] = "_backup"
-
-# =============================================================================
-# File Type Mapping
-# =============================================================================
-
+# File Type Mapping (Keep these here as they are specific to ingestion implementation details)
 CSV_ENCODING: Final[str] = "utf-8"
 CSV_DELIMITER: Final[str] = ","
 
@@ -106,10 +93,7 @@ EXPECTED_PARQUET_FILES: Final[list[str]] = [
     "totals.parq",
 ]
 
-# =============================================================================
 # Ingestion Phases
-# =============================================================================
-
 INGESTION_PHASES: Final[list[str]] = [
     "reference",  # Teams, Players, Seasons - foundation tables
     "transaction",  # Games, Draft picks - tables with foreign keys to reference
