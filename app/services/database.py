@@ -142,6 +142,7 @@ def _create_players_table(conn: duckdb.DuckDBPyConnection) -> None:
             hall_of_fame BOOLEAN DEFAULT FALSE,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (team_id) REFERENCES teams(team_id),
             FOREIGN KEY (draft_team_id) REFERENCES teams(team_id)
         )
     """)
@@ -178,7 +179,10 @@ def _create_games_table(conn: duckdb.DuckDBPyConnection) -> None:
             status VARCHAR(9) DEFAULT 'scheduled',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (season_id) REFERENCES seasons(season_id)
+            FOREIGN KEY (season_id) REFERENCES seasons(season_id),
+            FOREIGN KEY (home_team_id) REFERENCES teams(team_id),
+            FOREIGN KEY (away_team_id) REFERENCES teams(team_id),
+            FOREIGN KEY (winner_team_id) REFERENCES teams(team_id)
         )
     """)
 
