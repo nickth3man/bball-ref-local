@@ -91,7 +91,14 @@ INDEX_CONFIG: list[tuple[str, str, str]] = [
 
 
 def _create_teams_table(conn: duckdb.DuckDBPyConnection) -> None:
-    """Create the teams table."""
+    """Create the teams table.
+
+    TODO: MEDIUM - Add franchise tracking columns
+    Missing columns per PRD:
+      - franchise_id: For tracking team relocations (e.g., Seattle SuperSonics -> OKC Thunder)
+      - current_abbrev: Current abbreviation if team relocated
+    These fields enable proper franchise history tracking across team moves
+    """
     conn.execute("""
         CREATE TABLE IF NOT EXISTS teams (
             team_id VARCHAR PRIMARY KEY,
@@ -188,7 +195,16 @@ def _create_games_table(conn: duckdb.DuckDBPyConnection) -> None:
 
 
 def _create_player_game_stats_table(conn: duckdb.DuckDBPyConnection) -> None:
-    """Create the player_game_stats table."""
+    """Create the player_game_stats table.
+
+    TODO: LOW - Add foreign key constraints
+    Currently no FK constraints on game_id, player_id, team_id
+    Should reference:
+      - game_id REFERENCES games(game_id)
+      - player_id REFERENCES players(player_id)
+      - team_id REFERENCES teams(team_id)
+    This would improve data integrity but may impact bulk insert performance
+    """
     conn.execute("""
         CREATE TABLE IF NOT EXISTS player_game_stats (
             stat_id INTEGER PRIMARY KEY,
@@ -217,7 +233,27 @@ def _create_player_game_stats_table(conn: duckdb.DuckDBPyConnection) -> None:
 
 
 def _create_seasons_table(conn: duckdb.DuckDBPyConnection) -> None:
-    """Create the seasons table."""
+    """Create the seasons table.
+
+    TODO: CRITICAL - Create ETL script to populate this table
+    This table stores NBA season metadata but NO ETL populates it.
+
+    Data to include:
+      - All NBA seasons from 1946-47 to present
+      - season_id (e.g., "2023-24")
+      - year_start, year_end
+      - display_name (e.g., "2023-24 NBA Season")
+
+    Implementation approach:
+      1. Create etl_seasons.py script
+      2. Generate seasons programmatically (1946-47 to current)
+      3. Insert into this table
+
+    Note: This is a prerequisite for other ETLs that reference season_id
+
+    File to create: scripts/etl_seasons.py
+    Priority: CRITICAL - Required as foreign key reference for other tables
+    """
     conn.execute("""
         CREATE TABLE IF NOT EXISTS seasons (
             season_id VARCHAR PRIMARY KEY,
@@ -230,7 +266,37 @@ def _create_seasons_table(conn: duckdb.DuckDBPyConnection) -> None:
 
 
 def _create_player_season_stats_table(conn: duckdb.DuckDBPyConnection) -> None:
-    """Create the player_season_stats table."""
+    """Create the player_season_stats table.
+
+    TODO: CRITICAL - Create ETL script to populate this table
+    This table has columns for advanced statistics but NO ETL populates it:
+      - per: Player Efficiency Rating (complex formula requiring league averages)
+      - ts_pct: True Shooting % (can calculate from basic stats)
+      - usg_pct: Usage Rate (requires team totals)
+      - ortg: Offensive Rating (requires team pace and league averages)
+      - drtg: Defensive Rating (requires team defensive stats)
+      - ws: Win Shares (complex calculation)
+      - ws_per_48: Win Shares per 48 minutes
+      - bpm: Box Plus/Minus (requires regression coefficients)
+      - vorp: Value Over Replacement Player (derived from BPM)
+
+    Advanced statistics formulas verified correct per basketball-reference.com:
+      - TS% = PTS / (2 * (FGA + 0.44 * FTA))
+      - USG% = 100 * ((FGA + 0.44 * FTA + TO) * (TmMP / 5)) / (MP * (TmFGA + 0.44 * TmFTA + TmTO))
+      - PER: Complex formula (see basketball-reference.com/about/per.html)
+      - WS: Based on Marginal Offensive/Defensive Contribution
+      - BPM: Box Plus/Minus with team adjustment
+      - VORP: (BPM - (-2.0)) * (% of minutes played)
+
+    Implementation approach:
+      1. Aggregate player_game_stats to season totals
+      2. Calculate per-game averages
+      3. Calculate advanced stats using league averages
+      4. Insert into this table
+
+    File to create: scripts/etl_player_season_stats.py
+    Priority: CRITICAL - Required for player career stats and leaderboards
+    """
     conn.execute("""
         CREATE TABLE IF NOT EXISTS player_season_stats (
             stat_id BIGINT PRIMARY KEY,
@@ -280,7 +346,27 @@ def _create_player_season_stats_table(conn: duckdb.DuckDBPyConnection) -> None:
 
 
 def _create_player_game_logs_table(conn: duckdb.DuckDBPyConnection) -> None:
-    """Create the player_game_logs table."""
+    """Create the player_game_logs table.
+
+    TODO: CRITICAL - Create ETL script to populate this table
+    This table has columns but NO ETL populates it:
+      - plus_minus: Net point differential while player was on court
+      - ts_pct: True Shooting % per game
+      - efg_pct: Effective FG% per game
+      - is_home, is_win: Game context flags
+
+    Data source: PlayerGameLogs endpoint from nba_api already provides PLUS_MINUS
+    Other calculated fields can be derived from basic stats in player_game_stats
+
+    Implementation approach:
+      1. Query player_game_stats for game-by-game data
+      2. Calculate ts_pct and efg_pct per game
+      3. Join with games table for is_home, is_win, opponent_id
+      4. Insert into this table
+
+    File to create: scripts/etl_player_game_logs.py
+    Priority: CRITICAL - Required for player game log display
+    """
     conn.execute("""
         CREATE TABLE IF NOT EXISTS player_game_logs (
             log_id BIGINT PRIMARY KEY,
@@ -321,7 +407,40 @@ def _create_player_game_logs_table(conn: duckdb.DuckDBPyConnection) -> None:
 
 
 def _create_team_season_stats_table(conn: duckdb.DuckDBPyConnection) -> None:
-    """Create the team_season_stats table."""
+    """Create the team_season_stats table.
+
+    TODO: CRITICAL - Create ETL script to populate this table
+    This table has columns for team advanced stats but NO ETL populates it:
+      - pace: Team pace factor (possessions per game)
+      - srs: Simple Rating System (point differential adjusted for SOS)
+      - ortg: Offensive Rating (points per 100 possessions)
+      - drtg: Defensive Rating (points allowed per 100 possessions)
+      - nrtg: Net Rating (ortg - drtg)
+
+    Advanced statistics formulas verified correct per basketball-reference.com:
+      - Pace = 48 * ((Tm Poss + Opp Poss) / (2 * (Tm MP / 5)))
+      - SRS: Requires solving system of equations for all teams
+      - ORtg = (Points Scored / Possessions) * 100
+      - DRtg = (Points Allowed / Possessions) * 100
+      - NRtg = ORtg - DRtg
+
+    Data source:
+      1. Aggregate from player_game_stats for offensive stats
+      2. Aggregate opponent stats from games table
+      3. Calculate possessions using standard formula
+      4. Calculate SRS via matrix algebra or iterative method
+
+    Implementation approach:
+      1. Aggregate team stats per season
+      2. Calculate opponent stats per season
+      3. Calculate possessions for pace
+      4. Calculate SRS (Simple Rating System)
+      5. Calculate ORtg, DRtg, NRtg
+      6. Insert into this table
+
+    File to create: scripts/etl_team_season_stats.py
+    Priority: CRITICAL - Required for team standings and analytics
+    """
     conn.execute("""
         CREATE TABLE IF NOT EXISTS team_season_stats (
             stat_id BIGINT PRIMARY KEY,
@@ -382,7 +501,34 @@ def _create_team_season_stats_table(conn: duckdb.DuckDBPyConnection) -> None:
 
 
 def _create_awards_table(conn: duckdb.DuckDBPyConnection) -> None:
-    """Create the awards table."""
+    """Create the awards table.
+
+    TODO: CRITICAL - Create ETL script to populate this table
+    This table stores NBA awards but NO ETL populates it.
+
+    Awards to track:
+      - MVP (Most Valuable Player)
+      - All-NBA First/Second/Third Team
+      - ROY (Rookie of the Year)
+      - DPOY (Defensive Player of the Year)
+      - All-Defensive First/Second Team
+      - All-Star selections
+      - And more...
+
+    Data sources:
+      1. NBA API Awards endpoints (if available)
+      2. Basketball Reference CSV exports (planning/csv_data/)
+      3. Manual data entry for historical completeness
+
+    Implementation approach:
+      1. Create etl_awards.py script
+      2. Load from CSV or API
+      3. Map player/team IDs
+      4. Insert into this table
+
+    File to create: scripts/etl_awards.py
+    Priority: CRITICAL - Required for awards tracking and player achievements
+    """
     conn.execute("""
         CREATE TABLE IF NOT EXISTS awards (
             award_id BIGINT PRIMARY KEY,
@@ -403,7 +549,32 @@ def _create_awards_table(conn: duckdb.DuckDBPyConnection) -> None:
 
 
 def _create_draft_picks_table(conn: duckdb.DuckDBPyConnection) -> None:
-    """Create the draft_picks table."""
+    """Create the draft_picks table.
+
+    TODO: CRITICAL - Create ETL script to populate this table
+    This table stores NBA draft history but NO ETL populates it.
+
+    Data to include:
+      - All NBA draft picks from 1947 to present
+      - Draft year, round, pick number
+      - Team that made the selection
+      - Player selected
+      - College/nationality
+
+    Data sources:
+      1. Basketball Reference CSV exports (planning/csv_data/)
+      2. NBA API Draft endpoints (limited historical data)
+      3. Manual compilation for older drafts
+
+    Implementation approach:
+      1. Create etl_draft_picks.py script
+      2. Load from CSV files
+      3. Map team and player IDs
+      4. Insert into this table
+
+    File to create: scripts/etl_draft_picks.py
+    Priority: CRITICAL - Required for draft history feature
+    """
     conn.execute("""
         CREATE TABLE IF NOT EXISTS draft_picks (
             draft_id BIGINT PRIMARY KEY,

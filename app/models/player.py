@@ -1,4 +1,14 @@
-"""Player Pydantic models for basketball statistics."""
+"""Player Pydantic models for basketball statistics.
+
+TODO: LOW - Align column naming with PRD specification
+Issue: Model uses `draft_number` but PRD specifies `draft_pick`
+Location: players table in database.py also uses `draft_number`
+Options:
+  1. Rename field to `draft_pick` in model and database (breaking change)
+  2. Keep as-is and document the difference (current approach)
+  3. Add alias `draft_pick` for backward compatibility
+Note: Both names refer to the same concept - overall draft pick number
+"""
 
 from datetime import date
 
@@ -95,3 +105,15 @@ class Player(BaseModel):
         if self.weight is None:
             return None
         return f"{self.weight} lbs"
+
+    # TODO: MEDIUM - Add age computed property
+    # Calculate age from birth_date to current date
+    # Formula: (today - birth_date) in years
+    # Note: birth_date is currently NULL for all players (see etl_players.py TODO)
+    # Example implementation:
+    # @property
+    # def age(self) -> int | None:
+    #     if self.birth_date is None:
+    #         return None
+    #     today = date.today()
+    #     return today.year - self.birth_date.year - ((today.month, today.day) < (self.birth_date.month, self.birth_date.day))

@@ -6,6 +6,28 @@ Usage:
     python scripts/etl_stats.py --season-type Playoffs
 
 Fetches player game logs from nba_api and inserts into DuckDB player_game_stats table.
+
+TODO: CRITICAL - This ETL only populates basic box score stats
+Missing implementation for player_season_stats table with advanced metrics:
+  - PER (Player Efficiency Rating)
+  - WS (Win Shares)
+  - WS/48 (Win Shares per 48 minutes)
+  - BPM (Box Plus/Minus)
+  - VORP (Value Over Replacement Player)
+  - TS% (True Shooting % - at season level)
+  - USG% (Usage Rate)
+  - ORtg (Offensive Rating)
+  - DRtg (Defensive Rating)
+
+TODO: CRITICAL - Missing ETL for player_game_logs table
+This table should contain enhanced game logs with:
+  - plus_minus (from PlayerGameLogs API)
+  - ts_pct (calculated per game)
+  - efg_pct (calculated per game)
+  - is_home, is_win flags
+
+Note: Formulas verified correct per basketball-reference.com standards
+See AUDIT_REPORT.md for complete formula reference
 """
 
 import argparse
