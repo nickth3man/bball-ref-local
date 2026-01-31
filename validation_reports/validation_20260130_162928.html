@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Historical NBA Data Validation</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        h1 { color: #333; }
+        h2 { color: #666; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
+        .summary { background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0; }
+        .status-passed { color: green; }
+        .status-failed { color: red; }
+        .status-pending { color: orange; }
+        table { border-collapse: collapse; width: 100%; margin: 10px 0; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #4CAF50; color: white; }
+        tr:nth-child(even) { background-color: #f2f2f2; }
+        .section { margin: 30px 0; }
+        .no-issues { color: green; font-style: italic; }
+    </style>
+</head>
+<body>
+    <h1>Historical NBA Data Validation</h1>
+    <p>Generated: 2026-01-30 16:29:28</p>
+    
+    <div class="summary">
+        <h2>Executive Summary</h2>
+        <p>Status: <span class="status-failed">FAILED</span></p>
+        <p>Total Sections: 27</p>
+        <p>Sections with Issues: 6</p>
+        <p>Total Issues: 24</p>
+    </div>
+
+    <div class="section">
+        <h2>Foreign Keys: Players <span class="status-failed">(failed)</span></h2>
+
+        <table>
+            <tr>
+                <th>#</th>
+                <th>Details</th>
+            </tr>
+
+            <tr>
+                <td>1</td>
+                <td><pre>{
+  "severity": "error",
+  "message": "Orphan player_id: 201942 with 49 records"
+}</pre></td>
+            </tr>
+
+            <tr>
+                <td>2</td>
+                <td><pre>{
+  "severity": "error",
+  "message": "Orphan player_id: 1642366 with 49 records"
+}</pre></td>
+            </tr>
+
+            <tr>
+                <td>3</td>
+                <td><pre>{
+  "severity": "error",
+  "message": "Orphan player_id: 203944 with 49 records"
+}</pre></td>
+            </tr>
+
+            <tr>
+                <td>4</td>
+                <td><pre>{
+  "severity": "error",
+  "message": "Orphan player_id: 1629675 with 49 records"
+}</pre></td>
+            </tr>
+
+            <tr>
+                <td>5</td>
+                <td><pre>{
+  "severity": "error",
+  "message": "Orphan player_id: 1642883 with 49 records"
+}</pre></td>
+            </tr>
+
+            <tr>
+                <td>6</td>
+                <td><pre>{
+  "severity": "error",
+  "message": "Orphan player_id: 1642347 with 49 records"
+}</pre></td>
+            </tr>
+
+            <tr>
+                <td>7</td>
+                <td><pre>{
+  "severity": "error",
+  "message": "Orphan player_id: 1641764 with 49 records"
+}</pre></td>
+            </tr>
+
+            <tr>
+                <td>8</td>
+                <td><pre>{
+  "severity": "error",
+  "message": "Orphan player_id: 1628978 with 49 records"
+}</pre></td>
+            </tr>
+
+            <tr>
+                <td>9</td>
+                <td><pre>{
+  "severity": "error",
+  "message": "Orphan player_id: 1641711 with 49 records"
+}</pre></td>
+            </tr>
+
+            <tr>
+                <td>10</td>
+                <td><pre>{
+  "severity": "error",
+  "message": "Orphan player_id: 1642847 with 49 records"
+}</pre></td>
+            </tr>
+</table></div>
+    <div class="section">
+        <h2>Foreign Keys: Teams <span class="status-passed">(passed)</span></h2>
+<p class="no-issues">No issues found</p></div>
+    <div class="section">
+        <h2>Foreign Keys: Games <span class="status-failed">(failed)</span></h2>
+
+        <table>
+            <tr>
+                <th>#</th>
+                <th>Details</th>
+            </tr>
+
+            <tr>
+                <td>1</td>
+                <td><pre>{
+  "severity": "error",
+  "message": "Orphan game_id: 0022500086 with 30 records"
+}</pre></td>
+            </tr>
+
+            <tr>
+                <td>2</td>
+                <td><pre>{
+  "severity": "error",
+  "message": "Orphan game_id: 0022500159 with 28 records"
+}</pre></td>
+            </tr>
+
+            <tr>
+                <td>3</td>
+                <td><pre>{
+  "severity": "error",
+  "message": "Orphan game_id: 0022500134 with 28 records"
+}</pre></td>
+            </tr>
+
+            <tr>
+                <td>4</td>
+                <td><pre>{
+  "severity": "error",
+  "message": "Orphan game_id: 0022500127 with 28 records"
+}</pre></td>
+            </tr>
+
+            <tr>
+                <td>5</td>
+                <td><pre>{
+  "severity": "error",
+  "message": "Orphan game_id: 0022500146 with 28 records"
+}</pre></td>
+            </tr>
+
+            <tr>
+                <td>6</td>
+                <td><pre>{
+  "severity": "error",
+  "message": "Orphan game_id: 0022500004 with 28 records"
+}</pre></td>
+            </tr>
+
+            <tr>
+                <td>7</td>
+                <td><pre>{
+  "severity": "error",
+  "message": "Orphan game_id: 0022500145 with 28 records"
+}</pre></td>
+            </tr>
+
+            <tr>
+                <td>8</td>
+                <td><pre>{
+  "severity": "error",
+  "message": "Orphan game_id: 0022500036 with 28 records"
+}</pre></td>
+            </tr>
+
+            <tr>
+                <td>9</td>
+                <td><pre>{
+  "severity": "error",
+  "message": "Orphan game_id: 0022500582 with 28 records"
+}</pre></td>
+            </tr>
+
+            <tr>
+                <td>10</td>
+                <td><pre>{
+  "severity": "error",
+  "message": "Orphan game_id: 0022500622 with 27 records"
+}</pre></td>
+            </tr>
+</table></div>
+    <div class="section">
+        <h2>Foreign Keys: Seasons <span class="status-passed">(passed)</span></h2>
+<p class="no-issues">No issues found</p></div>
+    <div class="section">
+        <h2>Duplicate: Players <span class="status-passed">(passed)</span></h2>
+<p class="no-issues">No issues found</p></div>
+    <div class="section">
+        <h2>Duplicate: Games <span class="status-passed">(passed)</span></h2>
+<p class="no-issues">No issues found</p></div>
+    <div class="section">
+        <h2>Duplicate: Player Games <span class="status-passed">(passed)</span></h2>
+<p class="no-issues">No issues found</p></div>
+    <div class="section">
+        <h2>Points Calculation: Games <span class="status-passed">(passed)</span></h2>
+<p class="no-issues">No issues found</p></div>
+    <div class="section">
+        <h2>Points Calculation: Seasons <span class="status-passed">(passed)</span></h2>
+<p class="no-issues">No issues found</p></div>
+    <div class="section">
+        <h2>Game Winners <span class="status-passed">(passed)</span></h2>
+<p class="no-issues">No issues found</p></div>
+    <div class="section">
+        <h2>Game Ties <span class="status-passed">(passed)</span></h2>
+<p class="no-issues">No issues found</p></div>
+    <div class="section">
+        <h2>Game Scores <span class="status-passed">(passed)</span></h2>
+<p class="no-issues">No issues found</p></div>
+    <div class="section">
+        <h2>Game Quarter Sums <span class="status-passed">(passed)</span></h2>
+<p class="no-issues">No issues found</p></div>
+    <div class="section">
+        <h2>Stat Percentages <span class="status-passed">(passed)</span></h2>
+<p class="no-issues">No issues found</p></div>
+    <div class="section">
+        <h2>Stat Percentages: Games <span class="status-passed">(passed)</span></h2>
+<p class="no-issues">No issues found</p></div>
+    <div class="section">
+        <h2>Season Ranges <span class="status-passed">(passed)</span></h2>
+<p class="no-issues">No issues found</p></div>
+    <div class="section">
+        <h2>Player Career Seasons <span class="status-passed">(passed)</span></h2>
+<p class="no-issues">No issues found</p></div>
+    <div class="section">
+        <h2>Player Ages <span class="status-passed">(passed)</span></h2>
+<p class="no-issues">No issues found</p></div>
+    <div class="section">
+        <h2>Player Career Span <span class="status-passed">(passed)</span></h2>
+<p class="no-issues">No issues found</p></div>
+    <div class="section">
+        <h2>Team Season Continuity <span class="status-passed">(passed)</span></h2>
+<p class="no-issues">No issues found</p></div>
+    <div class="section">
+        <h2>Team Active Years <span class="status-passed">(passed)</span></h2>
+<p class="no-issues">No issues found</p></div>
+    <div class="section">
+        <h2>Consistency: player_totals_consistency <span class="status-failed">(failed)</span></h2>
+
+        <table>
+            <tr>
+                <th>#</th>
+                <th>Details</th>
+            </tr>
+
+            <tr>
+                <td>1</td>
+                <td><pre>{
+  "expected": "Check failed",
+  "actual": "Binder Error: Referenced column \"season\" not found in FROM clause!\nCandidate bindings: \"steals\", \"series_game_number\", \"person_id\", \"fouls_personal\", \"data_source\"\n\nLINE 11:                 GROUP BY season, player_id\n                                  ^",
+  "context": "exception"
+}</pre></td>
+            </tr>
+</table></div>
+    <div class="section">
+        <h2>Consistency: game_scores_consistency <span class="status-failed">(failed)</span></h2>
+
+        <table>
+            <tr>
+                <th>#</th>
+                <th>Details</th>
+            </tr>
+
+            <tr>
+                <td>1</td>
+                <td><pre>{
+  "expected": "Check failed",
+  "actual": "Parser Error: syntax error at or near \".\"\n\nLINE 7:                 at.team_score as away_from_team_stats\n                          ^",
+  "context": "exception"
+}</pre></td>
+            </tr>
+</table></div>
+    <div class="section">
+        <h2>Consistency: team_totals_consistency <span class="status-failed">(failed)</span></h2>
+
+        <table>
+            <tr>
+                <th>#</th>
+                <th>Details</th>
+            </tr>
+
+            <tr>
+                <td>1</td>
+                <td><pre>{
+  "expected": "Check failed",
+  "actual": "Binder Error: Referenced column \"season\" not found in FROM clause!\nCandidate bindings: \"season_wins\", \"season_losses\", \"steals\", \"team_score\", \"biggest_scoring_run\"\n\nLINE 10:                 GROUP BY season, team_id\n                                  ^",
+  "context": "exception"
+}</pre></td>
+            </tr>
+</table></div>
+    <div class="section">
+        <h2>Consistency: player_season_completeness <span class="status-passed">(passed)</span></h2>
+<p class="no-issues">No issues found</p></div>
+    <div class="section">
+        <h2>Consistency: awards_consistency <span class="status-failed">(failed)</span></h2>
+
+        <table>
+            <tr>
+                <th>#</th>
+                <th>Details</th>
+            </tr>
+
+            <tr>
+                <td>1</td>
+                <td><pre>{
+  "expected": "Check failed",
+  "actual": "Binder Error: Referenced column \"award_season\" not found in FROM clause!\nCandidate bindings: \"award_name\", \"data_source\", \"share\", \"age\", \"is_winner\"\n\nLINE 2:             SELECT DISTINCT award_season, award_name, player_id\n                                    ^",
+  "context": "exception"
+}</pre></td>
+            </tr>
+</table></div>
+    <div class="section">
+        <h2>Consistency: draft_consistency <span class="status-passed">(passed)</span></h2>
+<p class="no-issues">No issues found</p></div>
+</body>
+</html>

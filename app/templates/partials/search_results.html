@@ -1,0 +1,82 @@
+{# Search Results Dropdown Partial #}
+{% if total > 0 %}
+    {# Players Section #}
+    {% if players %}
+        <div class="search-section">
+            <div class="px-3 py-2 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+                <span class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                    <i class="ph-fill ph-user mr-1"></i> Players ({{ players|length }})
+                </span>
+            </div>
+            {% for result in players %}
+            <a href="{{ result.url }}" class="search-result-item" onclick="document.getElementById('search-results').classList.add('hidden');">
+                <div class="search-icon player">
+                    <i class="ph-fill ph-user"></i>
+                </div>
+                <div class="search-info">
+                    <div class="search-name">{{ result.name }}</div>
+                    <div class="search-meta">{{ result.subtitle }}</div>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    {% endif %}
+    
+    {# Teams Section #}
+    {% if teams %}
+        <div class="search-section">
+            <div class="px-3 py-2 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+                <span class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                    <i class="ph-fill ph-shield mr-1"></i> Teams ({{ teams|length }})
+                </span>
+            </div>
+            {% for result in teams %}
+            <a href="{{ result.url }}" class="search-result-item" onclick="document.getElementById('search-results').classList.add('hidden');">
+                <div class="search-icon team">
+                    <i class="ph-fill ph-shield"></i>
+                </div>
+                <div class="search-info">
+                    <div class="search-name">{{ result.name }}</div>
+                    <div class="search-meta">{{ result.subtitle }}</div>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    {% endif %}
+    
+    {# Games Section #}
+    {% if games %}
+        <div class="search-section">
+            <div class="px-3 py-2 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+                <span class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                    <i class="ph-fill ph-trophy mr-1"></i> Games ({{ games|length }})
+                </span>
+            </div>
+            {% for result in games %}
+            <a href="{{ result.url }}" class="search-result-item" onclick="document.getElementById('search-results').classList.add('hidden');">
+                <div class="search-icon game">
+                    <i class="ph-fill ph-trophy"></i>
+                </div>
+                <div class="search-info">
+                    <div class="search-name">{{ result.name }}</div>
+                    <div class="search-meta">{{ result.subtitle }}</div>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    {% endif %}
+    
+    {# Show All Link #}
+    <div class="px-3 py-2 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 text-center">
+        <a href="/players?search={{ query|e }}" class="text-xs text-nba-blue hover:text-nba-blue-dark font-medium" onclick="document.getElementById('search-results').classList.add('hidden');">
+            Show all results for "{{ query|e }}" <i class="ph ph-arrow-right ml-1"></i>
+        </a>
+    </div>
+{% else %}
+    {# Empty State #}
+    <div class="search-empty">
+        <i class="ph ph-magnifying-glass text-3xl text-gray-300 dark:text-gray-600 mb-2"></i>
+        <p class="text-sm text-gray-500 dark:text-gray-400">No results found for "{{ query|e }}"</p>
+        <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">Try searching for players, teams, or games</p>
+    </div>
+{% endif %}

@@ -5,7 +5,6 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
-import pytest
 
 # Add project root to Python path
 project_root = Path(__file__).parent.parent
@@ -100,7 +99,7 @@ class TestExtractPlayerStats:
 
     def test_extract_player_stats_playoffs(self, mock_player_game_logs):
         """Test extract_player_stats with playoffs."""
-        result = extract_player_stats(season="2024-25", season_type="Playoffs")
+        extract_player_stats(season="2024-25", season_type="Playoffs")
 
         mock_player_game_logs.assert_called_once_with(
             season_nullable="2024-25",

@@ -1,124 +1,106 @@
-"""ETL script for extracting and loading NBA player data.
+"""Player ETL module for extracting and loading player data.
 
-Usage:
-    python scripts/etl_players.py
-    python scripts/etl_players.py --active-only
-
-Fetches NBA players from nba_api and upserts into DuckDB players table.
+This module handles the extraction of player data from the NBA API,
+transformation of the data to match our schema, and loading into DuckDB.
 """
 
-import argparse
-import logging
-import sys
-import time
-from datetime import date
-from pathlib import Path
+from time import sleep
 
 import pandas as pd
-
-# Add project root to Python path
-project_root = Path(__file__).parent.parent
-sys.path.insert(0, str(project_root))
-
 from nba_api.stats.endpoints import CommonAllPlayers
 
 from app.services.database import close_db_connection, get_db_connection
+from scripts.etl_utils import get_current_season
+from scripts.ingestion.exceptions import APIError, DatabaseError, DataTransformationError, ETLError
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
-logger = logging.getLogger(__name__)
+from scripts.logging_utils import setup_etl_logging
+from scripts.retry_utils import retry_api_call
 
-# Rate limiting delay (seconds)
+logger = setup_etl_logging(__name__)
+
+# Rate limiting delay (seconds) between API calls
 RATE_LIMIT_DELAY = 0.6
 
 
-def parse_height(height_str: str | None) -> int | None:
-    """Parse height string (e.g., '6-9') to inches.
+@retry_api_call(max_retries=3, initial_delay=0.6)
+def extract_players(active_only: bool = True) -> pd.DataFrame:
+    """Extract player data from NBA API.
 
     Args:
-        height_str: Height in format "feet-inches".
+        active_only: If True, only fetch active players. If False, fetch all.
 
     Returns:
-        Height in inches or None if invalid.
+        DataFrame with raw player data from NBA API.
+    """
+    season = get_current_season()
+    is_only_current_season = 1 if active_only else 0
+
+    logger.info(f"Fetching {'active' if active_only else 'all'} players for season {season}...")
+
+    players_data = CommonAllPlayers(season=season, is_only_current_season=is_only_current_season)
+    df = players_data.get_data_frames()[0]
+
+    logger.info(f"Extracted {len(df)} players from NBA API")
+    sleep(RATE_LIMIT_DELAY)  # Rate limiting
+    return df
+
+
+def parse_height(height_str: str | None) -> str | None:
+    """Parse height string from NBA API format (e.g., '6-9') to standard format.
+
+    Args:
+        height_str: Height string from NBA API (e.g., '6-9').
+
+    Returns:
+        Parsed height string or None if input is invalid.
     """
     if not height_str or height_str == "":
         return None
-
-    try:
-        parts = height_str.split("-")
-        if len(parts) != 2:
-            return None
-        feet = int(parts[0])
-        inches = int(parts[1])
-        return feet * 12 + inches
-    except (ValueError, AttributeError):
-        return None
+    return height_str
 
 
-def parse_birth_date(date_str: str | None) -> date | None:
-    """Parse birth date string to date object.
+def parse_birth_date(date_str: str | None) -> str | None:
+    """Parse birth date from various formats to ISO format.
 
     Args:
         date_str: Date string in various formats.
 
     Returns:
-        Date object or None if invalid.
+        ISO formatted date string (YYYY-MM-DD) or None if parsing fails.
     """
-    if not date_str or date_str == "":
+    if not date_str or pd.isna(date_str) or date_str == "":
         return None
 
     try:
         # Try common date formats
-        for fmt in ["%Y-%m-%d", "%m/%d/%Y", "%b %d, %Y"]:
+        for fmt in ["%b %d, %Y", "%B %d, %Y", "%Y-%m-%d", "%m/%d/%Y"]:
             try:
-                return pd.to_datetime(date_str, format=fmt).date()
+                parsed = pd.to_datetime(date_str, format=fmt)
+                return parsed.strftime("%Y-%m-%d")
             except ValueError:
                 continue
-        # Fallback to pandas parser
-        return pd.to_datetime(date_str).date()
-    except (ValueError, TypeError):
+
+        # Fallback to pandas auto-parsing
+        parsed = pd.to_datetime(date_str, errors="coerce")
+        if pd.notna(parsed):
+            return parsed.strftime("%Y-%m-%d")
+
         return None
-
-
-def extract_players(active_only: bool = True) -> pd.DataFrame:
-    """Extract player data from nba_api.
-
-    Args:
-        active_only: If True, fetch only active players.
-
-    Returns:
-        DataFrame with raw player data.
-    """
-    logger.info(f"Extracting {'active' if active_only else 'all'} players from nba_api...")
-
-    # is_only_current_season=1 for active players, 0 for all
-    is_only_current_season = 1 if active_only else 0
-
-    endpoint = CommonAllPlayers(is_only_current_season=is_only_current_season)
-    df = endpoint.get_data_frames()[0]
-
-    logger.info(f"Extracted {len(df)} players")
-    time.sleep(RATE_LIMIT_DELAY)
-
-    return df
+    except (ValueError, TypeError) as e:
+        logger.debug(f"Failed to parse birth date '{date_str}': {e}")
+        return None
 
 
 def transform_players(df: pd.DataFrame) -> pd.DataFrame:
     """Transform raw player data to match database schema.
 
     Args:
-        df: Raw player data from nba_api.
+        df: Raw player DataFrame from NBA API.
 
     Returns:
-        Transformed DataFrame matching Player model.
+        Transformed DataFrame matching database schema.
     """
-    logger.info("Transforming player data...")
-
-    # Handle empty DataFrame
     if df.empty:
         logger.warning("Empty player data received, returning empty DataFrame")
         return pd.DataFrame(
@@ -139,94 +121,85 @@ def transform_players(df: pd.DataFrame) -> pd.DataFrame:
             ]
         )
 
-    # Convert column names to lowercase and clean up
-    df.columns = df.columns.str.lower().str.strip()
+    logger.info(f"Transforming {len(df)} player records...")
 
-    # Map nba_api fields to our schema
-    # CommonAllPlayers columns: PERSON_ID, DISPLAY_FIRST_LAST, FIRST_NAME, LAST_NAME,
-    # TEAM_ID, TEAM_NAME, TEAM_ABBREVIATION, TEAM_CODE, PLAYER_SLUG, ROSTERSTATUS,
-    # FROM_YEAR, TO_YEAR, etc.
-    column_mapping = {
-        "person_id": "player_id",
-        "team_id": "team_id",
-    }
+    # NBA API CommonAllPlayers returns: PERSON_ID, DISPLAY_FIRST_LAST, FIRST_NAME, LAST_NAME,
+    # TEAM_ID, TEAM_NAME, TEAM_ABBREVIATION, JERSEY, POSITION, HEIGHT, WEIGHT, BIRTH_DATE, etc.
 
-    df = df.rename(columns=column_mapping)
+    transformed = pd.DataFrame()
 
-    # Extract first and last name from display name or separate fields
-    if "display_first_last" in df.columns and len(df) > 0:
-        df["first_name"] = df["display_first_last"].str.split(" ", n=1).str[0].fillna("")
-        df["last_name"] = df["display_first_last"].str.split(" ", n=1).str[1].fillna("")
-    elif "first_name" in df.columns and "last_name" in df.columns:
-        df["first_name"] = df["first_name"].fillna("")
-        df["last_name"] = df["last_name"].fillna("")
+    # Map NBA API fields to our schema
+    transformed["player_id"] = df["PERSON_ID"].astype(str)
+    transformed["first_name"] = df["FIRST_NAME"]
+    transformed["last_name"] = df["LAST_NAME"]
 
-    # Map position (nba_api uses different position format)
-    # Common positions: F, G, C, F-C, G-F, F-G, C-F
-    position_map = {
-        "PG": "PG",
-        "SG": "SG",
-        "SF": "SF",
-        "PF": "PF",
-        "C": "C",
-        "G": "PG",  # Default to PG for guards
-        "F": "SF",  # Default to SF for forwards
-        "G-F": "SG",
-        "F-G": "SF",
-        "F-C": "PF",
-        "C-F": "C",
-        "C-G": "PG",
-        "G-C": "C",
-    }
+    # Team ID (may be 0 for free agents)
+    transformed["team_id"] = df["TEAM_ID"].astype(str)
 
-    if "position" in df.columns:
-        df["position"] = df["position"].map(position_map).fillna("PG")
-    else:
-        # Default position if not provided
-        df["position"] = "PG"
+    # Position
+    transformed["position"] = df["POSITION"]
 
-    # Parse height if available
-    if "height" in df.columns:
-        df["height"] = df["height"].apply(parse_height)
-    else:
-        df["height"] = None
+    # Jersey number
+    transformed["jersey"] = df["JERSEY"]
+
+    # Height
+    transformed["height"] = df["HEIGHT"].apply(parse_height)
+
+    # Weight
+    transformed["weight"] = df["WEIGHT"]
+
+    # Birth date
+    transformed["birth_date"] = df["BIRTH_DATE"]
+
+    # Country
+    transformed["country"] = df["COUNTRY"]
+
+    # Draft info
+    transformed["draft_year"] = df.get("DRAFT_YEAR", pd.NA)
+    transformed["draft_round"] = df.get("DRAFT_ROUND", pd.NA)
+    transformed["draft_number"] = df.get("DRAFT_NUMBER", pd.NA)
+
+    # Data type conversions and cleaning
+    transformed["team_id"] = transformed["team_id"].replace("0", pd.NA)
 
     # Parse weight if available
-    if "weight" in df.columns:
-        df["weight"] = pd.to_numeric(df["weight"], errors="coerce")
-        df["weight"] = df["weight"].where(df["weight"] > 0, None)
+    if "weight" in transformed.columns:
+        transformed["weight"] = pd.to_numeric(transformed["weight"], errors="coerce")
+        transformed.loc[transformed["weight"] <= 0, "weight"] = pd.NA
     else:
-        df["weight"] = None
+        transformed["weight"] = pd.NA
 
     # Parse birth date
-    if "birth_date" in df.columns:
-        df["birth_date"] = df["birth_date"].apply(parse_birth_date)
+    if "birth_date" in transformed.columns:
+        transformed["birth_date"] = transformed["birth_date"].apply(parse_birth_date)
     else:
-        df["birth_date"] = None
+        transformed["birth_date"] = pd.NaT
 
     # Clean country
-    if "country" in df.columns:
-        df["country"] = df["country"].replace("", None)
+    if "country" in transformed.columns:
+        transformed["country"] = transformed["country"].replace("", pd.NA)
     else:
-        df["country"] = None
+        transformed["country"] = pd.NA
 
     # Draft info (may not be in CommonAllPlayers)
     for col in ["draft_year", "draft_round", "draft_number"]:
-        if col in df.columns:
-            df[col] = pd.to_numeric(df[col], errors="coerce")
-            df[col] = df[col].where(df[col] > 0, None)
+        if col in transformed.columns:
+            transformed[col] = pd.to_numeric(transformed[col], errors="coerce")
+            transformed.loc[transformed[col] <= 0, col] = pd.NA
         else:
-            df[col] = None
+            transformed[col] = pd.NA
 
     # Jersey number
-    if "jersey" in df.columns:
-        df["jersey_number"] = pd.to_numeric(df["jersey"], errors="coerce")
-        df["jersey_number"] = df["jersey_number"].where(df["jersey_number"] >= 0, None)
+    if "jersey" in transformed.columns:
+        transformed["jersey_number"] = pd.to_numeric(transformed["jersey"], errors="coerce")
+        transformed.loc[transformed["jersey_number"] < 0, "jersey_number"] = pd.NA
     else:
-        df["jersey_number"] = None
+        transformed["jersey_number"] = pd.NA
 
     # Ensure team_id is numeric
-    df["team_id"] = pd.to_numeric(df["team_id"], errors="coerce").fillna(0).astype(int)
+    transformed["team_id"] = (
+        pd.to_numeric(transformed["team_id"], errors="coerce").fillna(0).astype(int)
+    )
 
     # Select only columns that exist in our database schema
     db_columns = [
@@ -245,153 +218,132 @@ def transform_players(df: pd.DataFrame) -> pd.DataFrame:
         "draft_number",
     ]
 
-    # Ensure all required columns exist
-    for col in db_columns:
-        if col not in df.columns:
-            df[col] = None
+    transformed = transformed[[col for col in db_columns if col in transformed.columns]]
 
-    df = df[db_columns]
-
-    # Remove rows with missing player_id
-    df = df.dropna(subset=["player_id"])
-    df["player_id"] = df["player_id"].astype(int)
-
-    logger.info(f"Transformed {len(df)} players")
-    return df
+    logger.info(f"Successfully transformed {len(transformed)} player records")
+    return transformed
 
 
-def load_players(df: pd.DataFrame, batch_size: int = 500) -> int:
-    """Load players into DuckDB using upsert with batching.
+def load_players(df: pd.DataFrame) -> int:
+    """Load transformed player data into DuckDB.
 
     Args:
-        df: Transformed player data.
-        batch_size: Number of records to insert per batch.
+        df: Transformed player DataFrame.
 
     Returns:
-        Number of rows loaded.
+        Number of records loaded.
     """
-    logger.info("Loading players into database...")
+    if df.empty:
+        logger.warning("No player data to load")
+        return 0
 
     conn = get_db_connection()
-    rows_loaded = 0
 
     try:
-        # Prepare data as list of tuples for batch insert
-        records = [
+        # Truncate and load pattern for player reference data
+        conn.execute("DELETE FROM players")
+
+        # Batch insert for better performance using itertuples (faster than iterrows)
+        # Handle NaN values by converting to None
+        data = [
             (
-                row.get("player_id"),
-                row.get("first_name"),
-                row.get("last_name"),
-                row.get("team_id"),
-                row.get("position"),
-                row.get("jersey_number"),
-                row.get("height"),
-                row.get("weight"),
-                row.get("birth_date"),
-                row.get("country"),
-                row.get("draft_year"),
-                row.get("draft_round"),
-                row.get("draft_number"),
+                row.player_id,
+                row.first_name,
+                row.last_name,
+                row.team_id,
+                row.position,
+                None if pd.isna(row.jersey_number) else row.jersey_number,
+                row.height,
+                None if pd.isna(row.weight) else row.weight,
+                row.birth_date,
+                row.country,
+                None if pd.isna(row.draft_year) else row.draft_year,
+                None if pd.isna(row.draft_round) else row.draft_round,
+                None if pd.isna(row.draft_number) else row.draft_number,
             )
-            for _, row in df.iterrows()
+            for row in df.itertuples(index=False)
         ]
 
-        # Process in batches for better performance
-        for i in range(0, len(records), batch_size):
-            batch = records[i : i + batch_size]
-            conn.executemany(
-                """
-                INSERT OR REPLACE INTO players (
-                    player_id, first_name, last_name, team_id, position,
-                    jersey_number, height, weight, birth_date, country,
-                    draft_year, draft_round, draft_number, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        conn.executemany(
+            """
+            INSERT INTO players (
+                player_id, first_name, last_name, team_id, position,
+                jersey_number, height, weight, birth_date, country,
+                draft_year, draft_round, draft_number
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-                batch,
-            )
-            rows_loaded += len(batch)
-            logger.info(
-                f"Loaded batch {i // batch_size + 1}/{(len(records) - 1) // batch_size + 1}"
-            )
+            data,
+        )
 
-        logger.info(f"Successfully loaded {rows_loaded} players")
-        return rows_loaded
-
-    except Exception:
-        logger.exception("Failed to load players")
-        raise
-
-
-def run_etl(active_only: bool = True, batch_size: int = 500) -> dict:
-    """Run the complete players ETL pipeline.
-
-    Args:
-        active_only: If True, process only active players.
-        batch_size: Number of records to insert per batch.
-
-    Returns:
-        Dictionary with ETL results.
-    """
-    result = {"extracted": 0, "loaded": 0, "status": "success", "error": None}
-
-    try:
-        # Extract
-        df = extract_players(active_only=active_only)
-        result["extracted"] = len(df)
-
-        # Transform
-        df = transform_players(df)
-
-        # Load
-        result["loaded"] = load_players(df, batch_size)
+        conn.commit()
+        logger.info(f"Loaded {len(df)} players into database")
+        return len(df)
 
     except Exception as e:
-        result["status"] = "failed"
-        result["error"] = str(e)
-        logger.exception("ETL failed")
+        logger.error(f"Error loading players: {e}")
+        conn.rollback()
+        raise DatabaseError(
+            "Failed to load players into database",
+            operation="load_players",
+            original_error=e,
+        ) from e
 
     finally:
         close_db_connection()
 
+
+def run_etl(active_only: bool = True) -> dict:
+    """Run the complete player ETL pipeline.
+
+    Args:
+        active_only: If True, only process active players.
+
+    Returns:
+        Dictionary with ETL results.
+    """
+    start_time = pd.Timestamp.now()
+    result = {"status": "success", "extracted": 0, "loaded": 0, "error": None}
+
+    try:
+        # Extract
+        raw_df = extract_players(active_only)
+        result["extracted"] = len(raw_df)
+
+        # Transform
+        transformed_df = transform_players(raw_df)
+
+        # Load
+        loaded_count = load_players(transformed_df)
+        result["loaded"] = loaded_count
+
+        duration = (pd.Timestamp.now() - start_time).total_seconds()
+        logger.info(f"Player ETL completed in {duration:.2f} seconds")
+
+    except APIError as e:
+        result["status"] = "failed"
+        result["error"] = f"API error during extraction: {e}"
+        logger.error(f"Player ETL API error: {e}")
+    except DatabaseError as e:
+        result["status"] = "failed"
+        result["error"] = f"Database error during loading: {e}"
+        logger.error(f"Player ETL database error: {e}")
+    except DataTransformationError as e:
+        result["status"] = "failed"
+        result["error"] = f"Data transformation error: {e}"
+        logger.error(f"Player ETL transformation error: {e}")
+    except ETLError as e:
+        result["status"] = "failed"
+        result["error"] = f"ETL error: {e}"
+        logger.error(f"Player ETL error: {e}")
+    except (ValueError, TypeError) as e:
+        result["status"] = "failed"
+        result["error"] = f"Data validation error: {e}"
+        logger.error(f"Player ETL validation error: {e}")
+
     return result
 
 
-def main() -> int:
-    """Main entry point for players ETL.
-
-    Returns:
-        Exit code (0 for success, 1 for failure).
-    """
-    parser = argparse.ArgumentParser(description="ETL for NBA player data")
-    parser.add_argument(
-        "--all-players",
-        action="store_true",
-        help="Fetch all players including inactive (default: active players only)",
-    )
-    parser.add_argument(
-        "--batch-size", "-b", type=int, default=500, help="Batch size for inserts (default: 500)"
-    )
-    parser.add_argument("--verbose", "-v", action="store_true", help="Enable verbose logging")
-
-    args = parser.parse_args()
-
-    if args.verbose:
-        logging.getLogger().setLevel(logging.DEBUG)
-
-    active_only = not args.all_players
-
-    logger.info("Starting players ETL...")
-    result = run_etl(active_only=active_only, batch_size=args.batch_size)
-
-    if result["status"] == "success":
-        logger.info(
-            f"Players ETL completed: {result['extracted']} extracted, {result['loaded']} loaded"
-        )
-        return 0
-    else:
-        logger.error(f"Players ETL failed: {result['error']}")
-        return 1
-
-
 if __name__ == "__main__":
-    sys.exit(main())
+    # Run the ETL when script is executed directly
+    result = run_etl(active_only=True)
+    print(f"ETL Result: {result}")

@@ -7,17 +7,21 @@
    CSS Custom Properties (Variables)
    ============================================ */
 :root {
-    /* Basketball Theme Colors */
-    --bball-orange: #FF6B00;
-    --bball-orange-light: #FF8533;
-    --bball-orange-dark: #E55A00;
+    /* NBA Theme Colors */
+    --nba-blue: #17408B;
+    --nba-blue-light: #1e4fad;
+    --nba-blue-dark: #113078;
+    --nba-red: #C9082A;
+    --nba-red-dark: #a30622;
     --bball-black: #1A1A1A;
     --bball-gray: #2D2D2D;
     --bball-white: #FFFFFF;
     
     /* Semantic Colors */
-    --color-primary: var(--bball-orange);
-    --color-primary-hover: var(--bball-orange-dark);
+    --color-primary: var(--nba-blue);
+    --color-primary-hover: var(--nba-blue-dark);
+    --color-accent: var(--nba-red);
+    --color-accent-hover: var(--nba-red-dark);
     --color-background: #FFFFFF;
     --color-surface: #F9FAFB;
     --color-text: #111827;
@@ -51,7 +55,7 @@
 /* Header Styling */
 .tabulator-header {
     background: linear-gradient(to bottom, var(--color-surface), var(--color-background));
-    border-bottom: 2px solid var(--bball-orange);
+    border-bottom: 2px solid var(--nba-blue);
     font-weight: 600;
 }
 
@@ -77,12 +81,12 @@
 }
 
 .tabulator-header .tabulator-col.tabulator-sortable[aria-sort="ascending"] .tabulator-arrow {
-    border-bottom: 6px solid var(--bball-orange);
+    border-bottom: 6px solid var(--nba-blue);
     border-top: none;
 }
 
 .tabulator-header .tabulator-col.tabulator-sortable[aria-sort="descending"] .tabulator-arrow {
-    border-top: 6px solid var(--bball-orange);
+    border-top: 6px solid var(--nba-blue);
     border-bottom: none;
 }
 
@@ -93,19 +97,19 @@
 }
 
 .tabulator-row:hover {
-    background-color: rgba(255, 107, 0, 0.05);
+    background-color: rgba(23, 64, 139, 0.05);
 }
 
 .dark .tabulator-row:hover {
-    background-color: rgba(255, 107, 0, 0.1);
+    background-color: rgba(23, 64, 139, 0.1);
 }
 
 .tabulator-row.tabulator-selected {
-    background-color: rgba(255, 107, 0, 0.15) !important;
+    background-color: rgba(23, 64, 139, 0.15) !important;
 }
 
 .dark .tabulator-row.tabulator-selected {
-    background-color: rgba(255, 107, 0, 0.2) !important;
+    background-color: rgba(23, 64, 139, 0.2) !important;
 }
 
 /* Cell Styling */
@@ -138,15 +142,15 @@
 }
 
 .tabulator-page:hover {
-    background: var(--bball-orange);
+    background: var(--nba-blue);
     color: white;
-    border-color: var(--bball-orange);
+    border-color: var(--nba-blue);
 }
 
 .tabulator-page.active {
-    background: var(--bball-orange);
+    background: var(--nba-blue);
     color: white;
-    border-color: var(--bball-orange);
+    border-color: var(--nba-blue);
     font-weight: 600;
 }
 
@@ -168,7 +172,7 @@
 
 .tabulator-responsive-collapse td:first-child {
     font-weight: 600;
-    color: var(--bball-orange);
+    color: var(--nba-blue);
 }
 
 /* ============================================
@@ -265,17 +269,17 @@ button.htmx-request::after {
    ============================================ */
 
 /* Gradient text */
-.text-gradient-orange {
-    background: linear-gradient(135deg, var(--bball-orange), var(--bball-orange-dark));
+.text-gradient-nba {
+    background: linear-gradient(135deg, var(--nba-blue), var(--nba-blue-dark));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
 }
 
 /* Basketball pattern background */
-.bg-bball-pattern {
-    background-image: radial-gradient(circle at 25% 25%, rgba(255, 107, 0, 0.1) 0%, transparent 50%),
-                      radial-gradient(circle at 75% 75%, rgba(255, 107, 0, 0.1) 0%, transparent 50%);
+.bg-nba-pattern {
+    background-image: radial-gradient(circle at 25% 25%, rgba(23, 64, 139, 0.1) 0%, transparent 50%),
+                      radial-gradient(circle at 75% 75%, rgba(23, 64, 139, 0.1) 0%, transparent 50%);
 }
 
 /* Card hover effect */
@@ -285,7 +289,7 @@ button.htmx-request::after {
 
 .card-hover:hover {
     transform: translateY(-2px);
-    box-shadow: 0 10px 25px -5px rgba(255, 107, 0, 0.15), 0 8px 10px -6px rgba(255, 107, 0, 0.1);
+    box-shadow: 0 10px 25px -5px rgba(23, 64, 139, 0.15), 0 8px 10px -6px rgba(23, 64, 139, 0.1);
 }
 
 /* ============================================

@@ -1,0 +1,160 @@
+{# Games List by Date - Grouped with date headers #}
+{% for date_group in date_groups %}
+<!-- Date Header -->
+<div class="date-group" data-date="{{ date_group.date }}">
+    <div class="sticky top-0 z-10 bg-gray-50 dark:bg-bball-black py-2 mb-4 border-b-2 border-nba-blue">
+        <div class="flex items-center space-x-2">
+            <i class="ph ph-calendar text-nba-blue"></i>
+            <h2 class="text-lg font-bold text-gray-900 dark:text-white">
+                {% if date_group.is_today %}
+                    Today
+                {% elif date_group.is_yesterday %}
+                    Yesterday
+                {% else %}
+                    {{ date_group.date_str }}
+                {% endif %}
+            </h2>
+            <span class="text-sm text-gray-500 dark:text-gray-400">
+                ({{ date_group.games|length }} game{% if date_group.games|length != 1 %}s{% endif %})
+            </span>
+        </div>
+    </div>
+    
+    <!-- Games for this date -->
+    <div class="space-y-3 mb-6">
+        {% for game in date_group.games %}
+        <div class="bg-white dark:bg-bball-gray rounded-lg shadow-md hover:shadow-lg transition-all p-4 border-l-4 
+                    {% if game.is_completed %}
+                        {% if game.winner_team_id == game.home_team_id %}border-green-500{% else %}border-red-500{% endif %}
+                    {% else %}border-gray-300 dark:border-gray-600{% endif %}
+                    cursor-pointer"
+             onclick="window.location.href='/games/{{ game.game_id }}/boxscore'">
+            
+            <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400">
+                    <span class="px-2 py-0.5 rounded text-xs font-medium 
+                        {% if game.season_type == 'Playoffs' %}
+                            bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400
+                        {% else %}
+                            bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300
+                        {% endif %}">
+                        {{ game.season_type }}
+                    </span>
+                </div>
+                <div class="flex items-center space-x-2">
+                    {% if game.is_live %}
+                    <span class="flex items-center px-2 py-0.5 bg-red-100 dark:bg-red-900/30 rounded text-xs font-medium text-red-700 dark:text-red-400">
+                        <span class="w-2 h-2 bg-red-500 rounded-full animate-pulse mr-1"></span>
+                        LIVE
+                    </span>
+                    {% elif game.is_completed %}
+                    <span class="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-xs font-medium text-gray-700 dark:text-gray-300">
+                        FINAL
+                    </span>
+                    {% else %}
+                    <span class="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 rounded text-xs font-medium text-blue-700 dark:text-blue-400">
+                        UPCOMING
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-4 flex-1">
+                    {# Home Team #}
+                    <div class="flex items-center space-x-3 {% if game.is_completed and game.winner_team_id == game.home_team_id %}opacity-100{% elif game.is_completed %}opacity-60{% endif %}">
+                        <div class="w-12 h-12 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 rounded-lg flex items-center justify-center">
+                            <span class="font-bold text-gray-700 dark:text-gray-300">{{ game.home_team.abbreviation }}</span>
+                        </div>
+                        <div class="hidden sm:block">
+                            <p class="font-semibold text-gray-900 dark:text-white">{{ game.home_team.nickname }}</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">Home</p>
+                        </div>
+                    </div>
+                    
+                    {# Score #}
+                    <div class="flex items-center space-x-3 px-4">
+                        {% if game.is_completed %}
+                            <span class="text-2xl font-bold {% if game.winner_team_id == game.home_team_id %}text-gray-900 dark:text-white{% else %}text-gray-500 dark:text-gray-400{% endif %}">
+                                {{ game.home_score }}
+                            </span>
+                            <span class="text-gray-400 dark:text-gray-600">-</span>
+                            <span class="text-2xl font-bold {% if game.winner_team_id == game.away_team_id %}text-gray-900 dark:text-white{% else %}text-gray-500 dark:text-gray-400{% endif %}">
+                                {{ game.away_score }}
+                            </span>
+                        {% else %}
+                            <span class="text-xl font-medium text-gray-400 dark:text-gray-600">vs</span>
+                        {% endif %}
+                    </div>
+                    
+                    {# Away Team #}
+                    <div class="flex items-center space-x-3 {% if game.is_completed and game.winner_team_id == game.away_team_id %}opacity-100{% elif game.is_completed %}opacity-60{% endif %}">
+                        <div class="w-12 h-12 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 rounded-lg flex items-center justify-center">
+                            <span class="font-bold text-gray-700 dark:text-gray-300">{{ game.away_team.abbreviation }}</span>
+                        </div>
+                        <div class="hidden sm:block">
+                            <p class="font-semibold text-gray-900 dark:text-white">{{ game.away_team.nickname }}</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">Away</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex items-center space-x-2">
+                    {% if game.is_completed and game.winner_team_id == game.home_team_id %}
+                    <span class="hidden sm:inline-flex items-center px-2 py-1 bg-green-100 dark:bg-green-900/30 rounded text-xs font-medium text-green-700 dark:text-green-400">
+                        <i class="ph ph-crown mr-1"></i> W
+                    </span>
+                    {% elif game.is_completed and game.winner_team_id == game.away_team_id %}
+                    <span class="hidden sm:inline-flex items-center px-2 py-1 bg-green-100 dark:bg-green-900/30 rounded text-xs font-medium text-green-700 dark:text-green-400">
+                        <i class="ph ph-crown mr-1"></i> W
+                    </span>
+                    {% endif %}
+                    <i class="ph ph-caret-right text-gray-400 dark:text-gray-600"></i>
+                </div>
+            </div>
+            
+            {% if game.is_completed and game.point_differential %}
+            <div class="mt-3 pt-3 border-t dark:border-gray-700 flex items-center justify-between text-sm">
+                <span class="text-gray-500 dark:text-gray-400">
+                    Final margin: {{ game.point_differential }} points
+                </span>
+                {% if game.leading_scorer %}
+                <span class="text-gray-600 dark:text-gray-400">
+                    <i class="ph ph-trophy text-nba-red mr-1"></i>
+                    Top scorer: {{ game.leading_scorer.name }} ({{ game.leading_scorer.points }} pts)
+                </span>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% else %}
+<!-- Empty State -->
+<div class="text-center py-12">
+    <div class="inline-flex items-center justify-center w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full mb-4">
+        <i class="ph ph-trophy text-3xl text-gray-400 dark:text-gray-600"></i>
+    </div>
+    <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">No games found</h3>
+    <p class="text-gray-500 dark:text-gray-400 mb-4">Try adjusting your filters or select a different date range.</p>
+    <button hx-get="/api/v1/games"
+            hx-target="#games-container"
+            hx-indicator="#games-loading"
+            class="px-4 py-2 bg-nba-blue text-white rounded-lg hover:bg-nba-blue-dark transition-colors text-sm font-medium">
+        <i class="ph ph-arrow-counter-clockwise mr-1"></i>
+        Reset Filters
+    </button>
+</div>
+{% endfor %}
+
+{% if pagination and pagination.has_next %}
+<!-- Infinite Scroll Sentinel (Appended on infinite scroll) -->
+<div id="games-sentinel-{{ pagination.next_page }}"
+     hx-get="/api/v1/games?page={{ pagination.next_page }}&{{ query_params }}"
+     hx-trigger="revealed"
+     hx-swap="outerHTML"
+     hx-indicator="#games-loading"
+     class="py-4">
+</div>
+{% endif %}

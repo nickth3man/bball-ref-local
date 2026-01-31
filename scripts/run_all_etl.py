@@ -12,7 +12,7 @@ Provides error handling and summary report.
 import argparse
 import logging
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -21,12 +21,12 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 from app.services.database import close_db_connection, set_app_metadata
+from scripts.etl_games import run_etl as run_games_etl
+from scripts.etl_players import run_etl as run_players_etl
+from scripts.etl_stats import run_etl as run_stats_etl
 
 # Import ETL modules
 from scripts.etl_teams import run_etl as run_teams_etl
-from scripts.etl_players import run_etl as run_players_etl
-from scripts.etl_games import run_etl as run_games_etl
-from scripts.etl_stats import run_etl as run_stats_etl
 
 # Configure logging
 logging.basicConfig(
@@ -62,8 +62,8 @@ def run_etl_pipeline(
     Returns:
         Dictionary with ETL results for each step.
     """
-    start_time = datetime.now(timezone.utc)
-    results = {
+    start_time = datetime.now(UTC)
+    results: dict[str, Any] = {
         "start_time": start_time.isoformat(),
         "season": season,
         "season_type": season_type,
@@ -164,7 +164,7 @@ def run_etl_pipeline(
         results["steps"]["stats"] = {"status": "skipped"}
 
     # Calculate duration
-    end_time = datetime.now(timezone.utc)
+    end_time = datetime.now(UTC)
     duration = (end_time - start_time).total_seconds()
     results["end_time"] = end_time.isoformat()
     results["duration_seconds"] = duration

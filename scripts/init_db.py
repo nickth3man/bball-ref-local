@@ -23,24 +23,24 @@ from app.services.database import (
 
 def main() -> int:
     """Initialize the database.
-    
+
     Returns:
         Exit code (0 for success, 1 for failure).
     """
     print("Initializing bball-ref-local database...")
     print(f"Database location: {project_root / 'data' / 'bball_ref.db'}")
-    
+
     try:
         # Initialize database with all tables
         init_db()
-        
+
         # Set initial metadata
         set_app_metadata("version", "0.1.0")
         set_app_metadata("initialized_at", "CURRENT_TIMESTAMP")
-        
+
         # Verify initialization
         version = get_app_metadata("version")
-        
+
         print("[OK] Database initialized successfully")
         print(f"[OK] App version: {version}")
         print("\nCreated tables:")
@@ -50,13 +50,13 @@ def main() -> int:
         print("  - player_game_stats")
         print("  - app_metadata")
         print("\nCreated indexes for performance optimization")
-        
+
         return 0
-        
+
     except Exception as e:
         print(f"[ERROR] Database initialization failed: {e}", file=sys.stderr)
         return 1
-        
+
     finally:
         close_db_connection()
 

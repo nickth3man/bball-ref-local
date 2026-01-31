@@ -1,0 +1,310 @@
+{
+  "title": "Historical NBA Data Validation",
+  "generated_at": "2026-01-30T16:29:28.818722",
+  "metadata": {},
+  "summary": {
+    "title": "Historical NBA Data Validation",
+    "generated_at": "2026-01-30T16:29:28.818722",
+    "total_sections": 27,
+    "sections_with_issues": 6,
+    "total_issues": 24,
+    "status": "failed"
+  },
+  "sections": [
+    {
+      "title": "Foreign Keys: Players",
+      "status": "failed",
+      "summary": {},
+      "items": [
+        {
+          "severity": "error",
+          "message": "Orphan player_id: 201942 with 49 records"
+        },
+        {
+          "severity": "error",
+          "message": "Orphan player_id: 1642366 with 49 records"
+        },
+        {
+          "severity": "error",
+          "message": "Orphan player_id: 203944 with 49 records"
+        },
+        {
+          "severity": "error",
+          "message": "Orphan player_id: 1629675 with 49 records"
+        },
+        {
+          "severity": "error",
+          "message": "Orphan player_id: 1642883 with 49 records"
+        },
+        {
+          "severity": "error",
+          "message": "Orphan player_id: 1642347 with 49 records"
+        },
+        {
+          "severity": "error",
+          "message": "Orphan player_id: 1641764 with 49 records"
+        },
+        {
+          "severity": "error",
+          "message": "Orphan player_id: 1628978 with 49 records"
+        },
+        {
+          "severity": "error",
+          "message": "Orphan player_id: 1641711 with 49 records"
+        },
+        {
+          "severity": "error",
+          "message": "Orphan player_id: 1642847 with 49 records"
+        }
+      ],
+      "item_count": 10
+    },
+    {
+      "title": "Foreign Keys: Teams",
+      "status": "passed",
+      "summary": {},
+      "items": [],
+      "item_count": 0
+    },
+    {
+      "title": "Foreign Keys: Games",
+      "status": "failed",
+      "summary": {},
+      "items": [
+        {
+          "severity": "error",
+          "message": "Orphan game_id: 0022500086 with 30 records"
+        },
+        {
+          "severity": "error",
+          "message": "Orphan game_id: 0022500159 with 28 records"
+        },
+        {
+          "severity": "error",
+          "message": "Orphan game_id: 0022500134 with 28 records"
+        },
+        {
+          "severity": "error",
+          "message": "Orphan game_id: 0022500127 with 28 records"
+        },
+        {
+          "severity": "error",
+          "message": "Orphan game_id: 0022500146 with 28 records"
+        },
+        {
+          "severity": "error",
+          "message": "Orphan game_id: 0022500004 with 28 records"
+        },
+        {
+          "severity": "error",
+          "message": "Orphan game_id: 0022500145 with 28 records"
+        },
+        {
+          "severity": "error",
+          "message": "Orphan game_id: 0022500036 with 28 records"
+        },
+        {
+          "severity": "error",
+          "message": "Orphan game_id: 0022500582 with 28 records"
+        },
+        {
+          "severity": "error",
+          "message": "Orphan game_id: 0022500622 with 27 records"
+        }
+      ],
+      "item_count": 10
+    },
+    {
+      "title": "Foreign Keys: Seasons",
+      "status": "passed",
+      "summary": {},
+      "items": [],
+      "item_count": 0
+    },
+    {
+      "title": "Duplicate: Players",
+      "status": "passed",
+      "summary": {},
+      "items": [],
+      "item_count": 0
+    },
+    {
+      "title": "Duplicate: Games",
+      "status": "passed",
+      "summary": {},
+      "items": [],
+      "item_count": 0
+    },
+    {
+      "title": "Duplicate: Player Games",
+      "status": "passed",
+      "summary": {},
+      "items": [],
+      "item_count": 0
+    },
+    {
+      "title": "Points Calculation: Games",
+      "status": "passed",
+      "summary": {},
+      "items": [],
+      "item_count": 0
+    },
+    {
+      "title": "Points Calculation: Seasons",
+      "status": "passed",
+      "summary": {},
+      "items": [],
+      "item_count": 0
+    },
+    {
+      "title": "Game Winners",
+      "status": "passed",
+      "summary": {},
+      "items": [],
+      "item_count": 0
+    },
+    {
+      "title": "Game Ties",
+      "status": "passed",
+      "summary": {},
+      "items": [],
+      "item_count": 0
+    },
+    {
+      "title": "Game Scores",
+      "status": "passed",
+      "summary": {},
+      "items": [],
+      "item_count": 0
+    },
+    {
+      "title": "Game Quarter Sums",
+      "status": "passed",
+      "summary": {},
+      "items": [],
+      "item_count": 0
+    },
+    {
+      "title": "Stat Percentages",
+      "status": "passed",
+      "summary": {},
+      "items": [],
+      "item_count": 0
+    },
+    {
+      "title": "Stat Percentages: Games",
+      "status": "passed",
+      "summary": {},
+      "items": [],
+      "item_count": 0
+    },
+    {
+      "title": "Season Ranges",
+      "status": "passed",
+      "summary": {},
+      "items": [],
+      "item_count": 0
+    },
+    {
+      "title": "Player Career Seasons",
+      "status": "passed",
+      "summary": {},
+      "items": [],
+      "item_count": 0
+    },
+    {
+      "title": "Player Ages",
+      "status": "passed",
+      "summary": {},
+      "items": [],
+      "item_count": 0
+    },
+    {
+      "title": "Player Career Span",
+      "status": "passed",
+      "summary": {},
+      "items": [],
+      "item_count": 0
+    },
+    {
+      "title": "Team Season Continuity",
+      "status": "passed",
+      "summary": {},
+      "items": [],
+      "item_count": 0
+    },
+    {
+      "title": "Team Active Years",
+      "status": "passed",
+      "summary": {},
+      "items": [],
+      "item_count": 0
+    },
+    {
+      "title": "Consistency: player_totals_consistency",
+      "status": "failed",
+      "summary": {},
+      "items": [
+        {
+          "expected": "Check failed",
+          "actual": "Binder Error: Referenced column \"season\" not found in FROM clause!\nCandidate bindings: \"steals\", \"series_game_number\", \"person_id\", \"fouls_personal\", \"data_source\"\n\nLINE 11:                 GROUP BY season, player_id\n                                  ^",
+          "context": "exception"
+        }
+      ],
+      "item_count": 1
+    },
+    {
+      "title": "Consistency: game_scores_consistency",
+      "status": "failed",
+      "summary": {},
+      "items": [
+        {
+          "expected": "Check failed",
+          "actual": "Parser Error: syntax error at or near \".\"\n\nLINE 7:                 at.team_score as away_from_team_stats\n                          ^",
+          "context": "exception"
+        }
+      ],
+      "item_count": 1
+    },
+    {
+      "title": "Consistency: team_totals_consistency",
+      "status": "failed",
+      "summary": {},
+      "items": [
+        {
+          "expected": "Check failed",
+          "actual": "Binder Error: Referenced column \"season\" not found in FROM clause!\nCandidate bindings: \"season_wins\", \"season_losses\", \"steals\", \"team_score\", \"biggest_scoring_run\"\n\nLINE 10:                 GROUP BY season, team_id\n                                  ^",
+          "context": "exception"
+        }
+      ],
+      "item_count": 1
+    },
+    {
+      "title": "Consistency: player_season_completeness",
+      "status": "passed",
+      "summary": {},
+      "items": [],
+      "item_count": 0
+    },
+    {
+      "title": "Consistency: awards_consistency",
+      "status": "failed",
+      "summary": {},
+      "items": [
+        {
+          "expected": "Check failed",
+          "actual": "Binder Error: Referenced column \"award_season\" not found in FROM clause!\nCandidate bindings: \"award_name\", \"data_source\", \"share\", \"age\", \"is_winner\"\n\nLINE 2:             SELECT DISTINCT award_season, award_name, player_id\n                                    ^",
+          "context": "exception"
+        }
+      ],
+      "item_count": 1
+    },
+    {
+      "title": "Consistency: draft_consistency",
+      "status": "passed",
+      "summary": {},
+      "items": [],
+      "item_count": 0
+    }
+  ]
+}

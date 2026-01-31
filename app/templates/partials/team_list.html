@@ -1,0 +1,82 @@
+{# Team List Partial - Grid of team cards #}
+<div id="team-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+    {% for team in teams %}
+    <div class="bg-white dark:bg-bball-gray rounded-xl shadow-md hover:shadow-xl transition-all p-5 border-t-4 
+                {% if team.conference == 'Eastern' %}border-blue-500{% else %}border-red-500{% endif %} group"
+         hx-get="/teams/{{ team.team_id }}" 
+         hx-target="#team-detail" 
+         hx-swap="innerHTML">
+        
+        <div class="flex items-start justify-between mb-4">
+            <div class="flex items-center space-x-3">
+                <div class="w-14 h-14 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 rounded-xl flex items-center justify-center shadow-inner">
+                    <span class="text-xl font-bold text-gray-700 dark:text-gray-300">{{ team.abbreviation }}</span>
+                </div>
+                <div>
+                    <h3 class="font-bold text-gray-900 dark:text-white group-hover:text-nba-blue transition-colors">
+                        {{ team.display_name }}
+                    </h3>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ team.conference }} Conference</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="space-y-2 mb-4">
+            <div class="flex items-center justify-between text-sm">
+                <span class="text-gray-500 dark:text-gray-400">Division</span>
+                <span class="font-medium text-gray-700 dark:text-gray-300">{{ team.division }}</span>
+            </div>
+            <div class="flex items-center justify-between text-sm">
+                <span class="text-gray-500 dark:text-gray-400">Founded</span>
+                <span class="font-medium text-gray-700 dark:text-gray-300">{{ team.year_founded or 'N/A' }}</span>
+            </div>
+            {% if team.arena %}
+            <div class="flex items-center justify-between text-sm">
+                <span class="text-gray-500 dark:text-gray-400">Arena</span>
+                <span class="font-medium text-gray-700 dark:text-gray-300 truncate max-w-[120px]">{{ team.arena }}</span>
+            </div>
+            {% endif %}
+        </div>
+        
+        <div class="flex items-center justify-between pt-3 border-t dark:border-gray-700">
+            <a href="/teams/{{ team.team_id }}/roster" 
+               class="text-sm font-medium text-nba-blue hover:text-nba-blue-dark transition-colors inline-flex items-center group-hover:translate-x-1 duration-200">
+                <i class="ph ph-users mr-1"></i> Roster
+            </a>
+            <a href="/teams/{{ team.team_id }}/schedule" 
+               class="text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-nba-blue transition-colors inline-flex items-center">
+                <i class="ph ph-calendar mr-1"></i> Schedule
+            </a>
+        </div>
+    </div>
+    {% else %}
+    <div class="col-span-full text-center py-12">
+        <i class="ph ph-shield text-4xl text-gray-300 dark:text-gray-600 mb-3"></i>
+        <p class="text-gray-500 dark:text-gray-400">No teams found</p>
+    </div>
+    {% endfor %}
+</div>
+
+{% if pagination %}
+<div class="mt-6 flex items-center justify-between">
+    <p class="text-sm text-gray-500 dark:text-gray-400">
+        Showing {{ pagination.start }} - {{ pagination.end }} of {{ pagination.total }}
+    </p>
+    <div class="flex items-center space-x-2">
+        {% if pagination.has_prev %}
+        <button hx-get="{{ pagination.prev_url }}" 
+                hx-target="#team-list-container"
+                class="px-3 py-1.5 bg-white dark:bg-bball-gray border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+            <i class="ph ph-caret-left mr-1"></i> Previous
+        </button>
+        {% endif %}
+        {% if pagination.has_next %}
+        <button hx-get="{{ pagination.next_url }}" 
+                hx-target="#team-list-container"
+                class="px-3 py-1.5 bg-white dark:bg-bball-gray border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+            Next <i class="ph ph-caret-right ml-1"></i>
+        </button>
+        {% endif %}
+    </div>
+</div>
+{% endif %}

@@ -24,15 +24,19 @@ sys.path.insert(0, str(project_root))
 from nba_api.stats.endpoints import LeagueGameFinder
 
 from app.services.database import close_db_connection, get_db_connection
-from scripts.etl_utils import get_current_season, parse_season_to_year
+from scripts.etl_utils import (
+    get_current_season,
+    parse_season_to_year,
+    validate_season_format,
+    validate_season_type,
+)
+from scripts.ingestion.exceptions import APIError, DatabaseError, ETLError
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
-logger = logging.getLogger(__name__)
+from scripts.logging_utils import setup_etl_logging
+from scripts.retry_utils import retry_api_call
+
+logger = setup_etl_logging(__name__)
 
 # Rate limiting delay (seconds)
 RATE_LIMIT_DELAY = 0.6
@@ -63,6 +67,7 @@ def parse_game_date(date_str: str | None) -> date | None:
         return None
 
 
+@retry_api_call(max_retries=3, initial_delay=0.6)
 def extract_games(season: str, season_type: str = "Regular Season") -> pd.DataFrame:
     """Extract game data from nba_api.
 
@@ -72,7 +77,15 @@ def extract_games(season: str, season_type: str = "Regular Season") -> pd.DataFr
 
     Returns:
         DataFrame with raw game data.
+
+    Raises:
+        ValueError: If season or season_type is invalid.
     """
+    # Validate inputs
+    if not validate_season_format(season):
+        raise ValueError(f"Invalid season format: '{season}'. Expected format: 'YYYY-YY'")
+    season_type = validate_season_type(season_type)
+
     logger.info(f"Extracting games for season {season} ({season_type})...")
 
     # LeagueGameFinder returns one row per team per game
@@ -171,36 +184,27 @@ def transform_games(df: pd.DataFrame, season: str, season_type: str) -> pd.DataF
     games["home_score"] = pd.to_numeric(games["pts_home"], errors="coerce").astype("Int64")
     games["away_score"] = pd.to_numeric(games["pts_away"], errors="coerce").astype("Int64")
 
-    # Determine winner (only if scores are available)
-    def determine_winner(row):
-        if pd.isna(row["home_score"]) or pd.isna(row["away_score"]):
-            return None
-        if row["home_score"] > row["away_score"]:
-            return row["home_team_id"]
-        if row["away_score"] > row["home_score"]:
-            return row["away_team_id"]
-        return None
+    # Determine winner (only if scores are available) - vectorized
+    has_scores = games["home_score"].notna() & games["away_score"].notna()
+    games["winner_team_id"] = None
+    games.loc[has_scores & (games["home_score"] > games["away_score"]), "winner_team_id"] = (
+        games.loc[has_scores & (games["home_score"] > games["away_score"]), "home_team_id"]
+    )
+    games.loc[has_scores & (games["away_score"] > games["home_score"]), "winner_team_id"] = (
+        games.loc[has_scores & (games["away_score"] > games["home_score"]), "away_team_id"]
+    )
 
-    games["winner_team_id"] = games.apply(determine_winner, axis=1)
-
-    # Determine game status
+    # Determine game status - vectorized
     # If game_date is in the future -> scheduled
     # If wl (win/loss) is present and scores are present -> final
     # Otherwise -> live or scheduled
     today = date.today()
+    game_date = games["game_date"]
+    has_score = games["home_score"].notna() & games["away_score"].notna()
 
-    def determine_status(row) -> str:
-        game_date = row["game_date"]
-        has_score = pd.notna(row["home_score"]) and pd.notna(row["away_score"])
-
-        if game_date and game_date > today:
-            return "scheduled"
-        elif has_score:
-            return "final"
-        else:
-            return "live"
-
-    games["status"] = games.apply(determine_status, axis=1)
+    games["status"] = "live"  # default
+    games.loc[game_date.notna() & (game_date > today), "status"] = "scheduled"
+    games.loc[has_score, "status"] = "final"
 
     # Select only columns that exist in our database schema
     db_columns = [
@@ -226,7 +230,7 @@ def transform_games(df: pd.DataFrame, season: str, season_type: str) -> pd.DataF
 
 
 def load_games(df: pd.DataFrame) -> int:
-    """Load games into DuckDB using upsert.
+    """Load games into DuckDB using batch upsert.
 
     Args:
         df: Transformed game data.
@@ -237,39 +241,51 @@ def load_games(df: pd.DataFrame) -> int:
     logger.info("Loading games into database...")
 
     conn = get_db_connection()
-    rows_loaded = 0
 
     try:
-        for _, row in df.iterrows():
-            conn.execute(
-                """
-                INSERT OR REPLACE INTO games (
-                    game_id, season, season_type, game_date,
-                    home_team_id, away_team_id, home_score, away_score,
-                    winner_team_id, status, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-            """,
-                [
-                    str(row.get("game_id")),
-                    row.get("season"),
-                    row.get("season_type"),
-                    row.get("game_date"),
-                    row.get("home_team_id"),
-                    row.get("away_team_id"),
-                    row.get("home_score"),
-                    row.get("away_score"),
-                    row.get("winner_team_id"),
-                    row.get("status"),
-                ],
+        # Convert DataFrame to list of tuples for batch insert using itertuples (faster than iterrows)
+        data = [
+            (
+                str(row.game_id),
+                row.season,
+                row.season_type,
+                row.game_date,
+                row.home_team_id,
+                row.away_team_id,
+                row.home_score,
+                row.away_score,
+                row.winner_team_id,
+                row.status,
             )
-            rows_loaded += 1
+            for row in df.itertuples(index=False)
+        ]
 
+        if not data:
+            logger.info("No games to load")
+            return 0
+
+        conn.executemany(
+            """
+            INSERT OR REPLACE INTO games (
+                game_id, season, season_type, game_date,
+                home_team_id, away_team_id, home_score, away_score,
+                winner_team_id, status, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            """,
+            data,
+        )
+
+        rows_loaded = len(data)
         logger.info(f"Successfully loaded {rows_loaded} games")
         return rows_loaded
 
     except Exception as e:
         logger.error(f"Failed to load games: {e}")
-        raise
+        raise DatabaseError(
+            "Failed to load games into database",
+            operation="load_games",
+            original_error=e,
+        ) from e
 
 
 def run_etl(season: str | None = None, season_type: str = "Regular Season") -> dict:
@@ -307,10 +323,22 @@ def run_etl(season: str | None = None, season_type: str = "Regular Season") -> d
         # Load
         result["loaded"] = load_games(df)
 
-    except Exception as e:
+    except APIError as e:
         result["status"] = "failed"
-        result["error"] = str(e)
-        logger.error(f"ETL failed: {e}")
+        result["error"] = f"API error during extraction: {e}"
+        logger.error(f"Games ETL API error: {e}")
+    except DatabaseError as e:
+        result["status"] = "failed"
+        result["error"] = f"Database error during loading: {e}"
+        logger.error(f"Games ETL database error: {e}")
+    except ETLError as e:
+        result["status"] = "failed"
+        result["error"] = f"ETL error: {e}"
+        logger.error(f"Games ETL error: {e}")
+    except (ValueError, TypeError) as e:
+        result["status"] = "failed"
+        result["error"] = f"Data transformation error: {e}"
+        logger.error(f"Games ETL transformation error: {e}")
 
     finally:
         close_db_connection()

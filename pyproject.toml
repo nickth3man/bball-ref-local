@@ -11,19 +11,27 @@ dependencies = [
     "nba-api>=1.11.3",
     "pandas>=2.2.3,<3.0.0",
     "pydantic>=2.9.0,<3.0.0",
+    "pydantic-settings>=2.12.0",
     "uvicorn[standard]>=0.32.0,<0.35.0",
 ]
 
 [dependency-groups]
 dev = [
     "httpx>=0.28.1",
+    "pandas-stubs>=2.3.3.260113",
+    "pyarrow-stubs>=20.0.0.20251215",
     "pytest>=9.0.2",
+    "pytest-cov>=4.1.0",
     "ruff>=0.14.14",
+    "ty>=0.0.0",
+    "types-requests>=2.32.4.20260107",
 ]
 
 [tool.ruff]
 target-version = "py312"
 line-length = 100
+
+[tool.ruff.lint]
 select = [
     "E",   # pycodestyle errors
     "F",   # Pyflakes
@@ -37,6 +45,9 @@ select = [
 ]
 ignore = [
     "E501",  # Line too long (handled by formatter)
+    "E402",  # Module level import not at top (intentional for sys.path.insert)
+    "W291",  # Trailing whitespace (inside SQL strings for readability)
+    "W293",  # Blank line contains whitespace (inside SQL strings)
 ]
 
 [tool.ruff.format]
@@ -45,7 +56,7 @@ indent-style = "space"
 skip-magic-trailing-comma = false
 line-ending = "auto"
 
-[tool.ruff.isort]
+[tool.ruff.lint.isort]
 known-first-party = ["app"]
 
 [tool.pytest.ini_options]
@@ -55,3 +66,66 @@ python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = "-v --tb=short"
 asyncio_mode = "auto"
+
+[tool.ty.environment]
+python-version = "3.12"
+
+[tool.ty.src]
+include = ["app/**/*.py", "scripts/**/*.py"]
+exclude = [
+    "**/test_*.py",
+    "**/*_test.py",
+    "tests/**",
+    ".venv/**",
+    ".git/**",
+    "**/__pycache__/**",
+    "**/.mypy_cache/**",
+    "data/**",
+]
+respect-ignore-files = true
+
+[tool.ty.rules]
+# Critical safety rules - always error
+unresolved-reference = "error"
+unresolved-import = "error"
+call-non-callable = "error"
+missing-argument = "error"
+invalid-return-type = "error"
+
+# Assignment and argument rules - error for app/, warn for scripts
+invalid-assignment = "error"
+invalid-argument-type = "error"
+
+# Attribute access - warn for gradual typing compatibility
+unresolved-attribute = "warn"
+possibly-unresolved-reference = "warn"
+possibly-missing-attribute = "warn"
+
+# Division and math operations - ignore (often false positives)
+division-by-zero = "ignore"
+
+# Code quality - warn
+redundant-cast = "warn"
+deprecated = "warn"
+
+[tool.ty.terminal]
+output-format = "full"
+error-on-warning = false
+
+# Relaxed rules for ETL scripts (pandas-heavy, dynamic typing)
+[[tool.ty.overrides]]
+include = ["scripts/**"]
+[tool.ty.overrides.rules]
+invalid-assignment = "warn"
+invalid-argument-type = "warn"
+unresolved-attribute = "ignore"
+possibly-missing-attribute = "ignore"
+
+# Relaxed rules for tests (flexible typing acceptable)
+[[tool.ty.overrides]]
+include = ["tests/**"]
+[tool.ty.overrides.rules]
+unresolved-reference = "ignore"
+invalid-assignment = "ignore"
+invalid-argument-type = "ignore"
+possibly-missing-attribute = "ignore"

@@ -1,0 +1,102 @@
+{# Leaders Table Partial - League leaders display #}
+<div id="leaders-table" class="bg-white dark:bg-bball-gray rounded-xl shadow-lg overflow-hidden">
+    <div class="px-6 py-4 border-b dark:border-gray-700 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+            <i class="ph-fill ph-trophy text-nba-blue text-xl"></i>
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">{{ stat_category }} Leaders</h3>
+        </div>
+        <span class="text-sm text-gray-500 dark:text-gray-400">{{ season }} Season</span>
+    </div>
+    
+    <div class="overflow-x-auto">
+        <table class="w-full">
+            <thead>
+                <tr class="bg-gray-50 dark:bg-gray-800 text-left">
+                    <th class="px-4 py-3 font-semibold text-gray-700 dark:text-gray-300 text-center w-16">Rank</th>
+                    <th class="px-4 py-3 font-semibold text-gray-700 dark:text-gray-300">Player</th>
+                    <th class="px-4 py-3 font-semibold text-gray-700 dark:text-gray-300">Team</th>
+                    <th class="px-4 py-3 font-semibold text-nba-blue text-right">{{ stat_category }}</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y dark:divide-gray-700">
+                {% for leader in leaders %}
+                <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors {% if loop.index <= 3 %}bg-gradient-to-r {% if loop.index == 1 %}from-yellow-50 to-transparent dark:from-yellow-900/10{% elif loop.index == 2 %}from-gray-50 to-transparent dark:from-gray-800/50{% elif loop.index == 3 %}from-orange-50 to-transparent dark:from-orange-900/10{% endif %}{% endif %}">
+                    <td class="px-4 py-3 text-center">
+                        {% if loop.index == 1 %}
+                        <div class="inline-flex items-center justify-center w-8 h-8 bg-yellow-400 rounded-full shadow-lg">
+                            <i class="ph-fill ph-crown text-yellow-800 text-sm"></i>
+                        </div>
+                        {% elif loop.index == 2 %}
+                        <div class="inline-flex items-center justify-center w-8 h-8 bg-gray-300 rounded-full shadow">
+                            <span class="font-bold text-gray-700">2</span>
+                        </div>
+                        {% elif loop.index == 3 %}
+                        <div class="inline-flex items-center justify-center w-8 h-8 bg-orange-300 rounded-full shadow">
+                            <span class="font-bold text-orange-800">3</span>
+                        </div>
+                        {% else %}
+                        <span class="inline-flex items-center justify-center w-8 h-8 text-gray-500 dark:text-gray-400 font-medium">
+                            {{ loop.index }}
+                        </span>
+                        {% endif %}
+                    </td>
+                    <td class="px-4 py-3">
+                        <a href="/players/{{ leader.player_id }}" class="flex items-center space-x-3 group">
+                            <div class="w-10 h-10 bg-gradient-to-br from-nba-blue to-nba-blue-dark rounded-full flex items-center justify-center text-white font-bold">
+                                {{ leader.player.first_name[0] }}{{ leader.player.last_name[0] }}
+                            </div>
+                            <div>
+                                <p class="font-semibold text-gray-900 dark:text-white group-hover:text-nba-blue transition-colors">
+                                    {{ leader.player.full_name }}
+                                </p>
+                                <p class="text-xs text-gray-500 dark:text-gray-400">{{ leader.player.position }}</p>
+                            </div>
+                        </a>
+                    </td>
+                    <td class="px-4 py-3">
+                        <a href="/teams/{{ leader.team_id }}" class="inline-flex items-center space-x-2">
+                            <span class="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-sm font-medium text-gray-700 dark:text-gray-300">
+                                {{ leader.team_abbreviation }}
+                            </span>
+                        </a>
+                    </td>
+                    <td class="px-4 py-3 text-right">
+                        <span class="text-2xl font-bold {% if loop.index <= 3 %}text-nba-blue{% else %}text-gray-700 dark:text-gray-300{% endif %}">
+                            {{ leader.stat_value }}
+                        </span>
+                        {% if leader.per_game %}
+                        <span class="text-sm text-gray-500 dark:text-gray-400 ml-1">{{ leader.per_game }}</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="4" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                        <i class="ph ph-trophy text-3xl mb-2"></i>
+                        <p>No leaders data available</p>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    {% if show_tabs %}
+    <div class="px-6 py-3 border-t dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+        <div class="flex flex-wrap gap-2">
+            {% for category in stat_categories %}
+            <button hx-get="/stats/leaders?category={{ category.key }}&season={{ season }}" 
+                    hx-target="#leaders-table-container"
+                    class="px-3 py-1.5 rounded-full text-sm font-medium transition-colors
+                           {% if category.key == stat_category_key %}
+                                bg-nba-blue text-white
+                           {% else %}
+                               bg-white dark:bg-bball-gray text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 border dark:border-gray-600
+                           {% endif %}">
+                {{ category.label }}
+            </button>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>

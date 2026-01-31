@@ -4,15 +4,16 @@ FastAPI application for bball-ref-local.
 Provides a local API for basketball reference data using DuckDB as the backend.
 """
 
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import AsyncGenerator
 
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+from app.routers import games_router, players_router, search_router, stats_router, teams_router
 from app.services.database import (
     close_db_connection,
     get_db_connection,
@@ -24,17 +25,17 @@ from app.services.database import (
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Lifespan context manager for FastAPI application.
-    
+
     Handles startup and shutdown events, including DuckDB connection management.
     """
     # Startup: Initialize database and create tables
     init_db()
-    
+
     # Set app version
     set_app_metadata("version", "0.1.0")
-    
+
     yield
-    
+
     # Shutdown: Close database connection
     close_db_connection()
 
@@ -53,20 +54,26 @@ static_dir = Path(__file__).parent / "static"
 if static_dir.exists():
     app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
+# Include API routers (routers define their own prefixes)
+app.include_router(players_router)
+app.include_router(teams_router)
+app.include_router(games_router)
+app.include_router(stats_router)
+app.include_router(search_router)
+
 
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request) -> HTMLResponse:
     """Root endpoint - renders home page."""
     return templates.TemplateResponse(
-        "index.html",
-        {"request": request, "title": "BBall Ref Local"}
+        "index.html", {"request": request, "title": "BBall Ref Local"}
     )
 
 
 @app.get("/health")
 async def health_check() -> dict[str, str | bool]:
     """Health check endpoint.
-    
+
     Returns:
         Status information about the application and database connection.
     """
@@ -77,7 +84,7 @@ async def health_check() -> dict[str, str | bool]:
         db_status = "connected"
     except Exception as e:
         db_status = f"error: {str(e)}"
-    
+
     return {
         "status": "healthy",
         "database": db_status,
@@ -95,6 +102,31 @@ async def api_status() -> dict[str, str]:
     }
 
 
+@app.get("/players", response_class=HTMLResponse)
+async def players_page(request: Request) -> HTMLResponse:
+    """Players listing page."""
+    return templates.TemplateResponse("players/list.html", {"request": request, "title": "Players"})
+
+
+@app.get("/teams", response_class=HTMLResponse)
+async def teams_page(request: Request) -> HTMLResponse:
+    """Teams listing page."""
+    return templates.TemplateResponse("teams/list.html", {"request": request, "title": "Teams"})
+
+
+@app.get("/games", response_class=HTMLResponse)
+async def games_page(request: Request) -> HTMLResponse:
+    """Games listing page."""
+    return templates.TemplateResponse("games/list.html", {"request": request, "title": "Games"})
+
+
+@app.get("/stats", response_class=HTMLResponse)
+async def stats_page(request: Request) -> HTMLResponse:
+    """Stats/leaders page."""
+    return templates.TemplateResponse("stats/leaders.html", {"request": request, "title": "Stats"})
+
+
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)

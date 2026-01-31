@@ -16,44 +16,85 @@ _conn: duckdb.DuckDBPyConnection | None = None
 
 def get_db_connection() -> duckdb.DuckDBPyConnection:
     """Get or create a DuckDB connection.
-    
+
     Returns:
         duckdb.DuckDBPyConnection: Active database connection.
-        
+
     Raises:
         RuntimeError: If connection cannot be established.
     """
     global _conn
-    
+
     if _conn is None:
         try:
             _conn = duckdb.connect(str(DB_PATH))
         except Exception as e:
             raise RuntimeError(f"Failed to connect to database: {e}") from e
-    
+
     return _conn
 
 
 def close_db_connection() -> None:
     """Close the database connection."""
     global _conn
-    
+
     if _conn is not None:
         _conn.close()
         _conn = None
 
 
-def init_db() -> None:
-    """Initialize database with all tables and indexes.
-    
-    Creates tables matching Pydantic models if they don't exist.
-    """
-    conn = get_db_connection()
-    
-    # Create teams table
+# Index configuration for _create_indexes
+INDEX_CONFIG: list[tuple[str, str, str]] = [
+    # Team indexes
+    ("idx_teams_abbreviation", "teams", "abbreviation"),
+    ("idx_teams_conference", "teams", "conference"),
+    ("idx_teams_division", "teams", "division"),
+    # Player indexes
+    ("idx_players_team_id", "players", "team_id"),
+    ("idx_players_name", "players", "last_name, first_name"),
+    ("idx_players_full_name", "players", "full_name"),
+    ("idx_players_active", "players", "active"),
+    ("idx_players_hall_of_fame", "players", "hall_of_fame"),
+    # Game indexes
+    ("idx_games_date", "games", "game_date"),
+    ("idx_games_season", "games", "season"),
+    ("idx_games_season_id", "games", "season_id"),
+    ("idx_games_home_team", "games", "home_team_id"),
+    ("idx_games_away_team", "games", "away_team_id"),
+    ("idx_games_is_playoff", "games", "is_playoff"),
+    # Player game stats indexes
+    ("idx_stats_game_id", "player_game_stats", "game_id"),
+    ("idx_stats_player_id", "player_game_stats", "player_id"),
+    ("idx_stats_team_id", "player_game_stats", "team_id"),
+    ("idx_stats_player_game", "player_game_stats", "player_id, game_id"),
+    # Seasons indexes
+    ("idx_seasons_year_start", "seasons", "year_start"),
+    ("idx_seasons_year_end", "seasons", "year_end"),
+    # Player season stats indexes
+    ("idx_player_season_stats_player", "player_season_stats", "player_id"),
+    ("idx_player_season_stats_season", "player_season_stats", "season_id"),
+    # Player game logs indexes
+    ("idx_player_game_logs_player", "player_game_logs", "player_id"),
+    ("idx_player_game_logs_game", "player_game_logs", "game_id"),
+    # Team season stats indexes
+    ("idx_team_season_stats_team", "team_season_stats", "team_id"),
+    ("idx_team_season_stats_season", "team_season_stats", "season_id"),
+    # Awards indexes
+    ("idx_awards_season", "awards", "season_id"),
+    ("idx_awards_player", "awards", "player_id"),
+    ("idx_awards_type", "awards", "award_type"),
+    # Draft picks indexes
+    ("idx_draft_picks_season", "draft_picks", "season_id"),
+    ("idx_draft_picks_team", "draft_picks", "team_id"),
+    ("idx_draft_picks_player", "draft_picks", "player_id"),
+]
+
+
+def _create_teams_table(conn: duckdb.DuckDBPyConnection) -> None:
+    """Create the teams table."""
     conn.execute("""
         CREATE TABLE IF NOT EXISTS teams (
-            team_id INTEGER PRIMARY KEY,
+            team_id VARCHAR PRIMARY KEY,
             full_name VARCHAR NOT NULL,
             abbreviation VARCHAR(3) NOT NULL,
             nickname VARCHAR NOT NULL,
@@ -70,53 +111,90 @@ def init_db() -> None:
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
-    
-    # Create players table
+
+
+def _create_players_table(conn: duckdb.DuckDBPyConnection) -> None:
+    """Create the players table."""
     conn.execute("""
         CREATE TABLE IF NOT EXISTS players (
-            player_id INTEGER PRIMARY KEY,
+            player_id VARCHAR PRIMARY KEY,
             first_name VARCHAR NOT NULL,
             last_name VARCHAR NOT NULL,
-            team_id INTEGER NOT NULL,
-            position VARCHAR(2) NOT NULL,
+            full_name VARCHAR NOT NULL,
+            team_id VARCHAR NOT NULL,
+            position VARCHAR,
             jersey_number INTEGER,
-            height INTEGER,
+            height VARCHAR(5),
+            height_cm INTEGER,
             weight INTEGER,
+            weight_kg INTEGER,
             birth_date DATE,
+            birth_place VARCHAR,
+            birth_country VARCHAR,
             country VARCHAR,
+            college VARCHAR,
             draft_year INTEGER,
             draft_round INTEGER,
             draft_number INTEGER,
+            draft_team_id VARCHAR,
+            shoots VARCHAR(1),
+            active BOOLEAN DEFAULT TRUE,
+            hall_of_fame BOOLEAN DEFAULT FALSE,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (team_id) REFERENCES teams(team_id),
+            FOREIGN KEY (draft_team_id) REFERENCES teams(team_id)
         )
     """)
-    
-    # Create games table
+
+
+def _create_games_table(conn: duckdb.DuckDBPyConnection) -> None:
+    """Create the games table."""
     conn.execute("""
         CREATE TABLE IF NOT EXISTS games (
             game_id VARCHAR PRIMARY KEY,
+            season_id VARCHAR NOT NULL,
             season INTEGER NOT NULL,
             season_type VARCHAR(14) NOT NULL,
             game_date DATE NOT NULL,
-            home_team_id INTEGER NOT NULL,
-            away_team_id INTEGER NOT NULL,
+            home_team_id VARCHAR NOT NULL,
+            away_team_id VARCHAR NOT NULL,
             home_score INTEGER,
             away_score INTEGER,
-            winner_team_id INTEGER,
+            home_q1 INTEGER,
+            home_q2 INTEGER,
+            home_q3 INTEGER,
+            home_q4 INTEGER,
+            home_ot INTEGER,
+            away_q1 INTEGER,
+            away_q2 INTEGER,
+            away_q3 INTEGER,
+            away_q4 INTEGER,
+            away_ot INTEGER,
+            winner_team_id VARCHAR,
+            is_playoff BOOLEAN DEFAULT FALSE,
+            is_overtime BOOLEAN DEFAULT FALSE,
+            attendance INTEGER,
+            arena VARCHAR,
             status VARCHAR(9) DEFAULT 'scheduled',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (season_id) REFERENCES seasons(season_id),
+            FOREIGN KEY (home_team_id) REFERENCES teams(team_id),
+            FOREIGN KEY (away_team_id) REFERENCES teams(team_id),
+            FOREIGN KEY (winner_team_id) REFERENCES teams(team_id)
         )
     """)
-    
-    # Create player_game_stats table
+
+
+def _create_player_game_stats_table(conn: duckdb.DuckDBPyConnection) -> None:
+    """Create the player_game_stats table."""
     conn.execute("""
         CREATE TABLE IF NOT EXISTS player_game_stats (
             stat_id INTEGER PRIMARY KEY,
             game_id VARCHAR NOT NULL,
-            player_id INTEGER NOT NULL,
-            team_id INTEGER NOT NULL,
+            player_id VARCHAR NOT NULL,
+            team_id VARCHAR NOT NULL,
             minutes_played DOUBLE,
             points INTEGER DEFAULT 0,
             rebounds_offensive INTEGER DEFAULT 0,
@@ -136,11 +214,215 @@ def init_db() -> None:
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
-    
-    # Create indexes for common query patterns
-    _create_indexes(conn)
-    
-    # Create app metadata table
+
+
+def _create_seasons_table(conn: duckdb.DuckDBPyConnection) -> None:
+    """Create the seasons table."""
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS seasons (
+            season_id VARCHAR PRIMARY KEY,
+            year_start INTEGER NOT NULL,
+            year_end INTEGER NOT NULL,
+            league VARCHAR DEFAULT 'NBA',
+            display_name VARCHAR
+        )
+    """)
+
+
+def _create_player_season_stats_table(conn: duckdb.DuckDBPyConnection) -> None:
+    """Create the player_season_stats table."""
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS player_season_stats (
+            stat_id BIGINT PRIMARY KEY,
+            player_id VARCHAR,
+            season_id VARCHAR,
+            team_id VARCHAR,
+            age INTEGER,
+            games_played INTEGER,
+            games_started INTEGER,
+            minutes_played INTEGER,
+            field_goals INTEGER,
+            field_goal_attempts INTEGER,
+            fg_pct FLOAT,
+            three_pointers INTEGER,
+            three_point_attempts INTEGER,
+            fg3_pct FLOAT,
+            two_pointers INTEGER,
+            two_point_attempts INTEGER,
+            fg2_pct FLOAT,
+            effective_fg_pct FLOAT,
+            free_throws INTEGER,
+            free_throw_attempts INTEGER,
+            ft_pct FLOAT,
+            offensive_rebounds INTEGER,
+            defensive_rebounds INTEGER,
+            total_rebounds INTEGER,
+            assists INTEGER,
+            steals INTEGER,
+            blocks INTEGER,
+            turnovers INTEGER,
+            personal_fouls INTEGER,
+            points INTEGER,
+            per FLOAT,
+            ts_pct FLOAT,
+            usg_pct FLOAT,
+            ortg FLOAT,
+            drtg FLOAT,
+            ws FLOAT,
+            ws_per_48 FLOAT,
+            bpm FLOAT,
+            vorp FLOAT,
+            FOREIGN KEY (player_id) REFERENCES players(player_id),
+            FOREIGN KEY (season_id) REFERENCES seasons(season_id),
+            FOREIGN KEY (team_id) REFERENCES teams(team_id)
+        )
+    """)
+
+
+def _create_player_game_logs_table(conn: duckdb.DuckDBPyConnection) -> None:
+    """Create the player_game_logs table."""
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS player_game_logs (
+            log_id BIGINT PRIMARY KEY,
+            player_id VARCHAR,
+            game_id VARCHAR,
+            team_id VARCHAR,
+            opponent_id VARCHAR,
+            is_home BOOLEAN,
+            is_win BOOLEAN,
+            minutes_played INTEGER,
+            field_goals INTEGER,
+            field_goal_attempts INTEGER,
+            fg_pct FLOAT,
+            three_pointers INTEGER,
+            three_point_attempts INTEGER,
+            fg3_pct FLOAT,
+            free_throws INTEGER,
+            free_throw_attempts INTEGER,
+            ft_pct FLOAT,
+            offensive_rebounds INTEGER,
+            defensive_rebounds INTEGER,
+            total_rebounds INTEGER,
+            assists INTEGER,
+            steals INTEGER,
+            blocks INTEGER,
+            turnovers INTEGER,
+            personal_fouls INTEGER,
+            points INTEGER,
+            plus_minus INTEGER,
+            ts_pct FLOAT,
+            efg_pct FLOAT,
+            FOREIGN KEY (player_id) REFERENCES players(player_id),
+            FOREIGN KEY (game_id) REFERENCES games(game_id),
+            FOREIGN KEY (team_id) REFERENCES teams(team_id),
+            FOREIGN KEY (opponent_id) REFERENCES teams(team_id)
+        )
+    """)
+
+
+def _create_team_season_stats_table(conn: duckdb.DuckDBPyConnection) -> None:
+    """Create the team_season_stats table."""
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS team_season_stats (
+            stat_id BIGINT PRIMARY KEY,
+            team_id VARCHAR,
+            season_id VARCHAR,
+            wins INTEGER,
+            losses INTEGER,
+            win_pct FLOAT,
+            games_played INTEGER,
+            minutes_played INTEGER,
+            points_for INTEGER,
+            pts_per_game FLOAT,
+            field_goals INTEGER,
+            field_goal_attempts INTEGER,
+            fg_pct FLOAT,
+            three_pointers INTEGER,
+            three_point_attempts INTEGER,
+            fg3_pct FLOAT,
+            free_throws INTEGER,
+            free_throw_attempts INTEGER,
+            ft_pct FLOAT,
+            offensive_rebounds INTEGER,
+            defensive_rebounds INTEGER,
+            total_rebounds INTEGER,
+            assists INTEGER,
+            steals INTEGER,
+            blocks INTEGER,
+            turnovers INTEGER,
+            personal_fouls INTEGER,
+            points_against INTEGER,
+            opp_pts_per_game FLOAT,
+            opp_field_goals INTEGER,
+            opp_field_goal_attempts INTEGER,
+            opp_fg_pct FLOAT,
+            opp_three_pointers INTEGER,
+            opp_three_point_attempts INTEGER,
+            opp_fg3_pct FLOAT,
+            opp_free_throws INTEGER,
+            opp_free_throw_attempts INTEGER,
+            opp_ft_pct FLOAT,
+            opp_offensive_rebounds INTEGER,
+            opp_defensive_rebounds INTEGER,
+            opp_total_rebounds INTEGER,
+            opp_assists INTEGER,
+            opp_steals INTEGER,
+            opp_blocks INTEGER,
+            opp_turnovers INTEGER,
+            opp_personal_fouls INTEGER,
+            pace FLOAT,
+            srs FLOAT,
+            ortg FLOAT,
+            drtg FLOAT,
+            nrtg FLOAT,
+            FOREIGN KEY (team_id) REFERENCES teams(team_id),
+            FOREIGN KEY (season_id) REFERENCES seasons(season_id)
+        )
+    """)
+
+
+def _create_awards_table(conn: duckdb.DuckDBPyConnection) -> None:
+    """Create the awards table."""
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS awards (
+            award_id BIGINT PRIMARY KEY,
+            award_name VARCHAR NOT NULL,
+            award_type VARCHAR,
+            season_id VARCHAR,
+            player_id VARCHAR,
+            team_id VARCHAR,
+            rank INTEGER,
+            points_won INTEGER,
+            points_max INTEGER,
+            share FLOAT,
+            FOREIGN KEY (player_id) REFERENCES players(player_id),
+            FOREIGN KEY (team_id) REFERENCES teams(team_id),
+            FOREIGN KEY (season_id) REFERENCES seasons(season_id)
+        )
+    """)
+
+
+def _create_draft_picks_table(conn: duckdb.DuckDBPyConnection) -> None:
+    """Create the draft_picks table."""
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS draft_picks (
+            draft_id BIGINT PRIMARY KEY,
+            season_id VARCHAR,
+            round INTEGER,
+            pick_number INTEGER,
+            team_id VARCHAR,
+            player_id VARCHAR,
+            college VARCHAR,
+            nationality VARCHAR,
+            FOREIGN KEY (season_id) REFERENCES seasons(season_id),
+            FOREIGN KEY (team_id) REFERENCES teams(team_id),
+            FOREIGN KEY (player_id) REFERENCES players(player_id)
+        )
+    """)
+
+
+def _create_app_metadata_table(conn: duckdb.DuckDBPyConnection) -> None:
+    """Create the app_metadata table."""
     conn.execute("""
         CREATE TABLE IF NOT EXISTS app_metadata (
             key VARCHAR PRIMARY KEY,
@@ -152,114 +434,88 @@ def init_db() -> None:
 
 def _create_indexes(conn: duckdb.DuckDBPyConnection) -> None:
     """Create indexes for performance optimization.
-    
+
     Args:
         conn: Active database connection.
     """
-    # Team indexes
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS idx_teams_abbreviation 
-        ON teams(abbreviation)
-    """)
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS idx_teams_conference 
-        ON teams(conference)
-    """)
-    
-    # Player indexes
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS idx_players_team_id 
-        ON players(team_id)
-    """)
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS idx_players_name 
-        ON players(last_name, first_name)
-    """)
-    
-    # Game indexes
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS idx_games_date 
-        ON games(game_date)
-    """)
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS idx_games_season 
-        ON games(season)
-    """)
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS idx_games_home_team 
-        ON games(home_team_id)
-    """)
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS idx_games_away_team 
-        ON games(away_team_id)
-    """)
-    
-    # Player game stats indexes
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS idx_stats_game_id 
-        ON player_game_stats(game_id)
-    """)
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS idx_stats_player_id 
-        ON player_game_stats(player_id)
-    """)
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS idx_stats_team_id 
-        ON player_game_stats(team_id)
-    """)
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS idx_stats_player_game 
-        ON player_game_stats(player_id, game_id)
-    """)
+    for index_name, table, columns in INDEX_CONFIG:
+        conn.execute(f"""
+            CREATE INDEX IF NOT EXISTS {index_name}
+            ON {table}({columns})
+        """)
+
+
+def init_db() -> None:
+    """Initialize database with all tables and indexes.
+
+    Creates tables matching Pydantic models if they don't exist.
+    """
+    conn = get_db_connection()
+
+    # Create tables in dependency order
+    _create_teams_table(conn)
+    _create_players_table(conn)
+    _create_seasons_table(conn)
+    _create_games_table(conn)
+    _create_player_game_stats_table(conn)
+    _create_player_season_stats_table(conn)
+    _create_player_game_logs_table(conn)
+    _create_team_season_stats_table(conn)
+    _create_awards_table(conn)
+    _create_draft_picks_table(conn)
+    _create_app_metadata_table(conn)
+
+    # Create indexes for common query patterns
+    _create_indexes(conn)
 
 
 def set_app_metadata(key: str, value: str) -> None:
     """Set or update application metadata.
-    
+
     Args:
         key: Metadata key.
         value: Metadata value.
     """
     conn = get_db_connection()
-    conn.execute("""
+    conn.execute(
+        """
         INSERT OR REPLACE INTO app_metadata (key, value, updated_at)
         VALUES (?, ?, CURRENT_TIMESTAMP)
-    """, [key, value])
+    """,
+        [key, value],
+    )
 
 
 def get_app_metadata(key: str) -> str | None:
     """Get application metadata value.
-    
+
     Args:
         key: Metadata key.
-        
+
     Returns:
         Metadata value or None if not found.
     """
     conn = get_db_connection()
-    result = conn.execute(
-        "SELECT value FROM app_metadata WHERE key = ?",
-        [key]
-    ).fetchone()
-    
+    result = conn.execute("SELECT value FROM app_metadata WHERE key = ?", [key]).fetchone()
+
     return result[0] if result else None
 
 
 def execute_query(query: str, params: list[Any] | None = None) -> list[tuple]:
     """Execute a SQL query and return results.
-    
+
     Args:
         query: SQL query string.
         params: Optional query parameters.
-        
+
     Returns:
         Query results as list of tuples.
-        
+
     Raises:
         RuntimeError: If query execution fails.
     """
     conn = get_db_connection()
-    
+
     try:
         if params:
             result = conn.execute(query, params).fetchall()
@@ -272,19 +528,19 @@ def execute_query(query: str, params: list[Any] | None = None) -> list[tuple]:
 
 def execute_command(command: str, params: list[Any] | None = None) -> int:
     """Execute a SQL command (INSERT, UPDATE, DELETE).
-    
+
     Args:
         command: SQL command string.
         params: Optional command parameters.
-        
+
     Returns:
         Number of rows affected.
-        
+
     Raises:
         RuntimeError: If command execution fails.
     """
     conn = get_db_connection()
-    
+
     try:
         if params:
             conn.execute(command, params)

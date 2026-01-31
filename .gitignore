@@ -79,3 +79,5 @@ tmp/
 temp/
 /.opencode
 /.kilocode
+/data/bball_ref.db.wal
+/planning
