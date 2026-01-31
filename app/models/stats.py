@@ -123,6 +123,14 @@ class PlayerGameStats(BaseModel):
 
         Returns:
             float | None: True shooting percentage rounded to three decimals, or `None` if both field-goal attempts and free-throw attempts are zero (calculation not feasible).
+
+        Formula verified correct per basketball-reference.com:
+            TS% = PTS / (2 * (FGA + 0.44 * FTA))
+        Where:
+            - PTS = Total points scored
+            - FGA = Field goal attempts
+            - FTA = Free throw attempts
+            - 0.44 = Coefficient accounting for non-possession-ending FTs
         """
         fga = self.fg_attempted
         fta = self.ft_attempted
@@ -133,6 +141,31 @@ class PlayerGameStats(BaseModel):
             return None
         return round(self.points / ts_attempts, 3)
 
+    # TODO: MEDIUM - Add computed fields for 2-point statistics
+    # These are commonly displayed alongside other shooting stats
+    #
+    # @computed_field
+    # @property
+    # def two_fg_made(self) -> int:
+    #     """Two-point field goals made: FG - 3P"""
+    #     return self.fg_made - self.fg3_made
+    #
+    # @computed_field
+    # @property
+    # def two_fg_attempted(self) -> int:
+    #     """Two-point field goals attempted: FGA - 3PA"""
+    #     return self.fg_attempted - self.fg3_attempted
+    #
+    # @computed_field
+    # @property
+    # def two_fg_pct(self) -> float | None:
+    #     """Two-point field goal percentage: 2P / 2PA"""
+    #     if self.two_fg_attempted == 0:
+    #         return None
+    #     return round(self.two_fg_made / self.two_fg_attempted, 3)
+    #
+    # Note: Add corresponding columns to player_game_stats table if needed
+
     @computed_field
     @property
     def plus_minus(self) -> int | None:
@@ -141,6 +174,16 @@ class PlayerGameStats(BaseModel):
 
         Returns:
             int | None: The player's plus/minus value for the game, or `None` when the statistic is not available.
+
+        TODO: HIGH - Implement plus/minus from data source
+        Issue: This currently always returns None as a placeholder
+        Options:
+          1. Fetch from NBA API PlayerGameLogs endpoint (includes PLUS_MINUS field)
+          2. Calculate from play-by-play data (if available)
+          3. Remove this computed field and use database column directly
+        Related: player_game_logs table has plus_minus column but not populated by ETL
+          - See TODO in scripts/etl_stats.py
+        Priority: MEDIUM
         """
         # This would typically come from the data source
         # Returning None as it's not in the base attributes

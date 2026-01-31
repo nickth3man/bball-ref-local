@@ -253,6 +253,16 @@ async def list_games(
 
     # Check for HTMX request
     if is_htmx_request(request):
+        # TODO: CRITICAL - Implement HTMX template for games list
+        # File: app/templates/partials/game_list.html
+        # Requirements:
+        #   - Table or card layout showing games
+        #   - Columns: Date, Home Team, Away Team, Score, Status
+        #   - Show game status indicator (scheduled/live/final)
+        #   - Link to box score: /games/{game_id}
+        #   - Pagination controls
+        #   - Support for filter display (date range, team, season)
+        # Priority: HIGH
         return HTMLResponse(
             content=f"<!-- game_list.html partial would render {len(games)} games -->"
         )
@@ -291,6 +301,15 @@ async def get_todays_games(request: Request) -> dict[str, Any] | HTMLResponse:
 
     # Check for HTMX request
     if is_htmx_request(request):
+        # TODO: CRITICAL - Implement HTMX template for today's games
+        # File: app/templates/partials/game_list.html (reuse existing)
+        # Requirements:
+        #   - Special "Today's Games" header
+        #   - Show scheduled time for upcoming games
+        #   - Show live score updates indicator
+        #   - Show final scores for completed games
+        #   - Group by game status (Live, Upcoming, Final)
+        # Priority: HIGH
         return HTMLResponse(
             content=f"<!-- game_list.html partial would render {len(games)} games for today -->"
         )
@@ -454,6 +473,17 @@ async def get_game_box_score(
 
     # Check for HTMX request
     if is_htmx_request(request):
+        # TODO: CRITICAL - Implement HTMX template for game box score
+        # File: app/templates/partials/box_score.html
+        # Requirements:
+        #   - Game header: Teams, score, date, status
+        #   - Two tables: Home team players, Away team players
+        #   - Columns: Player Name, MIN, PTS, REB (OREB+DREB), AST, STL, BLK, TO, PF, FG, 3P, FT
+        #   - Show shooting percentages (computed fields)
+        #   - Team totals row at bottom of each table
+        #   - Quarter scores (home_q1-4, away_q1-4) if available
+        # Missing Data: Quarter scores may be NULL (see TODO in etl_games.py)
+        # Priority: HIGH
         return HTMLResponse(content=f"<!-- box_score.html partial would render game {game_id} -->")
 
     return response_data

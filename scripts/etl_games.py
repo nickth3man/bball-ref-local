@@ -6,6 +6,20 @@ Usage:
     python scripts/etl_games.py --season-type Playoffs
 
 Fetches games from nba_api and inserts into DuckDB games table.
+
+TODO: MEDIUM - Missing quarter score data
+The database schema includes quarter columns (home_q1-4, away_q1-4, home_ot, away_ot)
+but they are not populated because LeagueGameFinder endpoint doesn't provide them.
+To populate:
+  1. Use BoxScore endpoint for each game (500+ API calls per season)
+  2. Use Basketball Reference CSV data via ingestion framework (recommended)
+
+TODO: MEDIUM - Missing arena and attendance data
+Database schema has arena and attendance columns but they are not populated.
+These fields are available in BoxScore endpoint.
+
+TODO: LOW - Verify is_overtime flag
+Currently hardcoded to False - see implementation below for details
 """
 
 import argparse
@@ -165,6 +179,12 @@ class GamesETL(BaseETL):
         games["season_id"] = self.season if self.season else get_current_season()
         games["season_type"] = self.season_type
         games["is_playoff"] = self.season_type == "Playoffs"
+        # TODO: MEDIUM - Fetch actual overtime data
+        # Current: is_overtime is hardcoded to False
+        # Issue: LeagueGameFinder endpoint doesn't provide quarter scores or OT flag
+        # Solution: Fetch from BoxScore endpoint for each game (expensive)
+        # Alternative: Use play-by-play data to calculate
+        # Note: Database schema has is_overtime column ready
         games["is_overtime"] = False  # Not easily available from LeagueGameFinder
         games["status"] = games.apply(
             lambda x: "Final"

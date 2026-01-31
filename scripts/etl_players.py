@@ -29,6 +29,10 @@ from scripts.retry_utils import retry_api_call
 logger = setup_etl_logging(__name__)
 
 
+# TODO: LOW - Use parse_height() helper function
+# This function is defined but never called because height data isn't fetched
+# Once player bio data is populated (see TODO in transform method), use this
+# to convert "6-6" format to centimeters for the height_cm database column
 def parse_height(height_str: str | None) -> tuple[str | None, int | None]:
     """Parse height string (e.g., '6-6') to string and cm.
 
@@ -50,6 +54,10 @@ def parse_height(height_str: str | None) -> tuple[str | None, int | None]:
         return None, None
 
 
+# TODO: LOW - Use parse_birth_date() helper function
+# This function is defined but never called because birth_date isn't fetched
+# Once player bio data is populated (see TODO in transform method), use this
+# to convert various date formats to Python date objects
 def parse_birth_date(date_str: str | None) -> date | None:
     """Parse birth date string.
 
@@ -158,6 +166,27 @@ class PlayersETL(BaseETL):
         if "active" in df.columns:
             df["active"] = df["active"] == "Y"
 
+        # TODO: HIGH - Populate player bio fields from NBA API
+        # Current implementation: All bio fields are NULL/placeholder
+        # Issue: CommonAllPlayers endpoint doesn't include detailed bio information
+        #
+        # Missing Fields (all currently NULL):
+        #   Physical: position, jersey_number, height, height_cm, weight, weight_kg
+        #   Birth: birth_date, birth_place, birth_country, country
+        #   Draft: draft_round, draft_number, draft_team_id
+        #   Other: college, shoots, hall_of_fame
+        #
+        # Potential Solutions:
+        #   1. Fetch CommonPlayerInfo endpoint for each player (expensive - 5000+ API calls)
+        #   2. Use Basketball Reference CSV data via ingestion framework (recommended)
+        #   3. Fetch active roster only from CommonTeamRoster endpoint (limited data)
+        #
+        # Related Code:
+        #   - Helper functions parse_height() and parse_birth_date() defined but unused
+        #   - Database schema has all columns ready in app/services/database.py
+        #   - Player model expects these fields in app/models/player.py
+        #
+        # Priority: HIGH - Required for complete player profiles
         # Add missing fields that aren't in CommonAllPlayers
         # For a full implementation, we'd need to fetch CommonPlayerInfo for each player
         # but that would be too many API calls. We'll use placeholders.
