@@ -549,3 +549,236 @@ def execute_command(command: str, params: list[Any] | None = None) -> int:
         return conn.rowcount if conn.rowcount is not None else 0
     except Exception as e:
         raise RuntimeError(f"Command execution failed: {e}") from e
+
+
+# =============================================================================
+# Batch Operations and Advanced Utilities
+# =============================================================================
+
+from contextlib import contextmanager
+
+
+def get_optimized_connection(threads: int = 4, memory_limit: str = "1GB"):
+    """Get database connection optimized for bulk operations.
+
+    Args:
+        threads: Number of threads for parallel operations.
+        memory_limit: Memory limit for the connection.
+
+    Returns:
+        Optimized DuckDB connection.
+    """
+    conn = get_db_connection()
+    conn.execute(f"SET threads={threads}")
+    conn.execute(f"SET memory_limit = '{memory_limit}'")
+    return conn
+
+
+@contextmanager
+def transaction():
+    """Context manager for database transactions.
+
+    Automatically handles BEGIN, COMMIT, and ROLLBACK.
+
+    Example:
+        >>> with transaction() as conn:
+        ...     conn.execute("INSERT INTO table VALUES (?)", [value])
+    """
+    conn = get_db_connection()
+    try:
+        conn.execute("BEGIN TRANSACTION")
+        yield conn
+        conn.execute("COMMIT")
+    except Exception:
+        conn.execute("ROLLBACK")
+        raise
+
+
+def execute_many(query: str, values: list[tuple], batch_size: int = 1000) -> int:
+    """Execute INSERT with batching for large datasets.
+
+    Args:
+        query: SQL INSERT query with placeholders.
+        values: List of tuples with values to insert.
+        batch_size: Number of rows per batch.
+
+    Returns:
+        Total number of rows inserted.
+
+    Raises:
+        RuntimeError: If bulk insert fails.
+    """
+    if not values:
+        return 0
+
+    conn = get_db_connection()
+    total_inserted = 0
+
+    try:
+        for i in range(0, len(values), batch_size):
+            batch = values[i : i + batch_size]
+            conn.executemany(query, batch)
+            total_inserted += len(batch)
+        return total_inserted
+    except Exception as e:
+        raise RuntimeError(f"Bulk insert failed after {total_inserted} rows: {e}") from e
+
+
+def insert_dataframe(df: "pd.DataFrame", table_name: str, batch_size: int = 1000) -> int:
+    """Insert a pandas DataFrame into a database table.
+
+    Args:
+        df: DataFrame to insert.
+        table_name: Target table name.
+        batch_size: Number of rows per batch for large DataFrames.
+
+    Returns:
+        Number of rows inserted.
+
+    Raises:
+        RuntimeError: If insert fails.
+    """
+    import pandas as pd
+
+    if df.empty:
+        return 0
+
+    conn = get_db_connection()
+
+    try:
+        if len(df) <= batch_size:
+            conn.execute(f"INSERT INTO {table_name} SELECT * FROM df")
+            return len(df)
+
+        total_inserted = 0
+        for i in range(0, len(df), batch_size):
+            chunk = df.iloc[i : i + batch_size]
+            conn.execute(f"INSERT INTO {table_name} SELECT * FROM chunk")
+            total_inserted += len(chunk)
+        return total_inserted
+    except Exception as e:
+        raise RuntimeError(f"Failed to insert DataFrame into {table_name}: {e}") from e
+
+
+def table_exists(table_name: str) -> bool:
+    """Check if a table exists in the database.
+
+    Args:
+        table_name: Name of the table to check.
+
+    Returns:
+        True if table exists, False otherwise.
+    """
+    conn = get_db_connection()
+    try:
+        result = conn.execute(
+            "SELECT COUNT(*) FROM information_schema.tables WHERE table_name = ?",
+            [table_name],
+        ).fetchone()
+        return result[0] > 0 if result else False
+    except Exception:
+        return False
+
+
+def get_row_count(table_name: str) -> int:
+    """Get the row count of a table.
+
+    Args:
+        table_name: Name of the table.
+
+    Returns:
+        Number of rows in the table.
+
+    Raises:
+        RuntimeError: If query fails.
+    """
+    conn = get_db_connection()
+    try:
+        result = conn.execute(f"SELECT COUNT(*) FROM {table_name}").fetchone()
+        return result[0] if result else 0
+    except Exception as e:
+        raise RuntimeError(f"Failed to get row count for {table_name}: {e}") from e
+
+
+def truncate_table(table_name: str) -> None:
+    """Safely truncate a table (delete all rows).
+
+    Args:
+        table_name: Name of the table to truncate.
+
+    Raises:
+        RuntimeError: If truncate fails.
+    """
+    conn = get_db_connection()
+    try:
+        conn.execute(f"DELETE FROM {table_name}")
+    except Exception as e:
+        raise RuntimeError(f"Failed to truncate table {table_name}: {e}") from e
+
+
+def create_temp_table(table_name: str, schema: str) -> str:
+    """Create temporary table for staging data.
+
+    Args:
+        table_name: Base name for the temp table.
+        schema: SQL schema definition (e.g., "id INTEGER, name VARCHAR").
+
+    Returns:
+        Name of the created temp table.
+
+    Raises:
+        RuntimeError: If creation fails.
+    """
+    temp_table_name = f"{table_name}_temp"
+    conn = get_db_connection()
+
+    try:
+        conn.execute(f"DROP TABLE IF EXISTS {temp_table_name}")
+        conn.execute(f"CREATE TABLE {temp_table_name} ({schema})")
+        return temp_table_name
+    except Exception as e:
+        raise RuntimeError(f"Failed to create temporary table {temp_table_name}: {e}") from e
+
+
+def swap_tables(temp_table: str, production_table: str) -> None:
+    """Atomic swap for zero-downtime table updates.
+
+    Args:
+        temp_table: Temporary table with new data.
+        production_table: Production table to replace.
+
+    Raises:
+        RuntimeError: If swap fails.
+    """
+    backup_table = f"{production_table}_backup"
+    conn = get_db_connection()
+
+    try:
+        conn.execute("BEGIN TRANSACTION")
+        conn.execute(f"DROP TABLE IF EXISTS {backup_table}")
+        conn.execute(f"ALTER TABLE {production_table} RENAME TO {backup_table}")
+        conn.execute(f"ALTER TABLE {temp_table} RENAME TO {production_table}")
+        conn.execute("COMMIT")
+    except Exception:
+        conn.execute("ROLLBACK")
+        raise RuntimeError(f"Failed to swap tables {temp_table} -> {production_table}")
+
+
+def execute_sql_file(file_path: Path | str) -> None:
+    """Execute SQL statements from a file.
+
+    Args:
+        file_path: Path to SQL file.
+
+    Raises:
+        RuntimeError: If execution fails.
+    """
+    conn = get_db_connection()
+    file_path = Path(file_path)
+
+    try:
+        with open(file_path) as f:
+            sql = f.read()
+        conn.execute(sql)
+    except Exception as e:
+        raise RuntimeError(f"Failed to execute SQL file {file_path}: {e}") from e

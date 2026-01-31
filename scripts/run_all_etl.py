@@ -10,7 +10,6 @@ Provides error handling and summary report.
 """
 
 import argparse
-import logging
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
@@ -27,14 +26,10 @@ from scripts.etl_stats import run_etl as run_stats_etl
 
 # Import ETL modules
 from scripts.etl_teams import run_etl as run_teams_etl
+from scripts.logging_utils import enable_verbose_logging, log_stage, setup_etl_logging
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
-logger = logging.getLogger(__name__)
+# Configure logging using unified system
+logger = setup_etl_logging(__name__)
 
 
 def run_etl_pipeline(
@@ -277,7 +272,7 @@ Examples:
     args = parser.parse_args()
 
     if args.verbose:
-        logging.getLogger().setLevel(logging.DEBUG)
+        enable_verbose_logging()
 
     # Validate that not all steps are skipped
     if all([args.skip_teams, args.skip_players, args.skip_games, args.skip_stats]):

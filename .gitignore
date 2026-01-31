@@ -80,4 +80,5 @@ temp/
 /.opencode
 /.kilocode
 /data/bball_ref.db.wal
-/planning
+# Planning directory - ignore files over 100MB
+/planning/**/PlayerStatistics.csv
