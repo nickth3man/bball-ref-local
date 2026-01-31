@@ -128,7 +128,7 @@ def _create_players_table(conn: duckdb.DuckDBPyConnection) -> None:
             first_name VARCHAR NOT NULL,
             last_name VARCHAR NOT NULL,
             full_name VARCHAR NOT NULL,
-            team_id VARCHAR NOT NULL,
+            team_id VARCHAR,
             position VARCHAR,
             jersey_number INTEGER,
             height VARCHAR(5),
@@ -233,23 +233,10 @@ def _create_player_game_stats_table(conn: duckdb.DuckDBPyConnection) -> None:
 
 
 def _create_seasons_table(conn: duckdb.DuckDBPyConnection) -> None:
-    """Create the seasons table.
+    """Create and populate the seasons table.
 
-    TODO: Populate seasons data in init_db.py or via helper function.
-    This table stores NBA season metadata and can be populated programmatically.
-
-    Data to include:
-      - All NBA seasons from 1946-47 to present
-      - season_id (e.g., "2023-24")
-      - year_start, year_end
-      - display_name (e.g., "2023-24 NBA Season")
-
-    Implementation approach:
-      1. Generate seasons programmatically (1946-47 to current)
-      2. Insert into this table during database initialization
-
-    Note: This is a prerequisite for other tables that reference season_id.
-          No separate ETL script needed - simple static data generation.
+    This table stores NBA season metadata and is populated programmatically
+    with all NBA seasons from 1946-47 to the current season.
     """
     conn.execute("""
         CREATE TABLE IF NOT EXISTS seasons (
@@ -260,6 +247,27 @@ def _create_seasons_table(conn: duckdb.DuckDBPyConnection) -> None:
             display_name VARCHAR
         )
     """)
+
+    # Populate seasons data from 1946-47 to current + 1
+    from datetime import datetime
+
+    current_year = datetime.now().year + 1
+    seasons_data = []
+
+    for start_year in range(1946, current_year + 1):
+        end_year = start_year + 1
+        season_id = f"{start_year}-{str(end_year)[-2:]}"
+        display_name = f"{season_id} NBA Season"
+        seasons_data.append((season_id, start_year, end_year, "NBA", display_name))
+
+    # Insert seasons data, ignoring duplicates
+    conn.executemany(
+        """
+        INSERT OR IGNORE INTO seasons (season_id, year_start, year_end, league, display_name)
+        VALUES (?, ?, ?, ?, ?)
+        """,
+        seasons_data,
+    )
 
 
 def _create_player_season_stats_table(conn: duckdb.DuckDBPyConnection) -> None:
