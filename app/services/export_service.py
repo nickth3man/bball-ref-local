@@ -7,6 +7,7 @@ in CSV and JSON formats.
 import csv
 import io
 import json
+import re
 from datetime import date, datetime
 from typing import Any, Protocol
 
@@ -49,6 +50,21 @@ def _format_value(value: Any) -> str:
     return str(value)
 
 
+def _sanitize_filename(filename: str) -> str:
+    """Sanitize a filename to prevent header injection.
+
+    Strips unsafe characters, allowing only alphanumerics, hyphens,
+    underscores, and dots.
+
+    Args:
+        filename: The raw filename string.
+
+    Returns:
+        Sanitized filename safe for use in Content-Disposition headers.
+    """
+    return re.sub(r"[^a-zA-Z0-9_\-.]", "", filename)
+
+
 def _build_csv_response(data: list[dict[str, Any]], filename: str) -> Response:
     """Build a CSV response from data.
 
@@ -80,10 +96,11 @@ def _build_csv_response(data: list[dict[str, Any]], filename: str) -> Response:
     csv_content = output.getvalue()
     csv_bytes = csv_content.encode("utf-8-sig")  # utf-8-sig adds BOM
 
+    safe_filename = _sanitize_filename(filename)
     return Response(
         content=csv_bytes,
         media_type="text/csv; charset=utf-8",
-        headers={"Content-Disposition": f"attachment; filename={filename}.csv"},
+        headers={"Content-Disposition": f'attachment; filename="{safe_filename}.csv"'},
     )
 
 
@@ -102,10 +119,11 @@ def _build_json_response(data: list[dict[str, Any]], filename: str) -> Response:
 
     json_content = json.dumps(data, cls=DecimalEncoder, indent=2)
 
+    safe_filename = _sanitize_filename(filename)
     return Response(
         content=json_content,
         media_type="application/json",
-        headers={"Content-Disposition": f"attachment; filename={filename}.json"},
+        headers={"Content-Disposition": f'attachment; filename="{safe_filename}.json"'},
     )
 
 

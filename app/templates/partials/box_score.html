@@ -1,4 +1,82 @@
 {# Box Score Partial - Full game box score #}
+
+{% macro team_stats_table(team, stats, totals, accent_color) %}
+<div class="bg-white dark:bg-bball-gray rounded-xl shadow-lg overflow-hidden">
+    <div class="px-6 py-3 bg-{{ accent_color }}-500/10 dark:bg-{{ accent_color }}-900/20 border-b dark:border-gray-700">
+        <h3 class="font-bold text-gray-900 dark:text-white flex items-center">
+            <i class="ph ph-shield mr-2 text-{{ accent_color }}-500"></i>
+            {{ team.display_name }}
+        </h3>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="w-full text-xs">
+            <thead>
+                <tr class="bg-gray-50 dark:bg-gray-800 text-left">
+                    <th class="px-3 py-2 font-semibold text-gray-700 dark:text-gray-300">Player</th>
+                    <th class="px-3 py-2 font-semibold text-gray-700 dark:text-gray-300 text-center">MIN</th>
+                    <th class="px-3 py-2 font-semibold text-nba-blue text-center">PTS</th>
+                    <th class="px-3 py-2 font-semibold text-gray-700 dark:text-gray-300 text-center">REB</th>
+                    <th class="px-3 py-2 font-semibold text-gray-700 dark:text-gray-300 text-center">AST</th>
+                    <th class="px-3 py-2 font-semibold text-gray-700 dark:text-gray-300 text-center">STL</th>
+                    <th class="px-3 py-2 font-semibold text-gray-700 dark:text-gray-300 text-center">BLK</th>
+                    <th class="px-3 py-2 font-semibold text-gray-700 dark:text-gray-300 text-center">FG</th>
+                    <th class="px-3 py-2 font-semibold text-gray-700 dark:text-gray-300 text-center">3P</th>
+                    <th class="px-3 py-2 font-semibold text-gray-700 dark:text-gray-300 text-center">FT</th>
+                    <th class="px-3 py-2 font-semibold text-gray-700 dark:text-gray-300 text-center">+/-</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y dark:divide-gray-700">
+                {% for stat in stats %}
+                <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                    <td class="px-3 py-2">
+                        <a href="/players/{{ stat.player_id }}" class="font-medium text-gray-900 dark:text-white hover:text-nba-blue transition-colors">
+                            {{ stat.player.full_name }}
+                        </a>
+                        <span class="text-xs text-gray-500 dark:text-gray-400 ml-1">{{ stat.player.position }}</span>
+                    </td>
+                    <td class="px-3 py-2 text-center text-gray-700 dark:text-gray-300">{{ stat.minutes_played }}</td>
+                    <td class="px-3 py-2 text-center font-bold text-nba-blue">{{ stat.points }}</td>
+                    <td class="px-3 py-2 text-center text-gray-700 dark:text-gray-300">{{ stat.rebounds_total }}</td>
+                    <td class="px-3 py-2 text-center text-gray-700 dark:text-gray-300">{{ stat.assists }}</td>
+                    <td class="px-3 py-2 text-center text-gray-700 dark:text-gray-300">{{ stat.steals }}</td>
+                    <td class="px-3 py-2 text-center text-gray-700 dark:text-gray-300">{{ stat.blocks }}</td>
+                    <td class="px-3 py-2 text-center text-gray-700 dark:text-gray-300">{{ stat.fg_made }}-{{ stat.fg_attempted }}</td>
+                    <td class="px-3 py-2 text-center text-gray-700 dark:text-gray-300">{{ stat.fg3_made }}-{{ stat.fg3_attempted }}</td>
+                    <td class="px-3 py-2 text-center text-gray-700 dark:text-gray-300">{{ stat.ft_made }}-{{ stat.ft_attempted }}</td>
+                    <td class="px-3 py-2 text-center">
+                        {% if stat.plus_minus is not none %}
+                            {% if stat.plus_minus > 0 %}
+                            <span class="text-green-600 dark:text-green-400 font-medium">+{{ stat.plus_minus }}</span>
+                            {% elif stat.plus_minus < 0 %}
+                            <span class="text-red-600 dark:text-red-400 font-medium">{{ stat.plus_minus }}</span>
+                            {% else %}
+                            <span class="text-gray-600 dark:text-gray-400">0</span>
+                            {% endif %}
+                        {% else %}
+                        <span class="text-gray-400 dark:text-gray-600">-</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+                <tr class="bg-gray-100 dark:bg-gray-800 font-semibold border-t-2 dark:border-gray-600">
+                    <td class="px-3 py-2 text-gray-900 dark:text-white">Team Totals</td>
+                    <td class="px-3 py-2 text-center text-gray-700 dark:text-gray-300">{{ totals.minutes }}</td>
+                    <td class="px-3 py-2 text-center text-nba-blue">{{ totals.points }}</td>
+                    <td class="px-3 py-2 text-center text-gray-700 dark:text-gray-300">{{ totals.rebounds }}</td>
+                    <td class="px-3 py-2 text-center text-gray-700 dark:text-gray-300">{{ totals.assists }}</td>
+                    <td class="px-3 py-2 text-center text-gray-700 dark:text-gray-300">{{ totals.steals }}</td>
+                    <td class="px-3 py-2 text-center text-gray-700 dark:text-gray-300">{{ totals.blocks }}</td>
+                    <td class="px-3 py-2 text-center text-gray-700 dark:text-gray-300">{{ totals.fg_made }}-{{ totals.fg_attempted }}</td>
+                    <td class="px-3 py-2 text-center text-gray-700 dark:text-gray-300">{{ totals.fg3_made }}-{{ totals.fg3_attempted }}</td>
+                    <td class="px-3 py-2 text-center text-gray-700 dark:text-gray-300">{{ totals.ft_made }}-{{ totals.ft_attempted }}</td>
+                    <td class="px-3 py-2 text-center text-gray-700 dark:text-gray-300">-</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endmacro %}
+
 <div id="box-score" class="space-y-6">
     {# Game Header #}
     <div class="bg-white dark:bg-bball-gray rounded-xl shadow-lg overflow-hidden">
@@ -41,6 +119,7 @@
         
         {# Quarter Scores #}
         {% if quarter_scores %}
+        {% set has_ot = quarter_scores.home.OT or quarter_scores.away.OT %}
         <div class="px-6 py-4 bg-gray-50 dark:bg-gray-800 border-b dark:border-gray-700">
             <table class="w-full text-sm">
                 <thead>
@@ -50,7 +129,7 @@
                         <th class="text-center py-2">2nd</th>
                         <th class="text-center py-2">3rd</th>
                         <th class="text-center py-2">4th</th>
-                        {% if quarter_scores.home.OT %}
+                        {% if has_ot %}
                         <th class="text-center py-2">OT</th>
                         {% endif %}
                         <th class="text-center py-2 font-bold">Total</th>
@@ -63,8 +142,8 @@
                         <td class="text-center py-2 text-gray-700 dark:text-gray-300">{{ quarter_scores.home.Q2 or 0 }}</td>
                         <td class="text-center py-2 text-gray-700 dark:text-gray-300">{{ quarter_scores.home.Q3 or 0 }}</td>
                         <td class="text-center py-2 text-gray-700 dark:text-gray-300">{{ quarter_scores.home.Q4 or 0 }}</td>
-                        {% if quarter_scores.home.OT %}
-                        <td class="text-center py-2 text-gray-700 dark:text-gray-300">{{ quarter_scores.home.OT }}</td>
+                        {% if has_ot %}
+                        <td class="text-center py-2 text-gray-700 dark:text-gray-300">{{ quarter_scores.home.OT or 0 }}</td>
                         {% endif %}
                         <td class="text-center py-2 font-bold text-nba-blue">{{ game.home_score }}</td>
                     </tr>
@@ -74,8 +153,8 @@
                         <td class="text-center py-2 text-gray-700 dark:text-gray-300">{{ quarter_scores.away.Q2 or 0 }}</td>
                         <td class="text-center py-2 text-gray-700 dark:text-gray-300">{{ quarter_scores.away.Q3 or 0 }}</td>
                         <td class="text-center py-2 text-gray-700 dark:text-gray-300">{{ quarter_scores.away.Q4 or 0 }}</td>
-                        {% if quarter_scores.away.OT %}
-                        <td class="text-center py-2 text-gray-700 dark:text-gray-300">{{ quarter_scores.away.OT }}</td>
+                        {% if has_ot %}
+                        <td class="text-center py-2 text-gray-700 dark:text-gray-300">{{ quarter_scores.away.OT or 0 }}</td>
                         {% endif %}
                         <td class="text-center py-2 font-bold text-nba-blue">{{ game.away_score }}</td>
                     </tr>
@@ -86,154 +165,8 @@
     </div>
     
     {# Home Team Stats #}
-    <div class="bg-white dark:bg-bball-gray rounded-xl shadow-lg overflow-hidden">
-        <div class="px-6 py-3 bg-blue-500/10 dark:bg-blue-900/20 border-b dark:border-gray-700">
-            <h3 class="font-bold text-gray-900 dark:text-white flex items-center">
-                <i class="ph ph-shield mr-2 text-blue-500"></i>
-                {{ game.home_team.display_name }}
-            </h3>
-        </div>
-        <div class="overflow-x-auto">
-            <table class="w-full text-xs">
-                <thead>
-                    <tr class="bg-gray-50 dark:bg-gray-800 text-left">
-                        <th class="px-3 py-2 font-semibold text-gray-700 dark:text-gray-300">Player</th>
-                        <th class="px-3 py-2 font-semibold text-gray-700 dark:text-gray-300 text-center">MIN</th>
-                        <th class="px-3 py-2 font-semibold text-nba-blue text-center">PTS</th>
-                        <th class="px-3 py-2 font-semibold text-gray-700 dark:text-gray-300 text-center">REB</th>
-                        <th class="px-3 py-2 font-semibold text-gray-700 dark:text-gray-300 text-center">AST</th>
-                        <th class="px-3 py-2 font-semibold text-gray-700 dark:text-gray-300 text-center">STL</th>
-                        <th class="px-3 py-2 font-semibold text-gray-700 dark:text-gray-300 text-center">BLK</th>
-                        <th class="px-3 py-2 font-semibold text-gray-700 dark:text-gray-300 text-center">FG</th>
-                        <th class="px-3 py-2 font-semibold text-gray-700 dark:text-gray-300 text-center">3P</th>
-                        <th class="px-3 py-2 font-semibold text-gray-700 dark:text-gray-300 text-center">FT</th>
-                        <th class="px-3 py-2 font-semibold text-gray-700 dark:text-gray-300 text-center">+/-</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y dark:divide-gray-700">
-                    {% for stat in home_stats %}
-                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
-                        <td class="px-3 py-2">
-                            <a href="/players/{{ stat.player_id }}" class="font-medium text-gray-900 dark:text-white hover:text-nba-blue transition-colors">
-                                {{ stat.player.full_name }}
-                            </a>
-                            <span class="text-xs text-gray-500 dark:text-gray-400 ml-1">{{ stat.player.position }}</span>
-                        </td>
-                        <td class="px-3 py-2 text-center text-gray-700 dark:text-gray-300">{{ stat.minutes_played }}</td>
-                        <td class="px-3 py-2 text-center font-bold text-nba-blue">{{ stat.points }}</td>
-                        <td class="px-3 py-2 text-center text-gray-700 dark:text-gray-300">{{ stat.rebounds_total }}</td>
-                        <td class="px-3 py-2 text-center text-gray-700 dark:text-gray-300">{{ stat.assists }}</td>
-                        <td class="px-3 py-2 text-center text-gray-700 dark:text-gray-300">{{ stat.steals }}</td>
-                        <td class="px-3 py-2 text-center text-gray-700 dark:text-gray-300">{{ stat.blocks }}</td>
-                        <td class="px-3 py-2 text-center text-gray-700 dark:text-gray-300">{{ stat.fg_made }}-{{ stat.fg_attempted }}</td>
-                        <td class="px-3 py-2 text-center text-gray-700 dark:text-gray-300">{{ stat.fg3_made }}-{{ stat.fg3_attempted }}</td>
-                        <td class="px-3 py-2 text-center text-gray-700 dark:text-gray-300">{{ stat.ft_made }}-{{ stat.ft_attempted }}</td>
-                        <td class="px-3 py-2 text-center">
-                            {% if stat.plus_minus is not none %}
-                                {% if stat.plus_minus > 0 %}
-                                <span class="text-green-600 dark:text-green-400 font-medium">+{{ stat.plus_minus }}</span>
-                                {% elif stat.plus_minus < 0 %}
-                                <span class="text-red-600 dark:text-red-400 font-medium">{{ stat.plus_minus }}</span>
-                                {% else %}
-                                <span class="text-gray-600 dark:text-gray-400">0</span>
-                                {% endif %}
-                            {% else %}
-                            <span class="text-gray-400 dark:text-gray-600">-</span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                    <tr class="bg-gray-100 dark:bg-gray-800 font-semibold border-t-2 dark:border-gray-600">
-                        <td class="px-3 py-2 text-gray-900 dark:text-white">Team Totals</td>
-                        <td class="px-3 py-2 text-center text-gray-700 dark:text-gray-300">{{ home_totals.minutes }}</td>
-                        <td class="px-3 py-2 text-center text-nba-blue">{{ home_totals.points }}</td>
-                        <td class="px-3 py-2 text-center text-gray-700 dark:text-gray-300">{{ home_totals.rebounds }}</td>
-                        <td class="px-3 py-2 text-center text-gray-700 dark:text-gray-300">{{ home_totals.assists }}</td>
-                        <td class="px-3 py-2 text-center text-gray-700 dark:text-gray-300">{{ home_totals.steals }}</td>
-                        <td class="px-3 py-2 text-center text-gray-700 dark:text-gray-300">{{ home_totals.blocks }}</td>
-                        <td class="px-3 py-2 text-center text-gray-700 dark:text-gray-300">{{ home_totals.fg_made }}-{{ home_totals.fg_attempted }}</td>
-                        <td class="px-3 py-2 text-center text-gray-700 dark:text-gray-300">{{ home_totals.fg3_made }}-{{ home_totals.fg3_attempted }}</td>
-                        <td class="px-3 py-2 text-center text-gray-700 dark:text-gray-300">{{ home_totals.ft_made }}-{{ home_totals.ft_attempted }}</td>
-                        <td class="px-3 py-2 text-center text-gray-700 dark:text-gray-300">-</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
-    
+    {{ team_stats_table(game.home_team, home_stats, home_totals, "blue") }}
+
     {# Away Team Stats #}
-    <div class="bg-white dark:bg-bball-gray rounded-xl shadow-lg overflow-hidden">
-        <div class="px-6 py-3 bg-red-500/10 dark:bg-red-900/20 border-b dark:border-gray-700">
-            <h3 class="font-bold text-gray-900 dark:text-white flex items-center">
-                <i class="ph ph-shield mr-2 text-red-500"></i>
-                {{ game.away_team.display_name }}
-            </h3>
-        </div>
-        <div class="overflow-x-auto">
-            <table class="w-full text-xs">
-                <thead>
-                    <tr class="bg-gray-50 dark:bg-gray-800 text-left">
-                        <th class="px-3 py-2 font-semibold text-gray-700 dark:text-gray-300">Player</th>
-                        <th class="px-3 py-2 font-semibold text-gray-700 dark:text-gray-300 text-center">MIN</th>
-                        <th class="px-3 py-2 font-semibold text-nba-blue text-center">PTS</th>
-                        <th class="px-3 py-2 font-semibold text-gray-700 dark:text-gray-300 text-center">REB</th>
-                        <th class="px-3 py-2 font-semibold text-gray-700 dark:text-gray-300 text-center">AST</th>
-                        <th class="px-3 py-2 font-semibold text-gray-700 dark:text-gray-300 text-center">STL</th>
-                        <th class="px-3 py-2 font-semibold text-gray-700 dark:text-gray-300 text-center">BLK</th>
-                        <th class="px-3 py-2 font-semibold text-gray-700 dark:text-gray-300 text-center">FG</th>
-                        <th class="px-3 py-2 font-semibold text-gray-700 dark:text-gray-300 text-center">3P</th>
-                        <th class="px-3 py-2 font-semibold text-gray-700 dark:text-gray-300 text-center">FT</th>
-                        <th class="px-3 py-2 font-semibold text-gray-700 dark:text-gray-300 text-center">+/-</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y dark:divide-gray-700">
-                    {% for stat in away_stats %}
-                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
-                        <td class="px-3 py-2">
-                            <a href="/players/{{ stat.player_id }}" class="font-medium text-gray-900 dark:text-white hover:text-nba-blue transition-colors">
-                                {{ stat.player.full_name }}
-                            </a>
-                            <span class="text-xs text-gray-500 dark:text-gray-400 ml-1">{{ stat.player.position }}</span>
-                        </td>
-                        <td class="px-3 py-2 text-center text-gray-700 dark:text-gray-300">{{ stat.minutes_played }}</td>
-                        <td class="px-3 py-2 text-center font-bold text-nba-blue">{{ stat.points }}</td>
-                        <td class="px-3 py-2 text-center text-gray-700 dark:text-gray-300">{{ stat.rebounds_total }}</td>
-                        <td class="px-3 py-2 text-center text-gray-700 dark:text-gray-300">{{ stat.assists }}</td>
-                        <td class="px-3 py-2 text-center text-gray-700 dark:text-gray-300">{{ stat.steals }}</td>
-                        <td class="px-3 py-2 text-center text-gray-700 dark:text-gray-300">{{ stat.blocks }}</td>
-                        <td class="px-3 py-2 text-center text-gray-700 dark:text-gray-300">{{ stat.fg_made }}-{{ stat.fg_attempted }}</td>
-                        <td class="px-3 py-2 text-center text-gray-700 dark:text-gray-300">{{ stat.fg3_made }}-{{ stat.fg3_attempted }}</td>
-                        <td class="px-3 py-2 text-center text-gray-700 dark:text-gray-300">{{ stat.ft_made }}-{{ stat.ft_attempted }}</td>
-                        <td class="px-3 py-2 text-center">
-                            {% if stat.plus_minus is not none %}
-                                {% if stat.plus_minus > 0 %}
-                                <span class="text-green-600 dark:text-green-400 font-medium">+{{ stat.plus_minus }}</span>
-                                {% elif stat.plus_minus < 0 %}
-                                <span class="text-red-600 dark:text-red-400 font-medium">{{ stat.plus_minus }}</span>
-                                {% else %}
-                                <span class="text-gray-600 dark:text-gray-400">0</span>
-                                {% endif %}
-                            {% else %}
-                            <span class="text-gray-400 dark:text-gray-600">-</span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                    <tr class="bg-gray-100 dark:bg-gray-800 font-semibold border-t-2 dark:border-gray-600">
-                        <td class="px-3 py-2 text-gray-900 dark:text-white">Team Totals</td>
-                        <td class="px-3 py-2 text-center text-gray-700 dark:text-gray-300">{{ away_totals.minutes }}</td>
-                        <td class="px-3 py-2 text-center text-nba-blue">{{ away_totals.points }}</td>
-                        <td class="px-3 py-2 text-center text-gray-700 dark:text-gray-300">{{ away_totals.rebounds }}</td>
-                        <td class="px-3 py-2 text-center text-gray-700 dark:text-gray-300">{{ away_totals.assists }}</td>
-                        <td class="px-3 py-2 text-center text-gray-700 dark:text-gray-300">{{ away_totals.steals }}</td>
-                        <td class="px-3 py-2 text-center text-gray-700 dark:text-gray-300">{{ away_totals.blocks }}</td>
-                        <td class="px-3 py-2 text-center text-gray-700 dark:text-gray-300">{{ away_totals.fg_made }}-{{ away_totals.fg_attempted }}</td>
-                        <td class="px-3 py-2 text-center text-gray-700 dark:text-gray-300">{{ away_totals.fg3_made }}-{{ away_totals.fg3_attempted }}</td>
-                        <td class="px-3 py-2 text-center text-gray-700 dark:text-gray-300">{{ away_totals.ft_made }}-{{ away_totals.ft_attempted }}</td>
-                        <td class="px-3 py-2 text-center text-gray-700 dark:text-gray-300">-</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
+    {{ team_stats_table(game.away_team, away_stats, away_totals, "red") }}
 </div>
